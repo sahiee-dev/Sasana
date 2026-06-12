@@ -8,34 +8,12 @@
   "keywords": ["audit", "security", "compliance", "tamper-evident", "soc2", "hipaa"],
   "entrypoint": "sasana_skill_entry.py",
   "class": "SasanaSkillEntry",
-  "permissions": [
-    "session.read",
-    "filesystem.write"
-  ],
-  "hooks": [
-    "session.start",
-    "session.end",
-    "llm.call",
-    "llm.response",
-    "tool.invoke",
-    "tool.result",
-    "tool.error"
-  ],
+  "permissions": ["session.read", "filesystem.write"],
+  "hooks": ["session.start", "session.end", "llm.call", "llm.response", "tool.invoke", "tool.result", "tool.error"],
   "config": {
-    "output_dir": {
-      "type": "string",
-      "default": "~/.openclaw/sasana/",
-      "description": "Directory where session JSONL files are written"
-    },
-    "buffer_size": {
-      "type": "integer",
-      "default": 1000
-    },
-    "server_url": {
-      "type": "string",
-      "default": null,
-      "description": "Optional Sasana ingestion server URL for AUTHORITATIVE_EVIDENCE mode"
-    }
+    "output_dir": {"type": "string", "default": "~/.openclaw/sasana/"},
+    "buffer_size": {"type": "integer", "default": 1000},
+    "server_url": {"type": "string", "default": null}
   },
   "privacy": {
     "stores_content": false,

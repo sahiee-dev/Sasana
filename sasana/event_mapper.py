@@ -31,15 +31,12 @@ def map_session_start(oc_event: dict) -> tuple[str, dict]:
         "tags": oc_event.get("tags", []),
         "agent_role": "autonomous" if oc_event.get("autonomy_mode") else "interactive",
     }
-    payload = {k: v for k, v in payload.items() if v is not None}
-    return "SESSION_START", payload
+    return "SESSION_START", {k: v for k, v in payload.items() if v is not None}
 
 
 def map_session_end(oc_event: dict) -> tuple[str, dict]:
     status = oc_event.get("status", "success")
-    if status not in ("success", "error"):
-        status = "success"
-    return "SESSION_END", {"status": status}
+    return "SESSION_END", {"status": status if status in ("success", "error") else "success"}
 
 
 def map_llm_call(oc_event: dict) -> tuple[str, dict]:
@@ -60,9 +57,9 @@ def map_llm_response(oc_event: dict) -> tuple[str, dict]:
         "finish_reason": oc_event.get("finish_reason", "stop"),
     }
     if oc_event.get("usage"):
-        usage = oc_event["usage"]
-        payload["prompt_tokens"] = usage.get("prompt_tokens") or usage.get("input_tokens")
-        payload["completion_tokens"] = usage.get("completion_tokens") or usage.get("output_tokens")
+        u = oc_event["usage"]
+        payload["prompt_tokens"] = u.get("prompt_tokens") or u.get("input_tokens")
+        payload["completion_tokens"] = u.get("completion_tokens") or u.get("output_tokens")
         payload = {k: v for k, v in payload.items() if v is not None}
     return "LLM_RESPONSE", payload
 
@@ -92,28 +89,21 @@ def map_tool_error(oc_event: dict) -> tuple[str, dict]:
 
 
 _WS_DISPATCH: dict[str, Any] = {
-    "session.start":   map_session_start,
-    "session.end":     map_session_end,
-    "llm.call":        map_llm_call,
-    "llm.response":    map_llm_response,
-    "tool.invoke":     map_tool_invoke,
-    "tool.result":     map_tool_result,
-    "tool.error":      map_tool_error,
+    "session.start": map_session_start, "session.end": map_session_end,
+    "llm.call": map_llm_call, "llm.response": map_llm_response,
+    "tool.invoke": map_tool_invoke, "tool.result": map_tool_result,
+    "tool.error": map_tool_error,
 }
 
 _GATEWAY_EVENT_MAP: dict[str, str] = {
-    "gateway:startup":  "session.start",
-    "gateway:shutdown": "session.end",
-    "command:new":      "llm.call",
-    "message:sent":     "llm.response",
+    "gateway:startup": "session.start", "gateway:shutdown": "session.end",
+    "command:new": "llm.call", "message:sent": "llm.response",
 }
 
 
 def map_hook_event(hook_name: str, oc_event: dict) -> tuple[str, dict] | None:
     mapper = _WS_DISPATCH.get(hook_name)
-    if mapper is None:
-        return None
-    return mapper(oc_event)
+    return mapper(oc_event) if mapper else None
 
 
 def map_websocket_event(ws_message: dict) -> tuple[str, dict] | None:
@@ -121,6 +111,4 @@ def map_websocket_event(ws_message: dict) -> tuple[str, dict] | None:
     hook_name = _GATEWAY_EVENT_MAP.get(raw_type)
     if hook_name:
         return map_hook_event(hook_name, ws_message)
-    if raw_type in _WS_DISPATCH:
-        return map_hook_event(raw_type, ws_message)
-    return None
+    return map_hook_event(raw_type, ws_message) if raw_type in _WS_DISPATCH else None

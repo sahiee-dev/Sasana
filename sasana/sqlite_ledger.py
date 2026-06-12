@@ -1,8 +1,8 @@
 """
 sqlite_ledger.py — SHA-256 hash-chained SQLite ledger for Sasana sessions.
 
-WAL mode + synchronous=FULL: no data loss on crash.
-One .db file per session, events committed immediately one by one.
+WAL mode + synchronous=FULL: crash-safe, no data loss.
+One .db file per session; events committed one by one immediately.
 """
 
 from __future__ import annotations
@@ -44,8 +44,8 @@ class SqliteLedger:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._private_key = private_key
         self._session_id: str | None = None
-        self._next_seq: int = 1
-        self._last_hash: str = GENESIS_HASH
+        self._next_seq = 1
+        self._last_hash = GENESIS_HASH
         self._lock = threading.Lock()
         self._conn: sqlite3.Connection | None = None
 
@@ -72,12 +72,7 @@ class SqliteLedger:
     def __exit__(self, *_: Any) -> None:
         self.close()
 
-    def open_session(
-        self,
-        session_id: str,
-        agent_id: str | None = None,
-        metadata: dict | None = None,
-    ) -> None:
+    def open_session(self, session_id: str, agent_id: str | None = None, metadata: dict | None = None) -> None:
         if self._conn is None:
             self.connect()
         self._session_id = session_id
@@ -89,25 +84,20 @@ class SqliteLedger:
         self._write_event("SESSION_START", payload)
 
     def close_session(self, status: str = "success") -> None:
-        if status not in ("success", "error"):
-            status = "success"
-        self._write_event("SESSION_END", {"status": status})
+        self._write_event("SESSION_END", {"status": status if status in ("success", "error") else "success"})
 
     def record(self, event_type: str, payload: dict) -> None:
         """Append one event. Silently drops server-authority events."""
         try:
-            et = EventType(event_type)
-            if not et.is_sdk_authority:
+            if not EventType(event_type).is_sdk_authority:
                 return
         except ValueError:
             return
         self._write_event(event_type, payload)
 
     def export_jsonl(self, output_path: str | Path) -> Path:
-        if self._conn is None:
-            raise RuntimeError("SqliteLedger is not connected")
-        if self._session_id is None:
-            raise RuntimeError("No active session")
+        if self._conn is None or self._session_id is None:
+            raise RuntimeError("Ledger not ready")
         out = Path(output_path).expanduser()
         out.parent.mkdir(parents=True, exist_ok=True)
         cursor = self._conn.execute(
@@ -123,42 +113,27 @@ class SqliteLedger:
     def session_id(self) -> str | None:
         return self._session_id
 
-    @property
-    def db_path(self) -> Path:
-        return self._db_path
-
     def _write_event(self, event_type: str, payload: dict) -> None:
         if self._conn is None:
             self.connect()
         with self._lock:
             try:
                 event = build_event(
-                    seq=self._next_seq,
-                    event_type=event_type,
+                    seq=self._next_seq, event_type=event_type,
                     session_id=self._session_id or "unknown",
-                    payload=payload,
-                    prev_hash=self._last_hash,
+                    payload=payload, prev_hash=self._last_hash,
                     private_key=self._private_key,
                 )
                 self._conn.execute(
-                    """INSERT INTO events
-                       (seq, session_id, event_type, timestamp, prev_hash, event_hash,
-                        payload_json, signature, raw_json)
+                    """INSERT INTO events (seq, session_id, event_type, timestamp, prev_hash,
+                       event_hash, payload_json, signature, raw_json)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        event["seq"],
-                        event["session_id"],
-                        event["event_type"],
-                        event["timestamp"],
-                        event["prev_hash"],
-                        event["event_hash"],
-                        json.dumps(event.get("payload", {})),
-                        event.get("signature"),
-                        json.dumps(event),
-                    ),
+                    (event["seq"], event["session_id"], event["event_type"], event["timestamp"],
+                     event["prev_hash"], event["event_hash"],
+                     json.dumps(event.get("payload", {})), event.get("signature"), json.dumps(event)),
                 )
                 self._conn.commit()
                 self._next_seq += 1
                 self._last_hash = event["event_hash"]
             except Exception as exc:
-                logger.error("Sasana: failed to write event %s: %s", event_type, exc)
+                logger.error("Sasana: failed to write %s: %s", event_type, exc)
