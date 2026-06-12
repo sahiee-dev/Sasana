@@ -26,7 +26,6 @@ def build_event(
     Build a complete event envelope with computed hash and optional Ed25519 signature.
     """
     timestamp = _utc_timestamp()
-
     event = {
         "seq": seq,
         "event_type": event_type,
@@ -35,23 +34,19 @@ def build_event(
         "payload": payload,
         "prev_hash": prev_hash,
     }
-
     event["event_hash"] = _compute_event_hash(event)
-
     if private_key is not None:
         try:
             from sasana.signing import sign_event_hash
             event["signature"] = sign_event_hash(private_key, event["event_hash"])
         except Exception:
             pass
-
     return event
 
 
 def _compute_event_hash(event: dict) -> str:
     event_for_hash = {k: v for k, v in event.items() if k != "event_hash"}
-    canonical_bytes = jcs_canonicalize(event_for_hash)
-    return hashlib.sha256(canonical_bytes).hexdigest()
+    return hashlib.sha256(jcs_canonicalize(event_for_hash)).hexdigest()
 
 
 def _utc_timestamp() -> str:
