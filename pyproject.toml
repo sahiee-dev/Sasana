@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "sasana"
+version = "1.0.0"
+description = "Tamper-evident cryptographic audit trail for OpenClaw and multi-agent AI sessions"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "cryptography>=41.0",
+]
+
+[project.optional-dependencies]
+observer = ["websockets>=12.0", "pyyaml>=6.0"]
+
+[project.scripts]
+sasana = "sasana_cli:main"
+
+[tool.setuptools.packages.find]
+include = ["sasana*"]

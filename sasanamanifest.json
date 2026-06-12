@@ -1,0 +1,46 @@
+{
+  "name": "sasana",
+  "version": "1.0.0",
+  "description": "Cryptographically verifiable audit trail for every OpenClaw session. SHA-256 hash-chained JSONL. Zero cloud dependency. Nothing leaves your machine.",
+  "author": "sahiee-dev",
+  "license": "MIT",
+  "homepage": "https://github.com/sahiee-dev/Sasana",
+  "keywords": ["audit", "security", "compliance", "tamper-evident", "soc2", "hipaa"],
+  "entrypoint": "sasana_skill_entry.py",
+  "class": "SasanaSkillEntry",
+  "permissions": [
+    "session.read",
+    "filesystem.write"
+  ],
+  "hooks": [
+    "session.start",
+    "session.end",
+    "llm.call",
+    "llm.response",
+    "tool.invoke",
+    "tool.result",
+    "tool.error"
+  ],
+  "config": {
+    "output_dir": {
+      "type": "string",
+      "default": "~/.openclaw/sasana/",
+      "description": "Directory where session JSONL files are written"
+    },
+    "buffer_size": {
+      "type": "integer",
+      "default": 1000
+    },
+    "server_url": {
+      "type": "string",
+      "default": null,
+      "description": "Optional Sasana ingestion server URL for AUTHORITATIVE_EVIDENCE mode"
+    }
+  },
+  "privacy": {
+    "stores_content": false,
+    "stores_hashes_only": true,
+    "cloud_dependency": false,
+    "network_required": false
+  }
+}
