@@ -22,9 +22,7 @@ def build_event(
     prev_hash: str,
     private_key: Optional[object] = None,
 ) -> dict:
-    """
-    Build a complete event envelope with computed hash and optional Ed25519 signature.
-    """
+    """Build a complete event envelope with computed hash and optional Ed25519 signature."""
     timestamp = _utc_timestamp()
     event = {
         "seq": seq,
@@ -45,10 +43,12 @@ def build_event(
 
 
 def _compute_event_hash(event: dict) -> str:
-    event_for_hash = {k: v for k, v in event.items() if k != "event_hash"}
+    # Strip both event_hash (the field being computed) and signature (added after
+    # hashing) so re-verification of a stored signed event produces the same hash.
+    event_for_hash = {k: v for k, v in event.items() if k not in ("event_hash", "signature")}
     return hashlib.sha256(jcs_canonicalize(event_for_hash)).hexdigest()
 
 
 def _utc_timestamp() -> str:
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     return now.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"

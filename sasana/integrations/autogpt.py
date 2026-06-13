@@ -26,7 +26,6 @@ Usage:
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import uuid
@@ -42,13 +41,10 @@ except ImportError:
     _AUTOGPT_AVAILABLE = False
     AutoGPTPluginTemplate = object  # type: ignore[assignment,misc]
 
+from sasana._utils import content_hash as _sha256
 from sasana.sqlite_ledger import SqliteLedger
 
 _DEFAULT_OUTPUT_DIR = Path.home() / ".openclaw" / "sasana"
-
-
-def _sha256(value: Any) -> str:
-    return hashlib.sha256(str(value).encode()).hexdigest()
 
 
 def _mk_ledger(session_id: str, output_dir: Path) -> SqliteLedger:

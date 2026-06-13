@@ -278,7 +278,7 @@ class SiemExporter:
             severity = int(_CEF_SEVERITY_MAP.get(et, "5"))
             syslog_sev = min(7, max(0, 7 - severity // 2))
             pri = 16 * 8 + syslog_sev
-            ts = evt.get("timestamp", datetime.datetime.utcnow().isoformat() + "Z")
+            ts = evt.get("timestamp", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z")
             msg = json.dumps({
                 "event_type": et,
                 "seq": evt.get("seq"),

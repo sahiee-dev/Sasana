@@ -7,24 +7,12 @@ Only SHA-256 hashes enter the audit chain.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
 
-
-def _sha256(value: Any) -> str:
-    if isinstance(value, str):
-        data = value.encode("utf-8")
-    elif isinstance(value, (dict, list)):
-        data = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    elif isinstance(value, bytes):
-        data = value
-    else:
-        data = str(value).encode("utf-8")
-    return hashlib.sha256(data).hexdigest()
+from sasana._utils import content_hash
 
 
-def map_session_start(oc_event: dict) -> tuple[str, dict]:
+def map_session_start(oc_event: dict) -> tuple:
     payload = {
         "agent_id": oc_event.get("agentId") or oc_event.get("agent_id", "unknown"),
         "model_id": oc_event.get("model"),
@@ -34,15 +22,15 @@ def map_session_start(oc_event: dict) -> tuple[str, dict]:
     return "SESSION_START", {k: v for k, v in payload.items() if v is not None}
 
 
-def map_session_end(oc_event: dict) -> tuple[str, dict]:
+def map_session_end(oc_event: dict) -> tuple:
     status = oc_event.get("status", "success")
     return "SESSION_END", {"status": status if status in ("success", "error") else "success"}
 
 
-def map_llm_call(oc_event: dict) -> tuple[str, dict]:
+def map_llm_call(oc_event: dict) -> tuple:
     messages = oc_event.get("messages") or oc_event.get("prompt")
     payload: dict = {
-        "prompt_hash": _sha256(messages) if messages is not None else _sha256(""),
+        "prompt_hash": content_hash(messages) if messages is not None else content_hash(""),
         "model_id": oc_event.get("model", "unknown"),
     }
     if oc_event.get("tool_list"):
@@ -50,10 +38,10 @@ def map_llm_call(oc_event: dict) -> tuple[str, dict]:
     return "LLM_CALL", payload
 
 
-def map_llm_response(oc_event: dict) -> tuple[str, dict]:
+def map_llm_response(oc_event: dict) -> tuple:
     content = oc_event.get("content") or oc_event.get("response")
     payload: dict = {
-        "content_hash": _sha256(content) if content is not None else _sha256(""),
+        "content_hash": content_hash(content) if content is not None else content_hash(""),
         "finish_reason": oc_event.get("finish_reason", "stop"),
     }
     if oc_event.get("usage"):
@@ -64,23 +52,23 @@ def map_llm_response(oc_event: dict) -> tuple[str, dict]:
     return "LLM_RESPONSE", payload
 
 
-def map_tool_invoke(oc_event: dict) -> tuple[str, dict]:
+def map_tool_invoke(oc_event: dict) -> tuple:
     args = oc_event.get("args") or oc_event.get("arguments") or oc_event.get("input")
     return "TOOL_CALL", {
         "tool_name": oc_event.get("tool_name") or oc_event.get("name", "unknown"),
-        "args_hash": _sha256(args) if args is not None else _sha256(""),
+        "args_hash": content_hash(args) if args is not None else content_hash(""),
     }
 
 
-def map_tool_result(oc_event: dict) -> tuple[str, dict]:
+def map_tool_result(oc_event: dict) -> tuple:
     result = oc_event.get("result") or oc_event.get("output")
     return "TOOL_RESULT", {
         "tool_name": oc_event.get("tool_name") or oc_event.get("name", "unknown"),
-        "result_hash": _sha256(result) if result is not None else _sha256(""),
+        "result_hash": content_hash(result) if result is not None else content_hash(""),
     }
 
 
-def map_tool_error(oc_event: dict) -> tuple[str, dict]:
+def map_tool_error(oc_event: dict) -> tuple:
     msg = oc_event.get("error_message") or oc_event.get("error") or ""
     return "TOOL_ERROR", {
         "error_type": oc_event.get("error_type", "ToolError"),
@@ -88,25 +76,25 @@ def map_tool_error(oc_event: dict) -> tuple[str, dict]:
     }
 
 
-_WS_DISPATCH: dict[str, Any] = {
+_WS_DISPATCH: dict = {
     "session.start": map_session_start, "session.end": map_session_end,
     "llm.call": map_llm_call, "llm.response": map_llm_response,
     "tool.invoke": map_tool_invoke, "tool.result": map_tool_result,
     "tool.error": map_tool_error,
 }
 
-_GATEWAY_EVENT_MAP: dict[str, str] = {
+_GATEWAY_EVENT_MAP: dict = {
     "gateway:startup": "session.start", "gateway:shutdown": "session.end",
     "command:new": "llm.call", "message:sent": "llm.response",
 }
 
 
-def map_hook_event(hook_name: str, oc_event: dict) -> tuple[str, dict] | None:
+def map_hook_event(hook_name: str, oc_event: dict) -> tuple | None:
     mapper = _WS_DISPATCH.get(hook_name)
     return mapper(oc_event) if mapper else None
 
 
-def map_websocket_event(ws_message: dict) -> tuple[str, dict] | None:
+def map_websocket_event(ws_message: dict) -> tuple | None:
     raw_type: str = ws_message.get("type", "")
     hook_name = _GATEWAY_EVENT_MAP.get(raw_type)
     if hook_name:
