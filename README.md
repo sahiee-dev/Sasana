@@ -2,7 +2,7 @@
 
 **Tamper-evident cryptographic audit trail for OpenClaw and multi-agent AI sessions.**
 
-Every session produces a SHA-256 hash-chained ledger. Any post-hoc modification — even a single character — is detectable. Nothing leaves your machine.
+Every session produces a SHA-256 hash-chained ledger. Any post-hoc modification — even a single character — is detectable. Raw content (prompts, responses, tool arguments) never leaves your machine — only hashes are stored.
 
 ```
 sasana verify ~/.openclaw/sasana/<session_id>.jsonl
@@ -14,10 +14,11 @@ Session  : abc123...
 Events   : 12
 Evidence : NON_AUTHORITATIVE_EVIDENCE
 
-[1/4] Structural validity  ... PASS
-[2/4] Sequence integrity   ... PASS
-[3/4] Hash chain integrity ... PASS
-[4/4] Session completeness ... PASS
+[1/5] Structural validity  ... PASS
+[2/5] Sequence integrity   ... PASS
+[3/5] Hash chain integrity ... PASS
+[4/5] Session completeness ... PASS
+[5/5] Seal signature       ... PASS
 
 Result: INTACT ✅
 ```
@@ -98,8 +99,10 @@ Sasana stores **hashes only** — never raw prompts, responses, or tool argument
 stores_content:       false
 stores_hashes_only:   true
 cloud_dependency:     false
-network_required:     false
+network_required:     false   # for core audit trail
 ```
+
+The core SDK is fully local. `NON_AUTHORITATIVE_EVIDENCE` and `SIGNED_NON_AUTHORITATIVE_EVIDENCE` require no network. `AUTHORITATIVE_EVIDENCE` requires submitting a completed session to an [Archeion](archeion/) sealing server — which you can self-host. No session data is sent to Anthropic or any third party.
 
 ## License
 

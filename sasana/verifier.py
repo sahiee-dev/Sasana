@@ -27,9 +27,6 @@ ALLOWED_EVENT_TYPES = frozenset(
         "TOOL_ERROR",
         "LOG_DROP",
         "CHAIN_SEAL",
-        "CHAIN_BROKEN",
-        "REDACTION",
-        "FORENSIC_FREEZE",
     }
 )
 REQUIRED_FIELDS = frozenset(
@@ -114,6 +111,7 @@ def _check_sequence(events: list) -> dict:
     if len({e.get("session_id") for e in events}) > 1:
         errors.append("Multiple session_ids found in single session file")
 
+    # seq must start at 1 — partial/sub-range exports are not supported by design.
     if not seqs or seqs[0] != 1:
         errors.append(f"First seq must be 1, got {seqs[0] if seqs else None}")
 

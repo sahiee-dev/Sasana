@@ -3,7 +3,7 @@
 verify.py — Standalone verifier for Sasana session logs.
 
 Usage:
-  python3 verify.py <session.jsonl> [--format {text,json}] [--verbose]
+  python3 verify.py <session.jsonl> [--json] [--verbose]
 
 Exit codes: 0=INTACT  1=COMPROMISED  2=PARTIAL  3=ERROR
 """
@@ -25,7 +25,7 @@ from sasana.verifier import (
 def main() -> None:
     parser = argparse.ArgumentParser(description=f"Sasana Verifier v{VERIFIER_VERSION}")
     parser.add_argument("session_file")
-    parser.add_argument("--format", choices=["text", "json"], default="text")
+    parser.add_argument("--json", dest="json_out", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -48,7 +48,7 @@ def main() -> None:
 
     result = verify(events)
 
-    if args.format == "json":
+    if args.json_out:
         print(
             json.dumps(
                 {
@@ -73,10 +73,11 @@ def main() -> None:
         print(f"Evidence : {result.evidence_class}")
         print()
         for label, key in [
-            ("[1/4] Structural validity ", "structural"),
-            ("[2/4] Sequence integrity  ", "sequence"),
-            ("[3/4] Hash chain integrity", "hash_chain"),
-            ("[4/4] Session completeness", "completeness"),
+            ("[1/5] Structural validity ", "structural"),
+            ("[2/5] Sequence integrity  ", "sequence"),
+            ("[3/5] Hash chain integrity", "hash_chain"),
+            ("[4/5] Session completeness", "completeness"),
+            ("[5/5] Seal signature      ", "seal_signature"),
         ]:
             r = result.checks.get(key)
             st = r["status"] if r else "SKIPPED"

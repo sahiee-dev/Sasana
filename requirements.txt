@@ -1,3 +1,0 @@
-cryptography>=41.0
-websockets>=12.0  # optional, for observer mode
-pyyaml>=6.0       # optional, for auto-detecting OpenClaw WS port
