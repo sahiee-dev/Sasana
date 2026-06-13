@@ -12,7 +12,6 @@
   "hooks": ["session.start", "session.end", "llm.call", "llm.response", "tool.invoke", "tool.result", "tool.error"],
   "config": {
     "output_dir": {"type": "string", "default": "~/.openclaw/sasana/"},
-    "buffer_size": {"type": "integer", "default": 1000},
     "server_url": {"type": "string", "default": null}
   },
   "privacy": {

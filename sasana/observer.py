@@ -45,10 +45,11 @@ class OpenClawObserver:
     """Passive WebSocket observer. One SqliteLedger per active OpenClaw session."""
 
     def __init__(self, ws_url: str | None = None, output_dir: Path | str | None = None,
-                 server_url: str | None = None, buffer_size: int = 1000) -> None:
+                 server_url: str | None = None) -> None:
         self._ws_url = ws_url or _load_openclaw_ws_url()
         self._output_dir = Path(output_dir or _DEFAULT_OUTPUT_DIR).expanduser()
         self._output_dir.mkdir(parents=True, exist_ok=True)
+        self._server_url = server_url  # reserved for future server-assisted verification
         self._ledgers: dict[str, SqliteLedger] = {}
         self._running = False
 
