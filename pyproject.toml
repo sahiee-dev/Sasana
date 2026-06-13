@@ -15,9 +15,18 @@ dependencies = [
 
 [project.optional-dependencies]
 observer = ["websockets>=12.0", "pyyaml>=6.0"]
+dev     = ["pytest>=7.0", "ruff>=0.4"]
 
 [project.scripts]
-sasana = "sasana_cli:main"
+sasana         = "sasana_cli:main"
+agentops-verify = "verify:main"
 
 [tool.setuptools.packages.find]
 include = ["sasana*"]
+
+[tool.setuptools]
+py-modules = ["verify", "sasana_cli"]
+
+[tool.ruff]
+line-length = 100
+ignore = ["E501"]
