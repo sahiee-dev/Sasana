@@ -32,6 +32,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from sasana._utils import content_hash as _sha256
+from sasana.sqlite_ledger import SqliteLedger
+
 logger = logging.getLogger("sasana.integrations.autogpt")
 
 try:
@@ -40,9 +43,6 @@ try:
 except ImportError:
     _AUTOGPT_AVAILABLE = False
     AutoGPTPluginTemplate = object  # type: ignore[assignment,misc]
-
-from sasana._utils import content_hash as _sha256
-from sasana.sqlite_ledger import SqliteLedger
 
 _DEFAULT_OUTPUT_DIR = Path.home() / ".openclaw" / "sasana"
 

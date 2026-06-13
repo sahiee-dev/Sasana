@@ -63,7 +63,7 @@ _stub_langgraph()
 _stub_langchain()
 _stub_autogpt()
 
-import importlib
+import importlib  # noqa: E402
 _lg_mod = importlib.import_module("sasana.integrations.langgraph")
 _ca_mod = importlib.import_module("sasana.integrations.crewai")
 _ag_mod = importlib.import_module("sasana.integrations.autogpt")
@@ -88,8 +88,8 @@ def _make_plugin(tmp_path) -> Any:
 
 
 def _read_jsonl(path: Path) -> list:
-    lines = [l.strip() for l in path.read_text().splitlines() if l.strip()]
-    return [json.loads(l) for l in lines]
+    lines = [ln.strip() for ln in path.read_text().splitlines() if ln.strip()]
+    return [json.loads(ln) for ln in lines]
 
 
 class TestExtractThreadId(unittest.TestCase):
@@ -110,8 +110,13 @@ class TestTamperEvidentCheckpointSaverLifecycle(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
 
     def _checkpoint(self, channels=None, cid="c"):
-        cp = MagicMock(); cp.id = cid; cp.channel_values = channels or {}
-        meta = MagicMock(); meta.step = 0; meta.source = "input"; meta.writes = {}
+        cp = MagicMock()
+        cp.id = cid
+        cp.channel_values = channels or {}
+        meta = MagicMock()
+        meta.step = 0
+        meta.source = "input"
+        meta.writes = {}
         return cp, meta
 
     def test_session_id_is_uuid(self):
@@ -182,15 +187,21 @@ class TestSasanaCrewAITracer(unittest.TestCase):
 
     def test_start_creates_session(self):
         t = _make_tracer(self.tmp)
-        t.start(); assert t._started; t.stop()
+        t.start()
+        assert t._started
+        t.stop()
 
     def test_double_start_idempotent(self):
         t = _make_tracer(self.tmp)
-        t.start(); t.start(); assert t._started; t.stop()
+        t.start()
+        t.start()
+        assert t._started
+        t.stop()
 
     def test_stop_produces_jsonl(self):
         t = _make_tracer(self.tmp)
-        t.start(); t.stop()
+        t.start()
+        t.stop()
         evts = _read_jsonl(list(self.tmp.glob("*.jsonl"))[0])
         assert evts[0]["event_type"] == "SESSION_START"
         assert evts[-1]["event_type"] == "SESSION_END"
@@ -218,7 +229,9 @@ class TestSasanaCrewAITracer(unittest.TestCase):
         t = _make_tracer(self.tmp)
         t.start()
         t.on_llm_start({"name": "claude"}, ["prompt"])
-        resp = MagicMock(); g = MagicMock(); g.text = "response"
+        resp = MagicMock()
+        g = MagicMock()
+        g.text = "response"
         resp.generations = [[g]]
         t.on_llm_end(resp)
         t.stop()
@@ -328,8 +341,13 @@ class TestEventTypeConsistency(unittest.TestCase):
         # LangGraph
         tmp = Path(tempfile.mkdtemp())
         saver = _make_saver(tmp)
-        cp = MagicMock(); cp.id = "c"; cp.channel_values = {}
-        meta = MagicMock(); meta.step = 0; meta.source = "input"; meta.writes = {}
+        cp = MagicMock()
+        cp.id = "c"
+        cp.channel_values = {}
+        meta = MagicMock()
+        meta.step = 0
+        meta.source = "input"
+        meta.writes = {}
         saver.put({"configurable": {"thread_id": "t"}}, cp, meta, {})
         saver.end_session()
         for evt in _read_jsonl(list(tmp.glob("*.jsonl"))[0]):
@@ -337,16 +355,20 @@ class TestEventTypeConsistency(unittest.TestCase):
 
         # CrewAI
         tmp = Path(tempfile.mkdtemp())
-        t = _make_tracer(tmp); t.start()
-        t.on_tool_start({"name": "t"}, "i"); t.on_tool_end("o")
+        t = _make_tracer(tmp)
+        t.start()
+        t.on_tool_start({"name": "t"}, "i")
+        t.on_tool_end("o")
         t.stop()
         for evt in _read_jsonl(list(tmp.glob("*.jsonl"))[0]):
             assert evt["event_type"] in self.VALID_TYPES
 
         # AutoGPT
         tmp = Path(tempfile.mkdtemp())
-        p = _make_plugin(tmp); p.start_session()
-        p.pre_command("c", {}); p.post_command("c", "r")
+        p = _make_plugin(tmp)
+        p.start_session()
+        p.pre_command("c", {})
+        p.post_command("c", "r")
         p.end_session()
         for evt in _read_jsonl(list(tmp.glob("*.jsonl"))[0]):
             assert evt["event_type"] in self.VALID_TYPES

@@ -7,8 +7,6 @@ Only SHA-256 hashes enter the audit chain.
 
 from __future__ import annotations
 
-from typing import Any
-
 from sasana._utils import content_hash
 
 

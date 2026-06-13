@@ -235,7 +235,8 @@ class SiemExporter:
             try:
                 with urllib.request.urlopen(req, timeout=timeout) as resp:
                     resp.read()
-                    sent += len(batch); batches += 1
+                    sent += len(batch)
+                    batches += 1
             except urllib.error.URLError as exc:
                 logger.error("Sasana SIEM: Splunk HEC batch %d failed: %s", batches, exc)
                 failed += len(batch)
@@ -262,7 +263,8 @@ class SiemExporter:
             try:
                 with urllib.request.urlopen(req, timeout=timeout) as resp:
                     resp.read()
-                    sent += len(batch); batches += 1
+                    sent += len(batch)
+                    batches += 1
             except urllib.error.URLError as exc:
                 logger.error("Sasana SIEM: webhook batch %d failed: %s", batches, exc)
                 failed += len(batch)

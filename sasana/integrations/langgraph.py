@@ -33,6 +33,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
+from sasana._utils import content_hash as _sha256
+from sasana.sqlite_ledger import SqliteLedger
+
 logger = logging.getLogger("sasana.integrations.langgraph")
 
 try:
@@ -41,9 +44,6 @@ try:
 except ImportError:
     _LANGGRAPH_AVAILABLE = False
     BaseCheckpointSaver = object  # type: ignore[assignment,misc]
-
-from sasana._utils import content_hash as _sha256
-from sasana.sqlite_ledger import SqliteLedger
 
 _DEFAULT_OUTPUT_DIR = Path.home() / ".openclaw" / "sasana"
 

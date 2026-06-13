@@ -41,6 +41,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from sasana._utils import content_hash as _sha256
+from sasana.sqlite_ledger import SqliteLedger
+
 logger = logging.getLogger("sasana.integrations.crewai")
 
 try:
@@ -56,9 +59,6 @@ except ImportError:
         _LANGCHAIN_AVAILABLE = False
         BaseCallbackHandler = object  # type: ignore[assignment,misc]
         LLMResult = object  # type: ignore[assignment,misc]
-
-from sasana._utils import content_hash as _sha256
-from sasana.sqlite_ledger import SqliteLedger
 
 _DEFAULT_OUTPUT_DIR = Path.home() / ".openclaw" / "sasana"
 

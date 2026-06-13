@@ -23,12 +23,12 @@ _DIST = Path(__file__).parent.parent
 if str(_DIST) not in sys.path:
     sys.path.insert(0, str(_DIST))
 
-from sasana.jcs import canonicalize as jcs_canonicalize
-from sasana.compliance import load_session, verify_session
-from sasana.compliance.soc2 import generate_soc2_report
-from sasana.compliance.eu_ai_act import generate_eu_ai_act_report
-from sasana.compliance.hipaa import generate_hipaa_audit_log
-from sasana.compliance.siem import SiemExporter, _ts_to_epoch
+from sasana.jcs import canonicalize as jcs_canonicalize  # noqa: E402
+from sasana.compliance import load_session, verify_session  # noqa: E402
+from sasana.compliance.soc2 import generate_soc2_report  # noqa: E402
+from sasana.compliance.eu_ai_act import generate_eu_ai_act_report  # noqa: E402
+from sasana.compliance.hipaa import generate_hipaa_audit_log  # noqa: E402
+from sasana.compliance.siem import SiemExporter, _ts_to_epoch  # noqa: E402
 
 
 def _build_event(seq, event_type, session_id, payload, prev_hash):
@@ -82,7 +82,8 @@ def _make_tampered_session(tmp_dir, session_id="bad-session"):
 
 class TestLoadAndVerify(unittest.TestCase):
     def setUp(self):
-        import tempfile; self.tmp = Path(tempfile.mkdtemp())
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
 
     def test_load_session_returns_sorted_events(self):
         events = load_session(_make_session_jsonl(self.tmp))
@@ -100,13 +101,17 @@ class TestLoadAndVerify(unittest.TestCase):
         assert not v["intact"] and v["evidence_class"] == "NO_EVIDENCE"
 
     def test_verify_session_with_log_drop(self):
-        GENESIS = "0" * 64; sid = "drop-session"; events = []
+        GENESIS = "0" * 64
+        sid = "drop-session"
+        events = []
         def append(seq, et, payload):
             prev = events[-1]["event_hash"] if events else GENESIS
             events.append(_build_event(seq, et, sid, payload, prev))
-        append(1, "SESSION_START", {}); append(2, "LOG_DROP", {"dropped_count": 5})
+        append(1, "SESSION_START", {})
+        append(2, "LOG_DROP", {"dropped_count": 5})
         append(3, "SESSION_END", {"status": "success"})
-        path = self.tmp / f"{sid}.jsonl"; _write_session(path, events)
+        path = self.tmp / f"{sid}.jsonl"
+        _write_session(path, events)
         v = verify_session(load_session(path))
         assert v["intact"] and v["log_drop_count"] == 1
         assert v["evidence_class"] == "PARTIAL_EVIDENCE"
@@ -118,8 +123,10 @@ class TestLoadAndVerify(unittest.TestCase):
 
 class TestSoc2Report(unittest.TestCase):
     def setUp(self):
-        import tempfile; self.tmp = Path(tempfile.mkdtemp())
-        self.jsonl = _make_session_jsonl(self.tmp); self.out = self.tmp / "reports"
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        self.jsonl = _make_session_jsonl(self.tmp)
+        self.out = self.tmp / "reports"
 
     def test_generates_json_and_html(self):
         r = generate_soc2_report(self.jsonl, output_dir=self.out)
@@ -159,8 +166,10 @@ class TestSoc2Report(unittest.TestCase):
 
 class TestEuAiActReport(unittest.TestCase):
     def setUp(self):
-        import tempfile; self.tmp = Path(tempfile.mkdtemp())
-        self.jsonl = _make_session_jsonl(self.tmp); self.out = self.tmp / "reports"
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        self.jsonl = _make_session_jsonl(self.tmp)
+        self.out = self.tmp / "reports"
 
     def test_generates_json_and_html(self):
         r = generate_eu_ai_act_report(self.jsonl, output_dir=self.out)
@@ -196,8 +205,10 @@ class TestEuAiActReport(unittest.TestCase):
 
 class TestHipaaAuditLog(unittest.TestCase):
     def setUp(self):
-        import tempfile; self.tmp = Path(tempfile.mkdtemp())
-        self.jsonl = _make_session_jsonl(self.tmp); self.out = self.tmp / "reports"
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        self.jsonl = _make_session_jsonl(self.tmp)
+        self.out = self.tmp / "reports"
 
     def test_generates_json_csv_html(self):
         r = generate_hipaa_audit_log(self.jsonl, output_dir=self.out)
@@ -240,7 +251,8 @@ class TestHipaaAuditLog(unittest.TestCase):
 
 class TestSiemExporter(unittest.TestCase):
     def setUp(self):
-        import tempfile; self.tmp = Path(tempfile.mkdtemp())
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
         self.jsonl = _make_session_jsonl(self.tmp)
         self.exporter = SiemExporter(self.jsonl, device_vendor="TestVendor",
                                       device_product="TestProduct")
@@ -266,14 +278,14 @@ class TestSiemExporter(unittest.TestCase):
 
     def test_json_lines_file(self):
         out = self.exporter.to_json_lines(self.tmp / "output.jsonl")
-        lines = [l for l in out.read_text().splitlines() if l.strip()]
-        assert len(lines) == 7 and all("event_type" in json.loads(l) for l in lines)
+        lines = [ln for ln in out.read_text().splitlines() if ln.strip()]
+        assert len(lines) == 7 and all("event_type" in json.loads(ln) for ln in lines)
 
     def test_syslog_lines(self):
         lines = self.exporter.to_syslog_lines()
         assert len(lines) == 7
-        for l in lines:
-            assert l.startswith("<") and ">1 " in l
+        for line in lines:
+            assert line.startswith("<") and ">1 " in line
 
     def test_syslog_file_written(self):
         out = self.exporter.to_syslog_file(self.tmp / "output.syslog")
@@ -287,7 +299,7 @@ class TestSiemExporter(unittest.TestCase):
         assert self.exporter.to_cef()[0].split("|")[6] == "3"
 
     def test_cef_tool_error_severity_high(self):
-        err = [l for l in self.exporter.to_cef() if "|302|" in l]
+        err = [line for line in self.exporter.to_cef() if "|302|" in line]
         assert len(err) == 1 and int(err[0].split("|")[6]) >= 7
 
 

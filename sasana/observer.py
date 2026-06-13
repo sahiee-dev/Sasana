@@ -11,10 +11,8 @@ import asyncio
 import json
 import logging
 import os
-import signal
 import uuid
 from pathlib import Path
-from typing import Any
 
 from sasana.event_mapper import map_websocket_event
 from sasana.sqlite_ledger import SqliteLedger

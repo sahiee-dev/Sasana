@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "sasana"
@@ -29,4 +29,6 @@ py-modules = ["verify", "sasana_cli"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 ignore = ["E501"]

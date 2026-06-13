@@ -17,7 +17,7 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from sasana.verifier import (
+from sasana.verifier import (  # noqa: E402
     AUTHORITATIVE_EVIDENCE,
     COMPROMISED,
     ERROR,
