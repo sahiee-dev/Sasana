@@ -20,16 +20,14 @@ Usage:
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
-from typing import Any
 
 
-def load_session(jsonl_path: str | Path) -> list[dict]:
+def load_session(jsonl_path: str | Path) -> list:
     """Load and parse a Sasana session JSONL file."""
     path = Path(jsonl_path).expanduser()
-    events: list[dict] = []
+    events: list = []
     with open(path) as f:
         for line in f:
             line = line.strip()
@@ -38,58 +36,24 @@ def load_session(jsonl_path: str | Path) -> list[dict]:
     return sorted(events, key=lambda e: e.get("seq", 0))
 
 
-def verify_session(events: list[dict]) -> dict:
+def verify_session(events: list) -> dict:
     """
     Run hash-chain verification on a loaded session.
 
     Returns a dict with keys: intact, error_count, errors, evidence_class,
     log_drop_count, root_hash, session_id, event_count.
+
+    Delegates to sasana.verifier — single source of truth for all verification.
     """
-    from sasana.jcs import canonicalize as jcs_canonicalize
-
-    GENESIS = "0" * 64
-    errors: list[str] = []
-    log_drops = 0
-    prev_hash = GENESIS
-    session_id: str | None = None
-    root_hash: str | None = None
-
-    for evt in events:
-        seq = evt.get("seq", "?")
-        if session_id is None:
-            session_id = evt.get("session_id")
-        if evt.get("event_type") == "LOG_DROP":
-            log_drops += 1
-        stored_prev = evt.get("prev_hash", "")
-        if stored_prev != prev_hash:
-            errors.append(f"seq={seq}: prev_hash chain broken")
-        stripped = {k: v for k, v in evt.items() if k not in ("event_hash", "signature")}
-        try:
-            computed = hashlib.sha256(jcs_canonicalize(stripped)).hexdigest()
-            if computed != evt.get("event_hash", ""):
-                errors.append(f"seq={seq}: event_hash mismatch")
-        except Exception as exc:
-            errors.append(f"seq={seq}: hash error: {exc}")
-        prev_hash = evt.get("event_hash", prev_hash)
-        root_hash = prev_hash
-
-    has_seal = any(e.get("event_type") == "CHAIN_SEAL" for e in events)
-    if has_seal and not errors and not log_drops:
-        evidence_class = "AUTHORITATIVE_EVIDENCE"
-    elif not errors and not log_drops:
-        evidence_class = "NON_AUTHORITATIVE_EVIDENCE"
-    elif not errors and log_drops:
-        evidence_class = "PARTIAL_EVIDENCE"
-    else:
-        evidence_class = "NO_EVIDENCE"
-
+    from sasana.verifier import verify as _verify
+    result = _verify(events)
     return {
-        "intact": len(errors) == 0,
-        "error_count": len(errors),
-        "errors": errors,
-        "evidence_class": evidence_class,
-        "log_drop_count": log_drops,
-        "root_hash": root_hash,
-        "session_id": session_id,
-        "event_count": len(events),
+        "intact": result.status in ("INTACT", "PARTIAL"),
+        "error_count": len(result.errors),
+        "errors": result.errors,
+        "evidence_class": result.evidence_class,
+        "log_drop_count": result.log_drop_count,
+        "root_hash": result.root_hash,
+        "session_id": result.session_id,
+        "event_count": result.event_count,
     }
