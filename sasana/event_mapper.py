@@ -75,15 +75,20 @@ def map_tool_error(oc_event: dict) -> tuple:
 
 
 _WS_DISPATCH: dict = {
-    "session.start": map_session_start, "session.end": map_session_end,
-    "llm.call": map_llm_call, "llm.response": map_llm_response,
-    "tool.invoke": map_tool_invoke, "tool.result": map_tool_result,
+    "session.start": map_session_start,
+    "session.end": map_session_end,
+    "llm.call": map_llm_call,
+    "llm.response": map_llm_response,
+    "tool.invoke": map_tool_invoke,
+    "tool.result": map_tool_result,
     "tool.error": map_tool_error,
 }
 
 _GATEWAY_EVENT_MAP: dict = {
-    "gateway:startup": "session.start", "gateway:shutdown": "session.end",
-    "command:new": "llm.call", "message:sent": "llm.response",
+    "gateway:startup": "session.start",
+    "gateway:shutdown": "session.end",
+    "command:new": "llm.call",
+    "message:sent": "llm.response",
 }
 
 

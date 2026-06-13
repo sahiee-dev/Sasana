@@ -38,16 +38,16 @@ STANDARD = "§164.312(b) — Audit Controls"
 
 _ACCESS_TYPE_MAP = {
     "SESSION_START": ("SYSTEM_ACCESS", "SUCCESS"),
-    "SESSION_END":   ("SYSTEM_ACCESS", "SUCCESS"),
-    "LLM_CALL":      ("READ", "PENDING"),
-    "LLM_RESPONSE":  ("READ", "SUCCESS"),
-    "TOOL_CALL":     ("EXECUTE", "PENDING"),
-    "TOOL_RESULT":   ("EXECUTE", "SUCCESS"),
-    "TOOL_ERROR":    ("EXECUTE", "FAILURE"),
-    "LOG_DROP":      ("AUDIT_FAILURE", "FAILURE"),
-    "CHAIN_SEAL":    ("INTEGRITY_SEAL", "SUCCESS"),
-    "CHAIN_BROKEN":  ("INTEGRITY_CHECK", "FAILURE"),
-    "REDACTION":     ("DELETE", "SUCCESS"),
+    "SESSION_END": ("SYSTEM_ACCESS", "SUCCESS"),
+    "LLM_CALL": ("READ", "PENDING"),
+    "LLM_RESPONSE": ("READ", "SUCCESS"),
+    "TOOL_CALL": ("EXECUTE", "PENDING"),
+    "TOOL_RESULT": ("EXECUTE", "SUCCESS"),
+    "TOOL_ERROR": ("EXECUTE", "FAILURE"),
+    "LOG_DROP": ("AUDIT_FAILURE", "FAILURE"),
+    "CHAIN_SEAL": ("INTEGRITY_SEAL", "SUCCESS"),
+    "CHAIN_BROKEN": ("INTEGRITY_CHECK", "FAILURE"),
+    "REDACTION": ("DELETE", "SUCCESS"),
     "FORENSIC_FREEZE": ("INTEGRITY_SEAL", "SUCCESS"),
 }
 
@@ -139,8 +139,16 @@ def _render_csv(records: list[dict]) -> str:
     buf = io.StringIO()
     if not records:
         return ""
-    fieldnames = ["seq", "timestamp", "system_id", "session_id",
-                  "event_type", "access_type", "outcome", "event_hash"]
+    fieldnames = [
+        "seq",
+        "timestamp",
+        "system_id",
+        "session_id",
+        "event_type",
+        "access_type",
+        "outcome",
+        "event_hash",
+    ]
     writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
     writer.writerows(records)
@@ -158,18 +166,22 @@ def _render_hipaa_html(r: dict) -> str:
 
     rows = ""
     for rec in r["audit_records"][:100]:
-        outcome_color = "#22c55e" if rec["outcome"] == "SUCCESS" else ("#94a3b8" if rec["outcome"] == "PENDING" else "#ef4444")
+        outcome_color = (
+            "#22c55e"
+            if rec["outcome"] == "SUCCESS"
+            else ("#94a3b8" if rec["outcome"] == "PENDING" else "#ef4444")
+        )
         rows += f"""<tr>
-  <td>{rec['seq']}</td>
-  <td class='mono'>{rec['timestamp']}</td>
-  <td>{rec['system_id']}</td>
-  <td>{rec['event_type']}</td>
-  <td>{rec['access_type']}</td>
-  <td style="color:{outcome_color};font-weight:600">{rec['outcome']}</td>
-  <td class='mono hash'>{rec['event_hash'][:16]}…</td>
+  <td>{rec["seq"]}</td>
+  <td class='mono'>{rec["timestamp"]}</td>
+  <td>{rec["system_id"]}</td>
+  <td>{rec["event_type"]}</td>
+  <td>{rec["access_type"]}</td>
+  <td style="color:{outcome_color};font-weight:600">{rec["outcome"]}</td>
+  <td class='mono hash'>{rec["event_hash"][:16]}…</td>
 </tr>\n"""
     if len(r["audit_records"]) > 100:
-        rows += f"<tr><td colspan='7'>… and {len(r['audit_records'])-100} more records (see CSV export)</td></tr>"
+        rows += f"<tr><td colspan='7'>… and {len(r['audit_records']) - 100} more records (see CSV export)</td></tr>"
 
     ce = r.get("covered_entity") or "Not specified"
     ba = r.get("business_associate") or "Not specified"

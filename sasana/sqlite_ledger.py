@@ -72,7 +72,9 @@ class SqliteLedger:
     def __exit__(self, *_: Any) -> None:
         self.close()
 
-    def open_session(self, session_id: str, agent_id: str | None = None, metadata: dict | None = None) -> None:
+    def open_session(
+        self, session_id: str, agent_id: str | None = None, metadata: dict | None = None
+    ) -> None:
         if self._conn is None:
             self.connect()
         self._session_id = session_id
@@ -84,7 +86,9 @@ class SqliteLedger:
         self._write_event("SESSION_START", payload)
 
     def close_session(self, status: str = "success") -> None:
-        self._write_event("SESSION_END", {"status": status if status in ("success", "error") else "success"})
+        self._write_event(
+            "SESSION_END", {"status": status if status in ("success", "error") else "success"}
+        )
 
     def record(self, event_type: str, payload: dict) -> None:
         """Append one event. Silently drops server-authority events."""
@@ -119,18 +123,28 @@ class SqliteLedger:
         with self._lock:
             try:
                 event = build_event(
-                    seq=self._next_seq, event_type=event_type,
+                    seq=self._next_seq,
+                    event_type=event_type,
                     session_id=self._session_id or "unknown",
-                    payload=payload, prev_hash=self._last_hash,
+                    payload=payload,
+                    prev_hash=self._last_hash,
                     private_key=self._private_key,
                 )
                 self._conn.execute(
                     """INSERT INTO events (seq, session_id, event_type, timestamp, prev_hash,
                        event_hash, payload_json, signature, raw_json)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (event["seq"], event["session_id"], event["event_type"], event["timestamp"],
-                     event["prev_hash"], event["event_hash"],
-                     json.dumps(event.get("payload", {})), event.get("signature"), json.dumps(event)),
+                    (
+                        event["seq"],
+                        event["session_id"],
+                        event["event_type"],
+                        event["timestamp"],
+                        event["prev_hash"],
+                        event["event_hash"],
+                        json.dumps(event.get("payload", {})),
+                        event.get("signature"),
+                        json.dumps(event),
+                    ),
                 )
                 self._conn.commit()
                 self._next_seq += 1

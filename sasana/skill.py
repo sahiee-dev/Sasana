@@ -43,7 +43,9 @@ class SasanaSkill:
         self._ledgers: dict[str, SqliteLedger] = {}
         self._lock = threading.Lock()
 
-    def _get_or_create_ledger(self, session_key: str, session_id: str | None = None) -> SqliteLedger:
+    def _get_or_create_ledger(
+        self, session_key: str, session_id: str | None = None
+    ) -> SqliteLedger:
         with self._lock:
             if session_key not in self._ledgers:
                 sid = session_id or str(uuid.uuid4())
@@ -79,7 +81,9 @@ class SasanaSkill:
             ledger = self._ledgers.get(sk)
             if ledger is None:
                 ledger = self._get_or_create_ledger(sk)
-                ledger.open_session(session_id=ledger.session_id or str(uuid.uuid4()), metadata={"implicit": True})
+                ledger.open_session(
+                    session_id=ledger.session_id or str(uuid.uuid4()), metadata={"implicit": True}
+                )
             ledger.record(event_type, payload)
         except Exception as exc:
             logger.debug("Sasana: _record error (%s): %s", hook_name, exc)
@@ -90,9 +94,11 @@ class SasanaSkill:
             sid = str(uuid.uuid4())
             ledger = self._get_or_create_ledger(sk, session_id=sid)
             _, metadata = map_session_start(oc_event)
-            ledger.open_session(session_id=sid,
+            ledger.open_session(
+                session_id=sid,
                 agent_id=oc_event.get("agentId") or oc_event.get("agent_id"),
-                metadata=metadata)
+                metadata=metadata,
+            )
         except Exception as exc:
             logger.debug("Sasana: on_session_start error: %s", exc)
 

@@ -33,9 +33,16 @@ from sasana.compliance.siem import SiemExporter, _ts_to_epoch  # noqa: E402
 
 def _build_event(seq, event_type, session_id, payload, prev_hash):
     import datetime
+
     ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
-    evt = {"seq": seq, "event_type": event_type, "session_id": session_id,
-           "timestamp": ts, "payload": payload, "prev_hash": prev_hash}
+    evt = {
+        "seq": seq,
+        "event_type": event_type,
+        "session_id": session_id,
+        "timestamp": ts,
+        "payload": payload,
+        "prev_hash": prev_hash,
+    }
     stripped = {k: v for k, v in evt.items() if k != "event_hash"}
     evt["event_hash"] = hashlib.sha256(jcs_canonicalize(stripped)).hexdigest()
     return evt
@@ -50,16 +57,18 @@ def _write_session(path, events):
 def _make_session_jsonl(tmp_dir, session_id="test-session-001"):
     GENESIS = "0" * 64
     events = []
+
     def append(seq, et, payload):
         prev = events[-1]["event_hash"] if events else GENESIS
         events.append(_build_event(seq, et, session_id, payload, prev))
+
     append(1, "SESSION_START", {"agent_id": "test-agent", "model": "claude-4"})
-    append(2, "LLM_CALL",      {"model_hash": "a"*64, "prompt_hash": "b"*64, "prompt_count": 1})
-    append(3, "LLM_RESPONSE",  {"response_hash": "c"*64, "response_len": 150})
-    append(4, "TOOL_CALL",     {"tool_name_hash": "d"*64, "input_hash": "e"*64})
-    append(5, "TOOL_RESULT",   {"output_hash": "f"*64, "output_len": 42})
-    append(6, "TOOL_ERROR",    {"error_type": "ValueError", "error_hash": "0"*64})
-    append(7, "SESSION_END",   {"status": "success"})
+    append(2, "LLM_CALL", {"model_hash": "a" * 64, "prompt_hash": "b" * 64, "prompt_count": 1})
+    append(3, "LLM_RESPONSE", {"response_hash": "c" * 64, "response_len": 150})
+    append(4, "TOOL_CALL", {"tool_name_hash": "d" * 64, "input_hash": "e" * 64})
+    append(5, "TOOL_RESULT", {"output_hash": "f" * 64, "output_len": 42})
+    append(6, "TOOL_ERROR", {"error_type": "ValueError", "error_hash": "0" * 64})
+    append(7, "SESSION_END", {"status": "success"})
     path = Path(tmp_dir) / f"{session_id}.jsonl"
     _write_session(path, events)
     return path
@@ -68,11 +77,13 @@ def _make_session_jsonl(tmp_dir, session_id="test-session-001"):
 def _make_tampered_session(tmp_dir, session_id="bad-session"):
     GENESIS = "0" * 64
     events = []
+
     def append(seq, et, payload):
         prev = events[-1]["event_hash"] if events else GENESIS
         events.append(_build_event(seq, et, session_id, payload, prev))
+
     append(1, "SESSION_START", {"agent_id": "test"})
-    append(2, "LLM_CALL", {"prompt_hash": "a"*64})
+    append(2, "LLM_CALL", {"prompt_hash": "a" * 64})
     events[-1]["payload"]["injected"] = "evil"
     append(3, "SESSION_END", {"status": "success"})
     path = Path(tmp_dir) / f"{session_id}.jsonl"
@@ -83,6 +94,7 @@ def _make_tampered_session(tmp_dir, session_id="bad-session"):
 class TestLoadAndVerify(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
 
     def test_load_session_returns_sorted_events(self):
@@ -104,9 +116,11 @@ class TestLoadAndVerify(unittest.TestCase):
         GENESIS = "0" * 64
         sid = "drop-session"
         events = []
+
         def append(seq, et, payload):
             prev = events[-1]["event_hash"] if events else GENESIS
             events.append(_build_event(seq, et, sid, payload, prev))
+
         append(1, "SESSION_START", {})
         append(2, "LOG_DROP", {"dropped_count": 5})
         append(3, "SESSION_END", {"status": "success"})
@@ -124,6 +138,7 @@ class TestLoadAndVerify(unittest.TestCase):
 class TestSoc2Report(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
         self.jsonl = _make_session_jsonl(self.tmp)
         self.out = self.tmp / "reports"
@@ -142,9 +157,19 @@ class TestSoc2Report(unittest.TestCase):
 
     def test_report_contains_required_fields(self):
         r = generate_soc2_report(self.jsonl, output_dir=self.out)
-        for f in ["framework","control_id","generated_at","session_id","result",
-                  "evidence_class","event_count","root_hash","session_start",
-                  "session_end","event_type_summary"]:
+        for f in [
+            "framework",
+            "control_id",
+            "generated_at",
+            "session_id",
+            "result",
+            "evidence_class",
+            "event_count",
+            "root_hash",
+            "session_start",
+            "session_end",
+            "event_type_summary",
+        ]:
             assert f in r
 
     def test_report_json_is_valid(self):
@@ -167,6 +192,7 @@ class TestSoc2Report(unittest.TestCase):
 class TestEuAiActReport(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
         self.jsonl = _make_session_jsonl(self.tmp)
         self.out = self.tmp / "reports"
@@ -176,13 +202,19 @@ class TestEuAiActReport(unittest.TestCase):
         assert Path(r["json_path"]).exists() and Path(r["html_path"]).exists()
 
     def test_compliant_for_intact_session(self):
-        assert generate_eu_ai_act_report(self.jsonl, system_name="TestAI",
-                                          output_dir=self.out)["compliant"]
+        assert generate_eu_ai_act_report(self.jsonl, system_name="TestAI", output_dir=self.out)[
+            "compliant"
+        ]
 
     def test_requirement_checks_all_present(self):
         checks = generate_eu_ai_act_report(self.jsonl, output_dir=self.out)["requirement_checks"]
-        for k in ["timestamps_on_all_events","input_events_logged","output_events_logged",
-                  "hash_chain_tamper_evident","session_lifecycle_logged"]:
+        for k in [
+            "timestamps_on_all_events",
+            "input_events_logged",
+            "output_events_logged",
+            "hash_chain_tamper_evident",
+            "session_lifecycle_logged",
+        ]:
             assert k in checks
 
     def test_interaction_timeline_populated(self):
@@ -206,20 +238,23 @@ class TestEuAiActReport(unittest.TestCase):
 class TestHipaaAuditLog(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
         self.jsonl = _make_session_jsonl(self.tmp)
         self.out = self.tmp / "reports"
 
     def test_generates_json_csv_html(self):
         r = generate_hipaa_audit_log(self.jsonl, output_dir=self.out)
-        assert all(Path(r[k]).exists() for k in ["json_path","csv_path","html_path"])
+        assert all(Path(r[k]).exists() for k in ["json_path", "csv_path", "html_path"])
 
     def test_audit_record_count(self):
         assert generate_hipaa_audit_log(self.jsonl, output_dir=self.out)["audit_record_count"] == 7
 
     def test_access_types_mapped_correctly(self):
-        recs = {r["event_type"]: r for r in
-                generate_hipaa_audit_log(self.jsonl, output_dir=self.out)["audit_records"]}
+        recs = {
+            r["event_type"]: r
+            for r in generate_hipaa_audit_log(self.jsonl, output_dir=self.out)["audit_records"]
+        }
         assert recs["SESSION_START"]["access_type"] == "SYSTEM_ACCESS"
         assert recs["LLM_CALL"]["access_type"] == "READ"
         assert recs["TOOL_CALL"]["access_type"] == "EXECUTE"
@@ -245,17 +280,19 @@ class TestHipaaAuditLog(unittest.TestCase):
     def test_all_records_have_required_fields(self):
         recs = generate_hipaa_audit_log(self.jsonl, output_dir=self.out)["audit_records"]
         for rec in recs:
-            for f in ["timestamp","system_id","access_type","outcome","event_hash"]:
+            for f in ["timestamp", "system_id", "access_type", "outcome", "event_hash"]:
                 assert f in rec
 
 
 class TestSiemExporter(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
         self.jsonl = _make_session_jsonl(self.tmp)
-        self.exporter = SiemExporter(self.jsonl, device_vendor="TestVendor",
-                                      device_product="TestProduct")
+        self.exporter = SiemExporter(
+            self.jsonl, device_vendor="TestVendor", device_product="TestProduct"
+        )
 
     def test_to_cef_returns_one_line_per_event(self):
         assert len(self.exporter.to_cef()) == 7
@@ -273,7 +310,7 @@ class TestSiemExporter(unittest.TestCase):
 
     def test_json_records_structure(self):
         for rec in self.exporter.to_json_records():
-            for f in ["session_id","event_type","event_hash","timestamp"]:
+            for f in ["session_id", "event_type", "event_hash", "timestamp"]:
                 assert f in rec
 
     def test_json_lines_file(self):
@@ -312,6 +349,7 @@ class TestTimestampConversion(unittest.TestCase):
 
     def test_invalid_returns_now(self):
         import time
+
         assert abs(_ts_to_epoch("not-a-timestamp") - time.time()) < 5
 
 

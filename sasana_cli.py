@@ -43,19 +43,25 @@ def _cmd_verify(args: list) -> int:
         return 3
 
     from sasana.verifier import verify, VERIFIER_VERSION
+
     result = verify(events)
 
     if parsed.json_out:
-        print(json.dumps({
-            "status": result.status,
-            "evidence_class": result.evidence_class,
-            "session_id": result.session_id,
-            "event_count": result.event_count,
-            "log_drop_count": result.log_drop_count,
-            "root_hash": result.root_hash,
-            "errors": result.errors,
-            "verifier_version": VERIFIER_VERSION,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "status": result.status,
+                    "evidence_class": result.evidence_class,
+                    "session_id": result.session_id,
+                    "event_count": result.event_count,
+                    "log_drop_count": result.log_drop_count,
+                    "root_hash": result.root_hash,
+                    "errors": result.errors,
+                    "verifier_version": VERIFIER_VERSION,
+                },
+                indent=2,
+            )
+        )
     else:
         print(f"Sasana Verifier v{VERIFIER_VERSION}")
         print(f"File: {parsed.session_file}")
@@ -98,6 +104,7 @@ def _cmd_observe(args: list) -> int:
     parsed = ap.parse_args(args)
 
     from sasana.observer import OpenClawObserver
+
     print("Sasana observer → ~/.openclaw/sasana/  (Ctrl-C to stop)")
     try:
         asyncio.run(OpenClawObserver(ws_url=parsed.ws_url, output_dir=parsed.output_dir).run())

@@ -33,17 +33,25 @@ def _stub_langgraph() -> None:
     base.BaseCheckpointSaver = object
     pkg.checkpoint = checkpoint
     checkpoint.base = base
-    sys.modules.update({
-        "langgraph": pkg,
-        "langgraph.checkpoint": checkpoint,
-        "langgraph.checkpoint.base": base,
-    })
+    sys.modules.update(
+        {
+            "langgraph": pkg,
+            "langgraph.checkpoint": checkpoint,
+            "langgraph.checkpoint.base": base,
+        }
+    )
 
 
 def _stub_langchain() -> None:
-    for mod in ("langchain_core", "langchain_core.callbacks",
-                "langchain_core.outputs", "langchain", "langchain.callbacks",
-                "langchain.callbacks.base", "langchain.schema"):
+    for mod in (
+        "langchain_core",
+        "langchain_core.callbacks",
+        "langchain_core.outputs",
+        "langchain",
+        "langchain.callbacks",
+        "langchain.callbacks.base",
+        "langchain.schema",
+    ):
         if mod not in sys.modules:
             sys.modules[mod] = types.ModuleType(mod)
     sys.modules["langchain_core.callbacks"].BaseCallbackHandler = object
@@ -64,6 +72,7 @@ _stub_langchain()
 _stub_autogpt()
 
 import importlib  # noqa: E402
+
 _lg_mod = importlib.import_module("sasana.integrations.langgraph")
 _ca_mod = importlib.import_module("sasana.integrations.crewai")
 _ag_mod = importlib.import_module("sasana.integrations.autogpt")
@@ -94,7 +103,9 @@ def _read_jsonl(path: Path) -> list:
 
 class TestExtractThreadId(unittest.TestCase):
     def test_extracts_thread_id_from_config(self):
-        assert _lg_mod._extract_thread_id({"configurable": {"thread_id": "my-thread"}}) == "my-thread"
+        assert (
+            _lg_mod._extract_thread_id({"configurable": {"thread_id": "my-thread"}}) == "my-thread"
+        )
 
     def test_returns_unknown_for_empty_config(self):
         assert _lg_mod._extract_thread_id({}) == "unknown"
@@ -107,6 +118,7 @@ class TestExtractThreadId(unittest.TestCase):
 class TestTamperEvidentCheckpointSaverLifecycle(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
 
     def _checkpoint(self, channels=None, cid="c"):
@@ -153,6 +165,7 @@ class TestTamperEvidentCheckpointSaverLifecycle(unittest.TestCase):
         evts = _read_jsonl(list(self.tmp.glob("*.jsonl"))[0])
         from sasana.jcs import canonicalize as jcs
         import hashlib
+
         prev = "0" * 64
         for evt in evts:
             stripped = {k: v for k, v in evt.items() if k not in ("event_hash", "signature")}
@@ -183,6 +196,7 @@ class TestTamperEvidentCheckpointSaverLifecycle(unittest.TestCase):
 class TestSasanaCrewAITracer(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
 
     def test_start_creates_session(self):
@@ -257,6 +271,7 @@ class TestSasanaCrewAITracer(unittest.TestCase):
         evts = _read_jsonl(list(self.tmp.glob("*.jsonl"))[0])
         from sasana.jcs import canonicalize as jcs
         import hashlib
+
         prev = "0" * 64
         for evt in evts:
             stripped = {k: v for k, v in evt.items() if k not in ("event_hash", "signature")}
@@ -268,6 +283,7 @@ class TestSasanaCrewAITracer(unittest.TestCase):
 class TestSasanaAutoGPTPlugin(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = Path(tempfile.mkdtemp())
 
     def test_start_session_returns_sid(self):
@@ -320,6 +336,7 @@ class TestSasanaAutoGPTPlugin(unittest.TestCase):
         evts = _read_jsonl(list(self.tmp.glob("*.jsonl"))[0])
         from sasana.jcs import canonicalize as jcs
         import hashlib
+
         prev = "0" * 64
         for evt in evts:
             stripped = {k: v for k, v in evt.items() if k not in ("event_hash", "signature")}
@@ -330,9 +347,14 @@ class TestSasanaAutoGPTPlugin(unittest.TestCase):
 
 class TestEventTypeConsistency(unittest.TestCase):
     VALID_TYPES = {
-        "SESSION_START", "SESSION_END",
-        "LLM_CALL", "LLM_RESPONSE",
-        "TOOL_CALL", "TOOL_RESULT", "TOOL_ERROR", "LOG_DROP",
+        "SESSION_START",
+        "SESSION_END",
+        "LLM_CALL",
+        "LLM_RESPONSE",
+        "TOOL_CALL",
+        "TOOL_RESULT",
+        "TOOL_ERROR",
+        "LOG_DROP",
     }
 
     def test_all_frameworks_emit_only_known_types(self):

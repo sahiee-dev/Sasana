@@ -39,6 +39,7 @@ logger = logging.getLogger("sasana.integrations.autogpt")
 
 try:
     from auto_gpt_plugin_template import AutoGPTPluginTemplate
+
     _AUTOGPT_AVAILABLE = True
 except ImportError:
     _AUTOGPT_AVAILABLE = False
@@ -132,7 +133,9 @@ class SasanaAutoGPTPlugin(AutoGPTPluginTemplate):  # type: ignore[misc]
     def can_handle_pre_command(self) -> bool:
         return True
 
-    def pre_command(self, command_name: str, arguments: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    def pre_command(
+        self, command_name: str, arguments: Dict[str, Any]
+    ) -> Tuple[str, Dict[str, Any]]:
         self._pending_command = command_name
         try:
             arg_hash = _sha256(str(sorted(arguments.items())))
@@ -172,7 +175,9 @@ class SasanaAutoGPTPlugin(AutoGPTPluginTemplate):  # type: ignore[misc]
     def can_handle_pre_message_history_summary(self) -> bool:
         return True
 
-    def pre_message_history_summary(self, params: Any, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def pre_message_history_summary(
+        self, params: Any, messages: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         try:
             self._record(
                 "LLM_CALL",

@@ -40,48 +40,48 @@ logger = logging.getLogger("sasana.compliance.siem")
 
 _CEF_VERSION = "0"
 _CEF_SEVERITY_MAP = {
-    "SESSION_START":    "3",
-    "SESSION_END":      "3",
-    "LLM_CALL":         "4",
-    "LLM_RESPONSE":     "4",
-    "TOOL_CALL":        "5",
-    "TOOL_RESULT":      "5",
-    "TOOL_ERROR":       "7",
-    "LOG_DROP":         "8",
-    "CHAIN_SEAL":       "2",
-    "CHAIN_BROKEN":     "9",
-    "REDACTION":        "6",
-    "FORENSIC_FREEZE":  "6",
+    "SESSION_START": "3",
+    "SESSION_END": "3",
+    "LLM_CALL": "4",
+    "LLM_RESPONSE": "4",
+    "TOOL_CALL": "5",
+    "TOOL_RESULT": "5",
+    "TOOL_ERROR": "7",
+    "LOG_DROP": "8",
+    "CHAIN_SEAL": "2",
+    "CHAIN_BROKEN": "9",
+    "REDACTION": "6",
+    "FORENSIC_FREEZE": "6",
 }
 
 _CEF_NAME_MAP = {
-    "SESSION_START":    "AI Session Started",
-    "SESSION_END":      "AI Session Ended",
-    "LLM_CALL":         "LLM Invocation",
-    "LLM_RESPONSE":     "LLM Response Received",
-    "TOOL_CALL":        "Tool Invoked",
-    "TOOL_RESULT":      "Tool Result Received",
-    "TOOL_ERROR":       "Tool Execution Error",
-    "LOG_DROP":         "Audit Event Dropped",
-    "CHAIN_SEAL":       "Chain Sealed",
-    "CHAIN_BROKEN":     "Chain Integrity Violation",
-    "REDACTION":        "Event Redacted",
-    "FORENSIC_FREEZE":  "Forensic Freeze Applied",
+    "SESSION_START": "AI Session Started",
+    "SESSION_END": "AI Session Ended",
+    "LLM_CALL": "LLM Invocation",
+    "LLM_RESPONSE": "LLM Response Received",
+    "TOOL_CALL": "Tool Invoked",
+    "TOOL_RESULT": "Tool Result Received",
+    "TOOL_ERROR": "Tool Execution Error",
+    "LOG_DROP": "Audit Event Dropped",
+    "CHAIN_SEAL": "Chain Sealed",
+    "CHAIN_BROKEN": "Chain Integrity Violation",
+    "REDACTION": "Event Redacted",
+    "FORENSIC_FREEZE": "Forensic Freeze Applied",
 }
 
 _EVENT_CLASS_ID_MAP = {
-    "SESSION_START":    "100",
-    "SESSION_END":      "101",
-    "LLM_CALL":         "200",
-    "LLM_RESPONSE":     "201",
-    "TOOL_CALL":        "300",
-    "TOOL_RESULT":      "301",
-    "TOOL_ERROR":       "302",
-    "LOG_DROP":         "400",
-    "CHAIN_SEAL":       "500",
-    "CHAIN_BROKEN":     "501",
-    "REDACTION":        "600",
-    "FORENSIC_FREEZE":  "601",
+    "SESSION_START": "100",
+    "SESSION_END": "101",
+    "LLM_CALL": "200",
+    "LLM_RESPONSE": "201",
+    "TOOL_CALL": "300",
+    "TOOL_RESULT": "301",
+    "TOOL_ERROR": "302",
+    "LOG_DROP": "400",
+    "CHAIN_SEAL": "500",
+    "CHAIN_BROKEN": "501",
+    "REDACTION": "600",
+    "FORENSIC_FREEZE": "601",
 }
 
 
@@ -220,15 +220,23 @@ class SiemExporter:
             token = f"Splunk {token}"
         sent = failed = batches = 0
         for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
+            batch = records[i : i + batch_size]
             payload = "\n".join(
-                json.dumps({"time": _ts_to_epoch(r.get("timestamp", "")),
-                            "host": "sasana", "source": source,
-                            "sourcetype": sourcetype, "index": index, "event": r})
+                json.dumps(
+                    {
+                        "time": _ts_to_epoch(r.get("timestamp", "")),
+                        "host": "sasana",
+                        "source": source,
+                        "sourcetype": sourcetype,
+                        "index": index,
+                        "event": r,
+                    }
+                )
                 for r in batch
             ).encode("utf-8")
             req = urllib.request.Request(
-                hec_url, data=payload,
+                hec_url,
+                data=payload,
                 headers={"Authorization": token, "Content-Type": "application/json"},
                 method="POST",
             )
@@ -256,9 +264,10 @@ class SiemExporter:
             hdrs.update(headers)
         sent = failed = batches = 0
         for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
-            payload = json.dumps({"events": batch, "batch": batches,
-                                   "source": self._product}).encode("utf-8")
+            batch = records[i : i + batch_size]
+            payload = json.dumps(
+                {"events": batch, "batch": batches, "source": self._product}
+            ).encode("utf-8")
             req = urllib.request.Request(url, data=payload, headers=hdrs, method="POST")
             try:
                 with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -280,13 +289,18 @@ class SiemExporter:
             severity = int(_CEF_SEVERITY_MAP.get(et, "5"))
             syslog_sev = min(7, max(0, 7 - severity // 2))
             pri = 16 * 8 + syslog_sev
-            ts = evt.get("timestamp", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z")
-            msg = json.dumps({
-                "event_type": et,
-                "seq": evt.get("seq"),
-                "event_hash": evt.get("event_hash", "")[:16],
-                "session_id": session_id,
-            })
+            ts = evt.get(
+                "timestamp",
+                datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z",
+            )
+            msg = json.dumps(
+                {
+                    "event_type": et,
+                    "seq": evt.get("seq"),
+                    "event_hash": evt.get("event_hash", "")[:16],
+                    "session_id": session_id,
+                }
+            )
             lines.append(f"<{pri}>1 {ts} sasana-ai-audit sasana - {session_id[:32]} - {msg}")
         return lines
 
@@ -323,8 +337,6 @@ def _ts_to_epoch(ts: str) -> float:
     try:
         ts = ts.rstrip("Z").replace("T", " ")
         fmt = "%Y-%m-%d %H:%M:%S.%f" if "." in ts else "%Y-%m-%d %H:%M:%S"
-        return datetime.datetime.strptime(ts, fmt).replace(
-            tzinfo=datetime.timezone.utc
-        ).timestamp()
+        return datetime.datetime.strptime(ts, fmt).replace(tzinfo=datetime.timezone.utc).timestamp()
     except (ValueError, AttributeError):
         return datetime.datetime.now(datetime.timezone.utc).timestamp()

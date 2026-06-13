@@ -29,6 +29,7 @@ def _load_openclaw_ws_url() -> str:
     if config_path.exists():
         try:
             import yaml
+
             with open(config_path) as f:
                 cfg = yaml.safe_load(f) or {}
             port = cfg.get("gateway", {}).get("port") or cfg.get("port", 3517)
@@ -42,8 +43,12 @@ def _load_openclaw_ws_url() -> str:
 class OpenClawObserver:
     """Passive WebSocket observer. One SqliteLedger per active OpenClaw session."""
 
-    def __init__(self, ws_url: str | None = None, output_dir: Path | str | None = None,
-                 server_url: str | None = None) -> None:
+    def __init__(
+        self,
+        ws_url: str | None = None,
+        output_dir: Path | str | None = None,
+        server_url: str | None = None,
+    ) -> None:
         self._ws_url = ws_url or _load_openclaw_ws_url()
         self._output_dir = Path(output_dir or _DEFAULT_OUTPUT_DIR).expanduser()
         self._output_dir.mkdir(parents=True, exist_ok=True)
@@ -61,8 +66,13 @@ class OpenClawObserver:
                 attempts = 0
             except Exception as exc:
                 attempts += 1
-                logger.warning("Sasana observer: disconnected (%s). Retry %d/%d in %ds",
-                    exc, attempts, _MAX_RECONNECT_ATTEMPTS, _RECONNECT_DELAY_SECS)
+                logger.warning(
+                    "Sasana observer: disconnected (%s). Retry %d/%d in %ds",
+                    exc,
+                    attempts,
+                    _MAX_RECONNECT_ATTEMPTS,
+                    _RECONNECT_DELAY_SECS,
+                )
                 if self._running:
                     await asyncio.sleep(_RECONNECT_DELAY_SECS)
 
@@ -92,8 +102,11 @@ class OpenClawObserver:
         sk: str = msg.get("sessionKey") or msg.get("session_key") or "default"
         if event_type == "SESSION_START":
             ledger = self._get_or_create_ledger(sk)
-            ledger.open_session(session_id=ledger.session_id or str(uuid.uuid4()),
-                agent_id=payload.pop("agent_id", None), metadata=payload or None)
+            ledger.open_session(
+                session_id=ledger.session_id or str(uuid.uuid4()),
+                agent_id=payload.pop("agent_id", None),
+                metadata=payload or None,
+            )
         elif event_type == "SESSION_END":
             ledger = self._ledgers.get(sk)
             if ledger:

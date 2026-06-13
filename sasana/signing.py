@@ -4,6 +4,7 @@ signing.py — Ed25519 signing primitives for Sasana sessions.
 Per-session keypair: public key embedded in SESSION_START,
 verifier is self-contained — no external key registry needed.
 """
+
 from __future__ import annotations
 
 import base64

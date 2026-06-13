@@ -49,16 +49,21 @@ def main() -> None:
     result = verify(events)
 
     if args.format == "json":
-        print(json.dumps({
-            "verifier_version": VERIFIER_VERSION,
-            "session_id": result.session_id,
-            "event_count": result.event_count,
-            "evidence_class": result.evidence_class,
-            "status": result.status,
-            "log_drop_count": result.log_drop_count,
-            "root_hash": result.root_hash,
-            "errors": result.errors,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "verifier_version": VERIFIER_VERSION,
+                    "session_id": result.session_id,
+                    "event_count": result.event_count,
+                    "evidence_class": result.evidence_class,
+                    "status": result.status,
+                    "log_drop_count": result.log_drop_count,
+                    "root_hash": result.root_hash,
+                    "errors": result.errors,
+                },
+                indent=2,
+            )
+        )
     else:
         print(f"Sasana Verifier v{VERIFIER_VERSION}")
         print("=" * 32)

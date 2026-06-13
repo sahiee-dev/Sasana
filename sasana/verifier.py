@@ -16,15 +16,33 @@ from sasana.jcs import canonicalize as jcs_canonicalize
 VERIFIER_VERSION = "1.0.0"
 GENESIS_HASH = "0" * 64
 
-ALLOWED_EVENT_TYPES = frozenset({
-    "SESSION_START", "SESSION_END", "LLM_CALL", "LLM_RESPONSE",
-    "TOOL_CALL", "TOOL_RESULT", "TOOL_ERROR", "LOG_DROP",
-    "CHAIN_SEAL", "CHAIN_BROKEN", "REDACTION", "FORENSIC_FREEZE",
-})
-REQUIRED_FIELDS = frozenset({
-    "seq", "event_type", "session_id", "timestamp",
-    "payload", "prev_hash", "event_hash",
-})
+ALLOWED_EVENT_TYPES = frozenset(
+    {
+        "SESSION_START",
+        "SESSION_END",
+        "LLM_CALL",
+        "LLM_RESPONSE",
+        "TOOL_CALL",
+        "TOOL_RESULT",
+        "TOOL_ERROR",
+        "LOG_DROP",
+        "CHAIN_SEAL",
+        "CHAIN_BROKEN",
+        "REDACTION",
+        "FORENSIC_FREEZE",
+    }
+)
+REQUIRED_FIELDS = frozenset(
+    {
+        "seq",
+        "event_type",
+        "session_id",
+        "timestamp",
+        "payload",
+        "prev_hash",
+        "event_hash",
+    }
+)
 
 # Status constants
 INTACT = "INTACT"
@@ -44,8 +62,8 @@ NO_EVIDENCE = "NO_EVIDENCE"
 class VerifyResult:
     """Structured output from verify(). All fields are read-only by convention."""
 
-    status: str           # INTACT | PARTIAL | COMPROMISED | ERROR
-    evidence_class: str   # AUTHORITATIVE_EVIDENCE | … | NO_EVIDENCE
+    status: str  # INTACT | PARTIAL | COMPROMISED | ERROR
+    evidence_class: str  # AUTHORITATIVE_EVIDENCE | … | NO_EVIDENCE
     session_id: Optional[str]
     event_count: int
     log_drop_count: int
@@ -82,8 +100,7 @@ def _check_structural(events: list) -> dict:
         for hfield in ("prev_hash", "event_hash"):
             h = event.get(hfield)
             if h is not None and not (
-                isinstance(h, str) and len(h) == 64
-                and all(c in "0123456789abcdef" for c in h)
+                isinstance(h, str) and len(h) == 64 and all(c in "0123456789abcdef" for c in h)
             ):
                 errors.append(f"seq={seq}: '{hfield}' must be 64-char lowercase hex")
     return {"status": "PASS" if not errors else "FAIL", "errors": errors}
@@ -111,7 +128,7 @@ def _check_sequence(events: list) -> dict:
 
     for i in range(1, len(seqs)):
         if seqs[i] != seqs[i - 1] + 1:
-            errors.append(f"Expected seq={seqs[i-1]+1}, found seq={seqs[i]}")
+            errors.append(f"Expected seq={seqs[i - 1] + 1}, found seq={seqs[i]}")
 
     return {"status": "PASS" if not errors else "FAIL", "errors": errors}
 
@@ -201,9 +218,14 @@ def verify(events: list, signatures_valid: bool = False) -> VerifyResult:
     """
     if not events:
         return VerifyResult(
-            status=ERROR, evidence_class=NO_EVIDENCE,
-            session_id=None, event_count=0, log_drop_count=0,
-            root_hash=None, errors=["Session file is empty"], checks={},
+            status=ERROR,
+            evidence_class=NO_EVIDENCE,
+            session_id=None,
+            event_count=0,
+            log_drop_count=0,
+            root_hash=None,
+            errors=["Session file is empty"],
+            checks={},
         )
 
     session_id = events[0].get("session_id")
@@ -215,9 +237,12 @@ def verify(events: list, signatures_valid: bool = False) -> VerifyResult:
     c1 = _check_structural(events)
     if c1["status"] != "PASS":
         return VerifyResult(
-            status=COMPROMISED, evidence_class=NO_EVIDENCE,
-            session_id=session_id, event_count=len(events),
-            log_drop_count=log_drops, root_hash=root_hash,
+            status=COMPROMISED,
+            evidence_class=NO_EVIDENCE,
+            session_id=session_id,
+            event_count=len(events),
+            log_drop_count=log_drops,
+            root_hash=root_hash,
             errors=c1["errors"],
             checks={
                 "structural": c1,
@@ -235,18 +260,26 @@ def verify(events: list, signatures_valid: bool = False) -> VerifyResult:
 
     if all_errors:
         return VerifyResult(
-            status=COMPROMISED, evidence_class=NO_EVIDENCE,
-            session_id=session_id, event_count=len(events),
-            log_drop_count=log_drops, root_hash=root_hash,
-            errors=all_errors, checks=checks,
+            status=COMPROMISED,
+            evidence_class=NO_EVIDENCE,
+            session_id=session_id,
+            event_count=len(events),
+            log_drop_count=log_drops,
+            root_hash=root_hash,
+            errors=all_errors,
+            checks=checks,
         )
 
     evidence = _determine_evidence_class(events, signatures_valid=signatures_valid)
     status = PARTIAL if log_drops > 0 else INTACT
 
     return VerifyResult(
-        status=status, evidence_class=evidence,
-        session_id=session_id, event_count=len(events),
-        log_drop_count=log_drops, root_hash=root_hash,
-        errors=[], checks=checks,
+        status=status,
+        evidence_class=evidence,
+        session_id=session_id,
+        event_count=len(events),
+        log_drop_count=log_drops,
+        root_hash=root_hash,
+        errors=[],
+        checks=checks,
     )

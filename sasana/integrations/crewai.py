@@ -49,11 +49,13 @@ logger = logging.getLogger("sasana.integrations.crewai")
 try:
     from langchain_core.callbacks import BaseCallbackHandler
     from langchain_core.outputs import LLMResult
+
     _LANGCHAIN_AVAILABLE = True
 except ImportError:
     try:
         from langchain.callbacks.base import BaseCallbackHandler  # type: ignore[no-redef]
         from langchain.schema import LLMResult  # type: ignore[no-redef]
+
         _LANGCHAIN_AVAILABLE = True
     except ImportError:
         _LANGCHAIN_AVAILABLE = False

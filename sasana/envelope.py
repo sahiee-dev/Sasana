@@ -36,6 +36,7 @@ def build_event(
     if private_key is not None:
         try:
             from sasana.signing import sign_event_hash
+
             event["signature"] = sign_event_hash(private_key, event["event_hash"])
         except Exception:
             pass

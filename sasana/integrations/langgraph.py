@@ -40,6 +40,7 @@ logger = logging.getLogger("sasana.integrations.langgraph")
 
 try:
     from langgraph.checkpoint.base import BaseCheckpointSaver
+
     _LANGGRAPH_AVAILABLE = True
 except ImportError:
     _LANGGRAPH_AVAILABLE = False
@@ -161,7 +162,9 @@ class TamperEvidentCheckpointSaver(BaseCheckpointSaver):  # type: ignore[misc]
         if self._inner:
             yield from self._inner.list(config, filter=filter, before=before, limit=limit)
 
-    async def alist(self, config: Any, *, filter: Any = None, before: Any = None, limit: Any = None):
+    async def alist(
+        self, config: Any, *, filter: Any = None, before: Any = None, limit: Any = None
+    ):
         if self._inner and hasattr(self._inner, "alist"):
             async for item in self._inner.alist(config, filter=filter, before=before, limit=limit):
                 yield item
@@ -207,6 +210,7 @@ class TamperEvidentCheckpointSaver(BaseCheckpointSaver):  # type: ignore[misc]
 # Helpers (module-level for easy testing)                             #
 # ------------------------------------------------------------------ #
 
+
 def _extract_thread_id(config: Any) -> str:
     try:
         return (config or {}).get("configurable", {}).get("thread_id", "unknown")
@@ -234,7 +238,9 @@ def _audit_checkpoint(
                 source = str(metadata.source)
             elif isinstance(metadata, dict):
                 source = str(metadata.get("source", "unknown"))
-            writes = getattr(metadata, "writes", None) or (metadata.get("writes") if isinstance(metadata, dict) else None)
+            writes = getattr(metadata, "writes", None) or (
+                metadata.get("writes") if isinstance(metadata, dict) else None
+            )
             if isinstance(writes, dict):
                 node_names = list(writes.keys())
 
@@ -245,7 +251,10 @@ def _audit_checkpoint(
                 channel_count = len(checkpoint.channel_values or {})
             elif isinstance(checkpoint, dict):
                 channel_count = len(checkpoint.get("channel_values", {}))
-            checkpoint_id = str(getattr(checkpoint, "id", "") or (checkpoint.get("id", "") if isinstance(checkpoint, dict) else ""))
+            checkpoint_id = str(
+                getattr(checkpoint, "id", "")
+                or (checkpoint.get("id", "") if isinstance(checkpoint, dict) else "")
+            )
 
         ledger.record(
             "TOOL_RESULT",
@@ -275,7 +284,9 @@ def _audit_writes(
         write_count = len(writes) if hasattr(writes, "__len__") else -1
         write_key_hashes = []
         if isinstance(writes, (list, tuple)):
-            write_key_hashes = [_sha256(w[0]) for w in writes if isinstance(w, (list, tuple)) and len(w) >= 1]
+            write_key_hashes = [
+                _sha256(w[0]) for w in writes if isinstance(w, (list, tuple)) and len(w) >= 1
+            ]
 
         ledger.record(
             "TOOL_CALL",

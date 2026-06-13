@@ -65,23 +65,34 @@ def generate_eu_ai_act_report(
         "server_sealed": has_integrity_seal,
     }
 
-    compliant = all(requirement_checks[k] for k in [
-        "timestamps_on_all_events",
-        "input_events_logged",
-        "output_events_logged",
-        "hash_chain_tamper_evident",
-        "session_lifecycle_logged",
-    ])
+    compliant = all(
+        requirement_checks[k]
+        for k in [
+            "timestamps_on_all_events",
+            "input_events_logged",
+            "output_events_logged",
+            "hash_chain_tamper_evident",
+            "session_lifecycle_logged",
+        ]
+    )
 
     interactions = []
     for evt in events:
-        if evt.get("event_type") in ("LLM_CALL", "LLM_RESPONSE", "TOOL_CALL", "TOOL_RESULT", "TOOL_ERROR"):
-            interactions.append({
-                "seq": evt["seq"],
-                "event_type": evt["event_type"],
-                "timestamp": evt.get("timestamp", ""),
-                "payload_keys": list(evt.get("payload", {}).keys()),
-            })
+        if evt.get("event_type") in (
+            "LLM_CALL",
+            "LLM_RESPONSE",
+            "TOOL_CALL",
+            "TOOL_RESULT",
+            "TOOL_ERROR",
+        ):
+            interactions.append(
+                {
+                    "seq": evt["seq"],
+                    "event_type": evt["event_type"],
+                    "timestamp": evt.get("timestamp", ""),
+                    "payload_keys": list(evt.get("payload", {}).keys()),
+                }
+            )
 
     report = {
         "schema_version": "1.0",
@@ -138,9 +149,13 @@ def _render_eu_html(r: dict) -> str:
 
     interaction_rows = ""
     for ia in r["interaction_timeline"][:50]:
-        interaction_rows += f"<tr><td>{ia['seq']}</td><td>{ia['event_type']}</td><td>{ia['timestamp']}</td></tr>\n"
+        interaction_rows += (
+            f"<tr><td>{ia['seq']}</td><td>{ia['event_type']}</td><td>{ia['timestamp']}</td></tr>\n"
+        )
     if len(r["interaction_timeline"]) > 50:
-        interaction_rows += f"<tr><td colspan='3'>... and {len(r['interaction_timeline'])-50} more</td></tr>"
+        interaction_rows += (
+            f"<tr><td colspan='3'>... and {len(r['interaction_timeline']) - 50} more</td></tr>"
+        )
 
     error_section = ""
     if r["integrity_errors"]:

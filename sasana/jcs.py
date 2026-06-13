@@ -37,8 +37,10 @@ def canonicalize(data: Any) -> bytes:
         parts = [canonicalize(item) for item in data]
         return b"[" + b",".join(parts) + b"]"
     if isinstance(data, dict):
+
         def utf16_sort_key(s: str) -> bytes:
             return s.encode("utf-16-be")
+
         sorted_keys = sorted(data.keys(), key=utf16_sort_key)
         parts = []
         for key in sorted_keys:

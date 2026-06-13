@@ -46,6 +46,7 @@ def verify_session(events: list) -> dict:
     Delegates to sasana.verifier — single source of truth for all verification.
     """
     from sasana.verifier import verify as _verify
+
     result = _verify(events)
     return {
         "intact": result.status in ("INTACT", "PARTIAL"),

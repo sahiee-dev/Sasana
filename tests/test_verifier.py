@@ -36,14 +36,19 @@ from sasana.verifier import (  # noqa: E402
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _ts() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
 def _build_event(seq: int, event_type: str, session_id: str, payload: dict, prev_hash: str) -> dict:
     evt: dict = {
-        "seq": seq, "event_type": event_type, "session_id": session_id,
-        "timestamp": _ts(), "payload": payload, "prev_hash": prev_hash,
+        "seq": seq,
+        "event_type": event_type,
+        "session_id": session_id,
+        "timestamp": _ts(),
+        "payload": payload,
+        "prev_hash": prev_hash,
     }
     evt["event_hash"] = compute_event_hash(evt)
     return evt
@@ -57,12 +62,12 @@ def _make_session(session_id: str = "test-session") -> list:
         prev = events[-1]["event_hash"] if events else GENESIS_HASH
         events.append(_build_event(seq, et, session_id, payload, prev))
 
-    append(1, "SESSION_START",  {"agent_id": "test-agent"})
-    append(2, "LLM_CALL",       {"prompt_hash": "a" * 64})
-    append(3, "LLM_RESPONSE",   {"content_hash": "b" * 64})
-    append(4, "TOOL_CALL",      {"tool_name": "bash", "args_hash": "c" * 64})
-    append(5, "TOOL_RESULT",    {"result_hash": "d" * 64})
-    append(6, "SESSION_END",    {"status": "success"})
+    append(1, "SESSION_START", {"agent_id": "test-agent"})
+    append(2, "LLM_CALL", {"prompt_hash": "a" * 64})
+    append(3, "LLM_RESPONSE", {"content_hash": "b" * 64})
+    append(4, "TOOL_CALL", {"tool_name": "bash", "args_hash": "c" * 64})
+    append(5, "TOOL_RESULT", {"result_hash": "d" * 64})
+    append(6, "SESSION_END", {"status": "success"})
     return events
 
 
@@ -81,8 +86,8 @@ def _rechain(events: list) -> list:
 # Golden vector — catches hash algorithm drift
 # ---------------------------------------------------------------------------
 
-class TestGoldenVector(unittest.TestCase):
 
+class TestGoldenVector(unittest.TestCase):
     def test_genesis_hash_is_64_zeros(self):
         assert GENESIS_HASH == "0" * 64 and len(GENESIS_HASH) == 64
 
@@ -115,6 +120,7 @@ class TestGoldenVector(unittest.TestCase):
 # A1 — Payload mutation attack
 # ---------------------------------------------------------------------------
 
+
 class TestPayloadMutation(unittest.TestCase):
     """Attacker edits payload content after the event is written."""
 
@@ -142,6 +148,7 @@ class TestPayloadMutation(unittest.TestCase):
 # A2 — Genesis hash forgery (covers log truncation)
 # ---------------------------------------------------------------------------
 
+
 class TestGenesisForgery(unittest.TestCase):
     """Attacker replaces seq=1 prev_hash to cover a truncated log."""
 
@@ -161,6 +168,7 @@ class TestGenesisForgery(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # A3 — Event deletion with chain relinking
 # ---------------------------------------------------------------------------
+
 
 class TestEventDeletion(unittest.TestCase):
     """Attacker deletes an event and relinks the chain to hide the gap."""
@@ -200,6 +208,7 @@ class TestEventDeletion(unittest.TestCase):
 # A4 — Event reordering
 # ---------------------------------------------------------------------------
 
+
 class TestEventReordering(unittest.TestCase):
     """
     Attacker swaps event content to change the apparent execution order.
@@ -215,19 +224,16 @@ class TestEventReordering(unittest.TestCase):
         events = _make_session()
         # Swap event_type + payload of seq=3 and seq=4 — event_hashes now wrong
         events[2]["event_type"], events[3]["event_type"] = (
-            events[3]["event_type"], events[2]["event_type"]
+            events[3]["event_type"],
+            events[2]["event_type"],
         )
-        events[2]["payload"], events[3]["payload"] = (
-            events[3]["payload"], events[2]["payload"]
-        )
+        events[2]["payload"], events[3]["payload"] = (events[3]["payload"], events[2]["payload"])
         r = verify(events)
         assert r.status == COMPROMISED
 
     def test_non_adjacent_payload_swap_detected(self):
         events = _make_session()
-        events[1]["payload"], events[4]["payload"] = (
-            events[4]["payload"], events[1]["payload"]
-        )
+        events[1]["payload"], events[4]["payload"] = (events[4]["payload"], events[1]["payload"])
         r = verify(events)
         assert r.status == COMPROMISED
 
@@ -236,13 +242,16 @@ class TestEventReordering(unittest.TestCase):
 # A5 — Event insertion
 # ---------------------------------------------------------------------------
 
+
 class TestEventInsertion(unittest.TestCase):
     """Attacker injects a forged event into the middle of the chain."""
 
     def test_inserted_event_detected_via_chain_break(self):
         events = _make_session()
         forged = _build_event(
-            7, "TOOL_CALL", events[0]["session_id"],
+            7,
+            "TOOL_CALL",
+            events[0]["session_id"],
             {"tool_name": "rm", "args_hash": "e" * 64},
             events[-2]["event_hash"],
         )
@@ -255,6 +264,7 @@ class TestEventInsertion(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # A6 — Full log replacement (documents known NON_AUTHORITATIVE limitation)
 # ---------------------------------------------------------------------------
+
 
 class TestFullLogReplacement(unittest.TestCase):
     """
@@ -275,8 +285,11 @@ class TestFullLogReplacement(unittest.TestCase):
         """CHAIN_SEAL commits to the original root hash; a replacement would differ."""
         events = _make_session()
         seal = _build_event(
-            7, "CHAIN_SEAL", events[0]["session_id"],
-            {"merkle_root": "aa" * 32}, events[-1]["event_hash"],
+            7,
+            "CHAIN_SEAL",
+            events[0]["session_id"],
+            {"merkle_root": "aa" * 32},
+            events[-1]["event_hash"],
         )
         events.append(seal)
         r = verify(events)
@@ -287,8 +300,8 @@ class TestFullLogReplacement(unittest.TestCase):
 # Sequence integrity
 # ---------------------------------------------------------------------------
 
-class TestSequenceIntegrity(unittest.TestCase):
 
+class TestSequenceIntegrity(unittest.TestCase):
     def test_seq_gap_detected(self):
         events = _make_session()
         events[3]["seq"] = 99
@@ -319,8 +332,8 @@ class TestSequenceIntegrity(unittest.TestCase):
 # Session completeness
 # ---------------------------------------------------------------------------
 
-class TestSessionCompleteness(unittest.TestCase):
 
+class TestSessionCompleteness(unittest.TestCase):
     def test_missing_session_start_detected(self):
         r = verify(_make_session()[1:])
         assert r.status == COMPROMISED
@@ -331,8 +344,13 @@ class TestSessionCompleteness(unittest.TestCase):
 
     def test_chain_seal_alone_accepted_as_closing_marker(self):
         events = _make_session()[:-1]  # no SESSION_END
-        seal = _build_event(6, "CHAIN_SEAL", events[0]["session_id"],
-                            {"merkle_root": "bb" * 32}, events[-1]["event_hash"])
+        seal = _build_event(
+            6,
+            "CHAIN_SEAL",
+            events[0]["session_id"],
+            {"merkle_root": "bb" * 32},
+            events[-1]["event_hash"],
+        )
         events.append(seal)
         r = verify(events)
         assert r.status == INTACT
@@ -340,8 +358,13 @@ class TestSessionCompleteness(unittest.TestCase):
 
     def test_chain_seal_after_session_end_accepted(self):
         events = _make_session()
-        seal = _build_event(7, "CHAIN_SEAL", events[0]["session_id"],
-                            {"merkle_root": "cc" * 32}, events[-1]["event_hash"])
+        seal = _build_event(
+            7,
+            "CHAIN_SEAL",
+            events[0]["session_id"],
+            {"merkle_root": "cc" * 32},
+            events[-1]["event_hash"],
+        )
         events.append(seal)
         r = verify(events)
         assert r.status == INTACT
@@ -352,15 +375,20 @@ class TestSessionCompleteness(unittest.TestCase):
 # Evidence classes
 # ---------------------------------------------------------------------------
 
-class TestEvidenceClasses(unittest.TestCase):
 
+class TestEvidenceClasses(unittest.TestCase):
     def test_non_authoritative_for_unsigned_local_session(self):
         assert verify(_make_session()).evidence_class == NON_AUTHORITATIVE_EVIDENCE
 
     def test_authoritative_for_chain_sealed_session(self):
         events = _make_session()
-        seal = _build_event(7, "CHAIN_SEAL", events[0]["session_id"],
-                            {"merkle_root": "dd" * 32}, events[-1]["event_hash"])
+        seal = _build_event(
+            7,
+            "CHAIN_SEAL",
+            events[0]["session_id"],
+            {"merkle_root": "dd" * 32},
+            events[-1]["event_hash"],
+        )
         events.append(seal)
         assert verify(events).evidence_class == AUTHORITATIVE_EVIDENCE
 
@@ -376,8 +404,8 @@ class TestEvidenceClasses(unittest.TestCase):
             events.append(_build_event(seq, et, "drop-session", payload, prev))
 
         append(1, "SESSION_START", {"agent_id": "a"})
-        append(2, "LOG_DROP",      {"dropped_count": 3})
-        append(3, "SESSION_END",   {"status": "success"})
+        append(2, "LOG_DROP", {"dropped_count": 3})
+        append(3, "SESSION_END", {"status": "success"})
         r = verify(events)
         assert r.status == PARTIAL
         assert r.evidence_class == PARTIAL_EVIDENCE
@@ -397,8 +425,8 @@ class TestEvidenceClasses(unittest.TestCase):
             events.append(_build_event(seq, et, "s1", payload, prev))
 
         append(1, "SESSION_START", {})
-        append(2, "LOG_DROP",      {"dropped_count": 1})
-        append(3, "SESSION_END",   {"status": "success"})
+        append(2, "LOG_DROP", {"dropped_count": 1})
+        append(3, "SESSION_END", {"status": "success"})
         seal = _build_event(4, "CHAIN_SEAL", "s1", {}, events[-1]["event_hash"])
         events.append(seal)
         r = verify(events)
@@ -409,8 +437,8 @@ class TestEvidenceClasses(unittest.TestCase):
 # Edge cases and structural checks
 # ---------------------------------------------------------------------------
 
-class TestEdgeCases(unittest.TestCase):
 
+class TestEdgeCases(unittest.TestCase):
     def test_empty_session_is_error(self):
         r = verify([])
         assert r.status == ERROR
