@@ -238,7 +238,7 @@ fn verify_file(path: &str) -> VerifyResult {
         root_hash = Some(last_hash.clone());
     }
 
-    // Check 4: session bookends
+    // Check 4: session bookends and evidence class
     let first_type = raw_events.first()
         .and_then(|e| e.get("event_type"))
         .and_then(Value::as_str)
@@ -248,17 +248,35 @@ fn verify_file(path: &str) -> VerifyResult {
         .and_then(Value::as_str)
         .unwrap_or("");
 
+    let has_session_end = raw_events.iter().any(|e| {
+        e.get("event_type").and_then(Value::as_str) == Some("SESSION_END")
+    });
+    let has_chain_seal = raw_events.iter().any(|e| {
+        e.get("event_type").and_then(Value::as_str) == Some("CHAIN_SEAL")
+    });
+
     if first_type != "SESSION_START" {
         errors.push(format!("First event is '{}', expected SESSION_START", first_type));
     }
-    if last_type != "SESSION_END" {
-        errors.push(format!("Last event is '{}', expected SESSION_END", last_type));
+
+    // A server-sealed session ends: … SESSION_END → CHAIN_SEAL
+    // Accept CHAIN_SEAL as last when SESSION_END is also present.
+    let closing_ok = last_type == "SESSION_END"
+        || (last_type == "CHAIN_SEAL" && has_session_end)
+        || has_chain_seal && !has_session_end; // CHAIN_SEAL alone is an acceptable closing marker
+    if !closing_ok {
+        errors.push(format!(
+            "Session must end with SESSION_END or CHAIN_SEAL, found '{}'",
+            last_type
+        ));
     }
 
     let (status, evidence_class) = if !errors.is_empty() {
         ("COMPROMISED".to_string(), "NO_EVIDENCE".to_string())
     } else if log_drop_count > 0 {
         ("PARTIAL".to_string(), "PARTIAL_EVIDENCE".to_string())
+    } else if has_chain_seal {
+        ("INTACT".to_string(), "AUTHORITATIVE_EVIDENCE".to_string())
     } else {
         ("INTACT".to_string(), "NON_AUTHORITATIVE_EVIDENCE".to_string())
     };
