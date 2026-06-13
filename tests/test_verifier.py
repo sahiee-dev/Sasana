@@ -17,6 +17,7 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from sasana.signing import generate_keypair, sign_event_hash  # noqa: E402
 from sasana.verifier import (  # noqa: E402
     AUTHORITATIVE_EVIDENCE,
     COMPROMISED,
@@ -30,6 +31,9 @@ from sasana.verifier import (  # noqa: E402
     compute_event_hash,
     verify,
 )
+
+# Module-level test keypair — generated once, shared across all tests that build signed seals.
+_TEST_PRIVATE_KEY, _TEST_PUBKEY = generate_keypair()
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +73,25 @@ def _make_session(session_id: str = "test-session") -> list:
     append(5, "TOOL_RESULT", {"result_hash": "d" * 64})
     append(6, "SESSION_END", {"status": "success"})
     return events
+
+
+def _signed_chain_seal(seq: int, session_id: str, prev_hash: str) -> dict:
+    """Build a properly signed CHAIN_SEAL event using the module-level test keypair."""
+    seal: dict = {
+        "seq": seq,
+        "event_type": "CHAIN_SEAL",
+        "session_id": session_id,
+        "timestamp": _ts(),
+        "payload": {
+            "session_hash": prev_hash,
+            "sealed_by": "archeion-test",
+            "server_pubkey": _TEST_PUBKEY,
+        },
+        "prev_hash": prev_hash,
+    }
+    seal["event_hash"] = compute_event_hash(seal)
+    seal["signature"] = sign_event_hash(_TEST_PRIVATE_KEY, seal["event_hash"])
+    return seal
 
 
 def _rechain(events: list) -> list:
@@ -284,14 +307,7 @@ class TestFullLogReplacement(unittest.TestCase):
     def test_replacement_requires_authoritative_evidence_to_prevent(self):
         """CHAIN_SEAL commits to the original root hash; a replacement would differ."""
         events = _make_session()
-        seal = _build_event(
-            7,
-            "CHAIN_SEAL",
-            events[0]["session_id"],
-            {"merkle_root": "aa" * 32},
-            events[-1]["event_hash"],
-        )
-        events.append(seal)
+        events.append(_signed_chain_seal(7, events[0]["session_id"], events[-1]["event_hash"]))
         r = verify(events)
         assert r.evidence_class == AUTHORITATIVE_EVIDENCE
 
@@ -344,28 +360,14 @@ class TestSessionCompleteness(unittest.TestCase):
 
     def test_chain_seal_alone_accepted_as_closing_marker(self):
         events = _make_session()[:-1]  # no SESSION_END
-        seal = _build_event(
-            6,
-            "CHAIN_SEAL",
-            events[0]["session_id"],
-            {"merkle_root": "bb" * 32},
-            events[-1]["event_hash"],
-        )
-        events.append(seal)
+        events.append(_signed_chain_seal(6, events[0]["session_id"], events[-1]["event_hash"]))
         r = verify(events)
         assert r.status == INTACT
         assert r.evidence_class == AUTHORITATIVE_EVIDENCE
 
     def test_chain_seal_after_session_end_accepted(self):
         events = _make_session()
-        seal = _build_event(
-            7,
-            "CHAIN_SEAL",
-            events[0]["session_id"],
-            {"merkle_root": "cc" * 32},
-            events[-1]["event_hash"],
-        )
-        events.append(seal)
+        events.append(_signed_chain_seal(7, events[0]["session_id"], events[-1]["event_hash"]))
         r = verify(events)
         assert r.status == INTACT
         assert r.evidence_class == AUTHORITATIVE_EVIDENCE
@@ -382,14 +384,7 @@ class TestEvidenceClasses(unittest.TestCase):
 
     def test_authoritative_for_chain_sealed_session(self):
         events = _make_session()
-        seal = _build_event(
-            7,
-            "CHAIN_SEAL",
-            events[0]["session_id"],
-            {"merkle_root": "dd" * 32},
-            events[-1]["event_hash"],
-        )
-        events.append(seal)
+        events.append(_signed_chain_seal(7, events[0]["session_id"], events[-1]["event_hash"]))
         assert verify(events).evidence_class == AUTHORITATIVE_EVIDENCE
 
     def test_signed_non_authoritative_when_signatures_valid(self):
@@ -427,8 +422,7 @@ class TestEvidenceClasses(unittest.TestCase):
         append(1, "SESSION_START", {})
         append(2, "LOG_DROP", {"dropped_count": 1})
         append(3, "SESSION_END", {"status": "success"})
-        seal = _build_event(4, "CHAIN_SEAL", "s1", {}, events[-1]["event_hash"])
-        events.append(seal)
+        events.append(_signed_chain_seal(4, "s1", events[-1]["event_hash"]))
         r = verify(events)
         assert r.evidence_class == PARTIAL_EVIDENCE
 

@@ -196,6 +196,41 @@ def _check_completeness(events: list) -> dict:
     }
 
 
+def _check_seal_signature(events: list) -> dict:
+    """
+    If a CHAIN_SEAL event is present, verify its Ed25519 signature against the
+    server_pubkey embedded in the payload.
+
+    A CHAIN_SEAL without a valid signature is a forged or tampered seal — the
+    session is treated as COMPROMISED, not merely non-authoritative.
+    """
+    seal_events = [e for e in events if e.get("event_type") == "CHAIN_SEAL"]
+    if not seal_events:
+        return {"status": "PASS", "errors": []}
+
+    seal = seal_events[0]
+    pubkey = seal.get("payload", {}).get("server_pubkey")
+    signature = seal.get("signature")
+    event_hash = seal.get("event_hash")
+
+    if not pubkey:
+        return {"status": "FAIL", "errors": ["CHAIN_SEAL missing server_pubkey in payload"]}
+    if not signature:
+        return {"status": "FAIL", "errors": ["CHAIN_SEAL missing signature"]}
+    if not event_hash:
+        return {"status": "FAIL", "errors": ["CHAIN_SEAL missing event_hash"]}
+
+    from sasana.signing import verify_signature
+
+    if not verify_signature(pubkey, event_hash, signature):
+        return {
+            "status": "FAIL",
+            "errors": ["CHAIN_SEAL signature invalid — seal has been tampered with"],
+        }
+
+    return {"status": "PASS", "errors": []}
+
+
 def _determine_evidence_class(events: list, signatures_valid: bool = False) -> str:
     has_seal = any(e.get("event_type") == "CHAIN_SEAL" for e in events)
     has_drop = any(e.get("event_type") == "LOG_DROP" for e in events)
@@ -255,8 +290,15 @@ def verify(events: list, signatures_valid: bool = False) -> VerifyResult:
     c2 = _check_sequence(events)
     c3 = _check_hash_chain(events)
     c4 = _check_completeness(events)
-    checks = {"structural": c1, "sequence": c2, "hash_chain": c3, "completeness": c4}
-    all_errors = c2["errors"] + c3["errors"] + c4["errors"]
+    c5 = _check_seal_signature(events)
+    checks = {
+        "structural": c1,
+        "sequence": c2,
+        "hash_chain": c3,
+        "completeness": c4,
+        "seal_signature": c5,
+    }
+    all_errors = c2["errors"] + c3["errors"] + c4["errors"] + c5["errors"]
 
     if all_errors:
         return VerifyResult(

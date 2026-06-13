@@ -15,14 +15,16 @@ dependencies = [
 
 [project.optional-dependencies]
 observer = ["websockets>=12.0", "pyyaml>=6.0"]
-dev     = ["pytest>=7.0", "ruff>=0.4"]
+archeion = ["fastapi>=0.110", "uvicorn[standard]>=0.27"]
+dev      = ["pytest>=7.0", "ruff>=0.4", "httpx>=0.27", "fastapi>=0.110"]
 
 [project.scripts]
-sasana         = "sasana_cli:main"
+sasana          = "sasana_cli:main"
 agentops-verify = "verify:main"
+archeion        = "archeion.server:run"
 
 [tool.setuptools.packages.find]
-include = ["sasana*"]
+include = ["sasana*", "archeion*"]
 
 [tool.setuptools]
 py-modules = ["verify", "sasana_cli"]

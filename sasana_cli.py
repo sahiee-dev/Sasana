@@ -70,10 +70,11 @@ def _cmd_verify(args: list) -> int:
         print(f"Events: {result.event_count}  Evidence: {result.evidence_class}")
         print()
         for label, key in [
-            ("[1/4] Structural validity ", "structural"),
-            ("[2/4] Sequence integrity  ", "sequence"),
-            ("[3/4] Hash chain integrity", "hash_chain"),
-            ("[4/4] Session completeness", "completeness"),
+            ("[1/5] Structural validity ", "structural"),
+            ("[2/5] Sequence integrity  ", "sequence"),
+            ("[3/5] Hash chain integrity", "hash_chain"),
+            ("[4/5] Session completeness", "completeness"),
+            ("[5/5] Seal signature      ", "seal_signature"),
         ]:
             r = result.checks.get(key)
             st = r["status"] if r else "SKIPPED"
@@ -93,6 +94,45 @@ def _cmd_verify(args: list) -> int:
                 print(f"  → {err}")
 
     return {"INTACT": 0, "PARTIAL": 2, "COMPROMISED": 1, "ERROR": 3}.get(result.status, 3)
+
+
+def _cmd_seal(args: list) -> int:
+    ap = argparse.ArgumentParser(prog="sasana seal", add_help=False)
+    ap.add_argument("session_file")
+    ap.add_argument("--server", default="http://localhost:8747", metavar="URL")
+    ap.add_argument("--out", default=None, metavar="FILE")
+    parsed, _ = ap.parse_known_args(args)
+
+    try:
+        body = open(parsed.session_file, "rb").read()
+    except FileNotFoundError:
+        print(f"ERROR: file not found: {parsed.session_file}", file=sys.stderr)
+        return 3
+
+    import urllib.error
+    import urllib.request
+
+    url = parsed.server.rstrip("/") + "/seal"
+    req = urllib.request.Request(
+        url, data=body, method="POST", headers={"Content-Type": "application/x-ndjson"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            sealed = resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")
+        print(f"ERROR: Archeion returned {exc.code}: {detail}", file=sys.stderr)
+        return 1
+    except urllib.error.URLError as exc:
+        print(f"ERROR: cannot reach Archeion at {url}: {exc.reason}", file=sys.stderr)
+        return 3
+
+    out_path = parsed.out or parsed.session_file
+    with open(out_path, "wb") as f:
+        f.write(sealed)
+
+    print(f"Sealed → {out_path}")
+    return 0
 
 
 def _cmd_observe(args: list) -> int:
@@ -118,15 +158,18 @@ def main() -> None:
     if not args or args[0] in ("--help", "-h", "help"):
         print(f"Sasana v{VERSION} — tamper-evident audit trail for OpenClaw sessions")
         print("\nUSAGE:")
-        print("  sasana verify <session.jsonl> [--json]   Verify hash chain")
-        print("  sasana observe [--ws URL]                Passive WebSocket observer")
-        print("  sasana version                           Print version")
+        print("  sasana verify <session.jsonl> [--json]          Verify hash chain")
+        print("  sasana seal   <session.jsonl> [--server URL]    Submit to Archeion for sealing")
+        print("  sasana observe [--ws URL]                       Passive WebSocket observer")
+        print("  sasana version                                  Print version")
         sys.exit(0)
     if args[0] in ("--version", "-V", "version"):
         print(f"sasana {VERSION}")
         sys.exit(0)
     if args[0] == "verify":
         sys.exit(_cmd_verify(args[1:]))
+    if args[0] == "seal":
+        sys.exit(_cmd_seal(args[1:]))
     if args[0] == "observe":
         sys.exit(_cmd_observe(args[1:]))
     print(f"Unknown command: {args[0]}", file=sys.stderr)
