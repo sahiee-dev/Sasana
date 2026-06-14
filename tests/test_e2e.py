@@ -29,6 +29,20 @@ from sasana.sqlite_ledger import SqliteLedger  # noqa: E402
 from sasana.verifier import AUTHORITATIVE_EVIDENCE, INTACT, verify  # noqa: E402
 
 
+def _make_partial_jsonl(tmp: Path, session_id: str = "partial-session") -> Path:
+    """Record a session that includes a LOG_DROP event."""
+    ledger = SqliteLedger(db_path=tmp / f"{session_id}.db")
+    ledger.connect()
+    ledger.open_session(session_id=session_id, agent_id="test-agent")
+    ledger.record("LOG_DROP", {"dropped_count": 3, "reason": "rate_limit"})
+    ledger.record("LLM_CALL", {"prompt_hash": "a" * 64, "prompt_count": 1})
+    ledger.close_session(status="success")
+    jsonl = tmp / f"{session_id}.jsonl"
+    ledger.export_jsonl(jsonl)
+    ledger.close()
+    return jsonl
+
+
 def _load_jsonl(path: Path) -> list:
     return [json.loads(ln) for ln in path.read_text().splitlines() if ln.strip()]
 
@@ -142,6 +156,13 @@ class TestSealEndpoint(unittest.TestCase):
         resp = self.client.post("/seal", content=b"not json\n")
         self.assertEqual(resp.status_code, 400)
 
+    def test_partial_session_returns_422(self):
+        """Archeion must reject sessions with LOG_DROP events — cannot seal incomplete logs."""
+        jsonl = _make_partial_jsonl(self.tmp)
+        resp = self.client.post("/seal", content=jsonl.read_bytes())
+        self.assertEqual(resp.status_code, 422)
+        self.assertIn("LOG_DROP", resp.json()["detail"])
+
     # ------------------------------------------------------------------
     # Tamper detection
     # ------------------------------------------------------------------
@@ -189,6 +210,28 @@ class TestSealEndpoint(unittest.TestCase):
         seal = next(e for e in events if e["event_type"] == "CHAIN_SEAL")
         pubkey_resp = self.client.get("/pubkey")
         self.assertEqual(seal["payload"]["server_pubkey"], pubkey_resp.json()["pubkey"])
+
+    def test_trust_key_pinning_accepts_correct_key(self):
+        """verify() with the correct trusted_seal_pubkey passes."""
+        jsonl = _make_session_jsonl(self.tmp)
+        resp = self.client.post("/seal", content=jsonl.read_bytes())
+        pubkey = self.client.get("/pubkey").json()["pubkey"]
+        events = [json.loads(ln) for ln in resp.text.splitlines() if ln.strip()]
+        result = verify(events, trusted_seal_pubkey=pubkey)
+        self.assertEqual(result.status, INTACT)
+        self.assertEqual(result.checks["seal_signature"]["status"], "PASS")
+
+    def test_trust_key_pinning_rejects_wrong_key(self):
+        """verify() with a different trusted_seal_pubkey returns COMPROMISED."""
+        from sasana.signing import generate_keypair
+
+        jsonl = _make_session_jsonl(self.tmp)
+        resp = self.client.post("/seal", content=jsonl.read_bytes())
+        _, wrong_key = generate_keypair()
+        events = [json.loads(ln) for ln in resp.text.splitlines() if ln.strip()]
+        result = verify(events, trusted_seal_pubkey=wrong_key)
+        self.assertEqual(result.status, "COMPROMISED")
+        self.assertTrue(any("untrusted key" in e for e in result.errors))
 
 
 if __name__ == "__main__":

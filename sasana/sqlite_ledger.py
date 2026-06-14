@@ -83,6 +83,10 @@ class SqliteLedger:
         payload: dict = {"agent_id": agent_id or session_id}
         if metadata:
             payload.update(metadata)
+        if self._private_key is not None:
+            from sasana.signing import pubkey_from_private
+
+            payload["session_pubkey"] = pubkey_from_private(self._private_key)
         self._write_event("SESSION_START", payload)
 
     def close_session(self, status: str = "success") -> None:

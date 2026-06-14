@@ -30,6 +30,13 @@ def _cmd_verify(args: list) -> int:
     ap = argparse.ArgumentParser(prog="sasana verify", add_help=False)
     ap.add_argument("session_file")
     ap.add_argument("--json", dest="json_out", action="store_true")
+    ap.add_argument(
+        "--trust-key",
+        dest="trust_key",
+        default=None,
+        metavar="BASE64_PUBKEY",
+        help="Pin the expected Archeion server public key (base64). Rejects seals from any other key.",
+    )
     parsed, _ = ap.parse_known_args(args)
 
     try:
@@ -44,7 +51,7 @@ def _cmd_verify(args: list) -> int:
 
     from sasana.verifier import verify, VERIFIER_VERSION
 
-    result = verify(events)
+    result = verify(events, trusted_seal_pubkey=parsed.trust_key)
 
     if parsed.json_out:
         print(

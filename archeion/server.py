@@ -68,7 +68,15 @@ async def seal(request: Request) -> str:
         raise HTTPException(status_code=409, detail="Session is already sealed")
 
     result = verify(events)
-    if result.status not in ("INTACT", "PARTIAL"):
+    if result.status == "PARTIAL":
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Cannot seal: session has {result.log_drop_count} LOG_DROP event(s). "
+                "Sealing a partial log would falsely imply a complete record."
+            ),
+        )
+    if result.status != "INTACT":
         raise HTTPException(
             status_code=422,
             detail=f"Cannot seal: session is {result.status}. Errors: {result.errors[:5]}",

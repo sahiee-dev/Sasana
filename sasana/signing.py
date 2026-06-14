@@ -25,6 +25,11 @@ def sign_event_hash(private_key: Ed25519PrivateKey, event_hash_hex: str) -> str:
     return base64.b64encode(private_key.sign(event_hash_hex.encode("utf-8"))).decode()
 
 
+def pubkey_from_private(private_key: Ed25519PrivateKey) -> str:
+    """Extract base64-encoded public key bytes from a private key."""
+    return base64.b64encode(private_key.public_key().public_bytes_raw()).decode()
+
+
 def verify_signature(public_key_b64: str, event_hash_hex: str, signature_b64: str) -> bool:
     """Verify an Ed25519 signature against an event_hash."""
     try:

@@ -387,9 +387,30 @@ class TestEvidenceClasses(unittest.TestCase):
         events.append(_signed_chain_seal(7, events[0]["session_id"], events[-1]["event_hash"]))
         assert verify(events).evidence_class == AUTHORITATIVE_EVIDENCE
 
-    def test_signed_non_authoritative_when_signatures_valid(self):
-        r = verify(_make_session(), signatures_valid=True)
+    def test_signed_non_authoritative_for_sdk_signed_session(self):
+        """A session recorded with a private key → SIGNED_NON_AUTHORITATIVE_EVIDENCE."""
+        import json
+        import tempfile
+        from pathlib import Path
+        from sasana.sqlite_ledger import SqliteLedger
+        from sasana.signing import generate_keypair
+
+        private_key, _ = generate_keypair()
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = SqliteLedger(db_path=Path(tmp) / "signed.db", private_key=private_key)
+            ledger.connect()
+            ledger.open_session(session_id="signed-session")
+            ledger.record("LLM_CALL", {"prompt_hash": "a" * 64, "prompt_count": 1})
+            ledger.record("LLM_RESPONSE", {"response_hash": "b" * 64, "response_len": 10})
+            ledger.close_session()
+            jsonl_path = Path(tmp) / "signed.jsonl"
+            ledger.export_jsonl(jsonl_path)
+            ledger.close()
+            events = [json.loads(ln) for ln in jsonl_path.read_text().splitlines() if ln.strip()]
+
+        r = verify(events)
         assert r.evidence_class == SIGNED_NON_AUTHORITATIVE_EVIDENCE
+        assert r.checks["session_signatures"]["status"] == "PASS"
 
     def test_partial_evidence_for_session_with_log_drop(self):
         events: list = []
@@ -455,16 +476,24 @@ class TestEdgeCases(unittest.TestCase):
 
     def test_all_check_results_present_on_pass(self):
         r = verify(_make_session())
-        for key in ("structural", "sequence", "hash_chain", "completeness"):
+        for key in ("structural", "sequence", "hash_chain", "completeness", "seal_signature"):
             assert key in r.checks
             assert r.checks[key]["status"] == "PASS"
+        # session_signatures is SKIPPED for unsigned sessions (no session_pubkey in SESSION_START)
+        assert r.checks["session_signatures"]["status"] == "SKIPPED"
 
     def test_downstream_checks_skipped_on_structural_failure(self):
         events = _make_session()
         del events[0]["seq"]  # structurally invalid
         r = verify(events)
         assert r.checks["structural"]["status"] == "FAIL"
-        for key in ("sequence", "hash_chain", "completeness"):
+        for key in (
+            "sequence",
+            "hash_chain",
+            "completeness",
+            "seal_signature",
+            "session_signatures",
+        ):
             assert r.checks[key]["status"] == "SKIPPED"
 
     def test_unknown_event_type_caught_by_structural_check(self):

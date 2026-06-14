@@ -296,7 +296,7 @@ fn verify_file(path: &str) -> VerifyResult {
 fn error_result(msg: String) -> VerifyResult {
     VerifyResult {
         status: "ERROR".to_string(),
-        evidence_class: "NONE".to_string(),
+        evidence_class: "NO_EVIDENCE".to_string(),
         session_id: None,
         event_count: 0,
         log_drop_count: 0,

@@ -27,6 +27,13 @@ def main() -> None:
     parser.add_argument("session_file")
     parser.add_argument("--json", dest="json_out", action="store_true")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--trust-key",
+        dest="trust_key",
+        default=None,
+        metavar="BASE64_PUBKEY",
+        help="Pin the expected Archeion server public key (base64). Rejects seals from any other key.",
+    )
     args = parser.parse_args()
 
     try:
@@ -46,7 +53,7 @@ def main() -> None:
         print(f"ERROR: malformed JSONL: {e}", file=sys.stderr)
         sys.exit(3)
 
-    result = verify(events)
+    result = verify(events, trusted_seal_pubkey=args.trust_key)
 
     if args.json_out:
         print(

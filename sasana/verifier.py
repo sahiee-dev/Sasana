@@ -194,13 +194,16 @@ def _check_completeness(events: list) -> dict:
     }
 
 
-def _check_seal_signature(events: list) -> dict:
+def _check_seal_signature(events: list, trusted_pubkey: Optional[str] = None) -> dict:
     """
     If a CHAIN_SEAL event is present, verify its Ed25519 signature against the
     server_pubkey embedded in the payload.
 
     A CHAIN_SEAL without a valid signature is a forged or tampered seal — the
     session is treated as COMPROMISED, not merely non-authoritative.
+
+    If trusted_pubkey is provided, the seal's server_pubkey must match it exactly.
+    This enforces key pinning: only seals from a known Archeion instance are accepted.
     """
     seal_events = [e for e in events if e.get("event_type") == "CHAIN_SEAL"]
     if not seal_events:
@@ -218,6 +221,15 @@ def _check_seal_signature(events: list) -> dict:
     if not event_hash:
         return {"status": "FAIL", "errors": ["CHAIN_SEAL missing event_hash"]}
 
+    if trusted_pubkey is not None and pubkey != trusted_pubkey:
+        return {
+            "status": "FAIL",
+            "errors": [
+                f"CHAIN_SEAL signed by untrusted key — expected {trusted_pubkey[:16]}…, "
+                f"got {pubkey[:16]}…"
+            ],
+        }
+
     from sasana.signing import verify_signature
 
     if not verify_signature(pubkey, event_hash, signature):
@@ -229,10 +241,58 @@ def _check_seal_signature(events: list) -> dict:
     return {"status": "PASS", "errors": []}
 
 
+def _check_session_signatures(events: list) -> tuple[bool, dict]:
+    """
+    Verify per-event Ed25519 signatures when the session was recorded with signing enabled.
+
+    Signing is active when SESSION_START.payload contains a session_pubkey field.
+    Returns (all_signed: bool, check_result: dict).
+
+    - all_signed=True only when every non-CHAIN_SEAL event carries a valid signature.
+    - Invalid signatures cause FAIL (caller should treat as COMPROMISED).
+    - Missing signatures when pubkey is present cause all_signed=False (soft degradation
+      to NON_AUTHORITATIVE_EVIDENCE), not FAIL — the SDK signing step may have errored
+      on individual events without being a tamper indicator.
+    """
+    start_events = [e for e in events if e.get("event_type") == "SESSION_START"]
+    if not start_events:
+        return False, {"status": "SKIPPED", "errors": []}
+
+    pubkey = start_events[0].get("payload", {}).get("session_pubkey")
+    if not pubkey:
+        return False, {"status": "SKIPPED", "errors": []}
+
+    from sasana.signing import verify_signature
+
+    errors: list = []
+    verified = 0
+    unsigned = 0
+
+    for e in events:
+        if e.get("event_type") == "CHAIN_SEAL":
+            continue  # CHAIN_SEAL signature handled by _check_seal_signature
+        sig = e.get("signature")
+        if sig is None:
+            unsigned += 1
+            continue
+        if not verify_signature(pubkey, e.get("event_hash", ""), sig):
+            errors.append(f"seq={e.get('seq', '?')}: Ed25519 signature invalid")
+        else:
+            verified += 1
+
+    if errors:
+        return False, {"status": "FAIL", "errors": errors}
+    if verified == 0:
+        return False, {"status": "SKIPPED", "errors": []}
+    all_signed = unsigned == 0
+    return all_signed, {"status": "PASS", "errors": []}
+
+
 def _determine_evidence_class(events: list, signatures_valid: bool = False) -> str:
     has_seal = any(e.get("event_type") == "CHAIN_SEAL" for e in events)
     has_drop = any(e.get("event_type") == "LOG_DROP" for e in events)
-    # LOG_DROP degrades evidence class even in server-sealed sessions.
+    # Archeion rejects PARTIAL sessions, so has_drop + has_seal should not occur
+    # through normal flow. Check order is defensive: LOG_DROP always degrades.
     if has_drop:
         return PARTIAL_EVIDENCE
     if has_seal:
@@ -242,12 +302,20 @@ def _determine_evidence_class(events: list, signatures_valid: bool = False) -> s
     return NON_AUTHORITATIVE_EVIDENCE
 
 
-def verify(events: list, signatures_valid: bool = False) -> VerifyResult:
+def verify(
+    events: list,
+    signatures_valid: bool = False,
+    trusted_seal_pubkey: Optional[str] = None,
+) -> VerifyResult:
     """
-    Run the full 4-check verification pipeline on a list of events.
+    Run the full verification pipeline on a list of events.
 
-    Checks 2–4 are skipped when structural check fails — malformed events
-    produce misleading errors in hash and sequence checks.
+    Checks 2–5 are skipped when structural check fails — malformed events
+    produce misleading errors in downstream checks.
+
+    trusted_seal_pubkey: if provided, the CHAIN_SEAL's server_pubkey must match
+    this key exactly. Use this to enforce that only a known Archeion instance
+    sealed the session (key pinning).
     """
     if not events:
         return VerifyResult(
@@ -282,21 +350,27 @@ def verify(events: list, signatures_valid: bool = False) -> VerifyResult:
                 "sequence": _skipped,
                 "hash_chain": _skipped,
                 "completeness": _skipped,
+                "seal_signature": _skipped,
+                "session_signatures": _skipped,
             },
         )
 
     c2 = _check_sequence(events)
     c3 = _check_hash_chain(events)
     c4 = _check_completeness(events)
-    c5 = _check_seal_signature(events)
+    c5 = _check_seal_signature(events, trusted_pubkey=trusted_seal_pubkey)
+    _sigs_valid, c6 = _check_session_signatures(events)
+    # Accept caller override (for testing) or auto-detected result
+    computed_sigs_valid = signatures_valid or _sigs_valid
     checks = {
         "structural": c1,
         "sequence": c2,
         "hash_chain": c3,
         "completeness": c4,
         "seal_signature": c5,
+        "session_signatures": c6,
     }
-    all_errors = c2["errors"] + c3["errors"] + c4["errors"] + c5["errors"]
+    all_errors = c2["errors"] + c3["errors"] + c4["errors"] + c5["errors"] + c6["errors"]
 
     if all_errors:
         return VerifyResult(
@@ -310,7 +384,7 @@ def verify(events: list, signatures_valid: bool = False) -> VerifyResult:
             checks=checks,
         )
 
-    evidence = _determine_evidence_class(events, signatures_valid=signatures_valid)
+    evidence = _determine_evidence_class(events, signatures_valid=computed_sigs_valid)
     status = PARTIAL if log_drops > 0 else INTACT
 
     return VerifyResult(
