@@ -162,7 +162,7 @@ Result   : COMPROMISED ❌
 ```
 
 The verification binary has no external dependencies. It reads one file, checks five
-properties, and exits 0 (INTACT), 1 (ERROR), 2 (COMPROMISED), or 3 (PARTIAL). No network
+properties, and exits 0 (INTACT), 1 (COMPROMISED), 2 (PARTIAL), or 3 (ERROR). No network
 calls. No API keys. No running server required. A Rust binary ships alongside the Python
 implementation for forensic environments where Python is not available.
 
@@ -189,5 +189,5 @@ rotated only on compromise.
 ## Further reading
 
 - [EU AI Act Article 12 — EUR-Lex official text](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)
-- [IETF draft-sharif-agent-audit-trail-00 (March 2026)](https://datatracker.ietf.org/doc/draft-sharif-agent-audit-trail/)
+- [IETF draft-sharif-agent-audit-trail-00 (March 2026)](https://datatracker.ietf.org/doc/draft-sharif-agent-audit-trail/) — Internet-Draft, expires September 2026. Consult the IETF datatracker for current status.
 - [Sasana — GitHub](https://github.com/sahiee-dev/Sasana)
