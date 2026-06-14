@@ -1,0 +1,13 @@
+sasana-rs/
+tests/
+docs/
+examples/
+.github/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.DS_Store
+*.db
+*.jsonl

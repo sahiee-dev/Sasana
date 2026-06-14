@@ -194,6 +194,20 @@ class TestSealEndpoint(unittest.TestCase):
     # Pubkey endpoint
     # ------------------------------------------------------------------
 
+    def test_health_returns_ok(self):
+        resp = self.client.get("/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertIn("version", data)
+        self.assertIn("pubkey", data)
+
+    def test_health_pubkey_matches_pubkey_endpoint(self):
+        """Health endpoint pubkey must equal /pubkey — used for key-change monitoring."""
+        health = self.client.get("/health").json()
+        pubkey = self.client.get("/pubkey").json()
+        self.assertEqual(health["pubkey"], pubkey["pubkey"])
+
     def test_pubkey_returns_server_key(self):
         resp = self.client.get("/pubkey")
         self.assertEqual(resp.status_code, 200)

@@ -38,6 +38,12 @@ _private_key = load_or_generate()
 _pubkey = pubkey_b64(_private_key)
 
 
+@app.get("/health")
+async def health() -> dict:
+    """Liveness + readiness probe. Returns current server pubkey for key-change detection."""
+    return {"status": "ok", "version": app.version, "pubkey": _pubkey}
+
+
 @app.get("/pubkey")
 async def get_pubkey() -> dict:
     """Return the server Ed25519 public key. Clients pin this to trust sealed sessions."""

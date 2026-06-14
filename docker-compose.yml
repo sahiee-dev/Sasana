@@ -1,0 +1,57 @@
+services:
+  archeion:
+    build: .
+    image: sasana-archeion:1.0.0
+    restart: unless-stopped
+
+    environment:
+      # Preferred: inject the key as an env var (base64 raw bytes).
+      # Generate with: python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"
+      # Store in a secrets manager (Vault, AWS Secrets Manager, etc.) — not in a .env file.
+      #
+      # If ARCHEION_PRIVATE_KEY is not set, Archeion will read from (or generate to)
+      # the key file at /home/archeion/.archeion/server_key.b64 inside the container.
+      # Use the 'archeion-keys' volume in that case (see volumes section below).
+      ARCHEION_PRIVATE_KEY: "${ARCHEION_PRIVATE_KEY:-}"
+
+    volumes:
+      # Only needed when ARCHEION_PRIVATE_KEY is not set via env.
+      # This volume persists the auto-generated key across container restarts.
+      # Back up this volume to offline storage — see DEPLOYMENT.md §Key Lifecycle.
+      - archeion-keys:/home/archeion/.archeion
+
+    # Bind to localhost only. Archeion is an internal service.
+    # Only agent processes inside your network should be able to reach it.
+    # Do NOT expose 8747 on 0.0.0.0 or add it to public load balancers.
+    ports:
+      - "127.0.0.1:8747:8747"
+
+    # Internal-only network. Add agent services to this network when they need
+    # to call POST /seal. Do not put Archeion on a network that touches the internet.
+    networks:
+      - archeion-internal
+
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - |
+          import urllib.request, sys
+          r = urllib.request.urlopen('http://localhost:8747/health', timeout=4)
+          sys.exit(0 if r.status == 200 else 1)
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+networks:
+  archeion-internal:
+    driver: bridge
+    # To connect agent containers: add `networks: [archeion-internal]` to their service definition.
+
+volumes:
+  archeion-keys:
+    # Named volume for persistent key storage.
+    # To back up: docker run --rm -v archeion-keys:/data alpine tar czf - /data > archeion_key_backup.tar.gz
+    # Store the backup encrypted, offline, in the same location as your other CA material.
