@@ -76,12 +76,18 @@ The evidence class tells you how strong the guarantee is:
 pip install sasana
 ```
 
-OpenClaw skill (automatic session auditing):
+### Install via OpenClaw
 
 ```bash
-openclaw skill install sasana
-# Every session produces ~/.openclaw/sasana/<session_id>.jsonl automatically
+# Via GitHub URL
+openclaw skill install https://github.com/sahiee-dev/Sasana
+
+# Via skills.sh shorthand (when listed in the registry)
+openclaw skill install sahiee-dev/Sasana/sasana
 ```
+
+Every session automatically produces `~/.openclaw/sasana/<session_id>.jsonl`.
+No configuration required.
 
 ---
 
