@@ -1,3 +1,11 @@
+---
+title: Your AI agent logs satisfy Article 12. They won't survive a dispute.
+published: false
+tags: ai, security, python, compliance
+cover_image:
+canonical_url:
+---
+
 # Your AI agent logs satisfy Article 12. They won't survive a dispute.
 
 ---
