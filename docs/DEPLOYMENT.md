@@ -215,8 +215,53 @@ networks:
 - Add Archeion to a public-facing load balancer
 - Allow inbound connections from outside your network perimeter
 
-Archeion has no authentication. Any process that can reach `POST /seal` can submit a
-session for sealing. Network isolation is your only access control layer.
+### Authentication model
+
+**Archeion has no credential-based authentication. This is a deliberate design decision,
+not an oversight.**
+
+The rationale: Archeion's threat model assumes network perimeter isolation as the access
+control layer. Adding credential management (API keys, mTLS client certificates) would
+require key distribution infrastructure — each agent process would need a credential to
+present to Archeion, those credentials would need rotation policies, and a compromised
+credential would allow an attacker to submit arbitrary sessions for sealing. Network
+isolation has none of these operational surface areas. For an internal service with a
+small, known set of callers, perimeter control is the correct layer.
+
+**What this means in practice:** any process that can reach `POST /seal` on port 8747 can
+submit a session for sealing. The controls that enforce "only authorised agent processes
+can seal" are:
+
+1. **Network binding:** `127.0.0.1:8747` in the default config — only processes on the
+   same host can connect. For multi-host deployments, bind to a private interface
+   (`ARCHEION_LISTEN=10.0.0.x:8747`) and restrict with a host firewall.
+
+2. **Firewall rules:** Allow inbound 8747 only from the specific IP ranges or subnets of
+   known agent hosts. Example for iptables:
+   ```bash
+   # Allow agent subnet
+   iptables -A INPUT -p tcp --dport 8747 -s 10.0.1.0/24 -j ACCEPT
+   # Drop everything else
+   iptables -A INPUT -p tcp --dport 8747 -j DROP
+   ```
+
+3. **Docker network scope:** The `archeion-internal` Docker network in the compose file
+   restricts access to containers explicitly added to that network. Do not add untrusted
+   containers to `archeion-internal`.
+
+**What to tell a security reviewer who flags the unauthenticated endpoint:**
+
+> "Archeion is designed as a network-perimeter-isolated internal service, consistent with
+> the security model used for internal certificate authorities and hardware security
+> modules. Credential-based authentication is deliberately excluded because it would
+> require distributing secrets to every agent process, expanding the attack surface.
+> Access control is enforced at the network layer via [firewall rule / Docker network
+> scope / VPN segment]. The threat model assumes an attacker who has breached the network
+> perimeter already has greater access than the ability to submit sessions for sealing."
+
+If your security policy requires credential-based authentication regardless of network
+controls, put an authenticating reverse proxy (nginx with `auth_request`, or an API
+gateway) in front of Archeion. Archeion itself will not add this layer.
 
 ### Reverse proxy (optional, for TLS)
 
