@@ -16,6 +16,8 @@
  * This must match sasana/envelope.py exactly.
  */
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use ring::signature::{self as ring_sig, UnparsedPublicKey};
 use hex::encode as hex_encode;
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -126,6 +128,81 @@ fn compute_event_hash(event_map: &Map<String, Value>) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Check 5 — CHAIN_SEAL Ed25519 signature verification
+//
+// Matches Python sasana.verifier._check_seal_signature exactly:
+//   - pubkey: base64-encoded raw 32-byte Ed25519 public key
+//   - signature: base64-encoded 64-byte Ed25519 signature
+//   - message: event_hash as UTF-8 bytes (the 64-char hex string)
+// ---------------------------------------------------------------------------
+
+fn verify_seal_signature(
+    events: &[Map<String, Value>],
+    trusted_pubkey: Option<&str>,
+) -> Vec<String> {
+    let seal = match events
+        .iter()
+        .find(|e| e.get("event_type").and_then(Value::as_str) == Some("CHAIN_SEAL"))
+    {
+        Some(s) => s,
+        None => return vec![],
+    };
+
+    let pubkey_b64 = match seal
+        .get("payload")
+        .and_then(Value::as_object)
+        .and_then(|p| p.get("server_pubkey"))
+        .and_then(Value::as_str)
+    {
+        Some(k) => k,
+        None => return vec!["CHAIN_SEAL missing server_pubkey in payload".to_string()],
+    };
+
+    let sig_b64 = match seal.get("signature").and_then(Value::as_str) {
+        Some(s) => s,
+        None => return vec!["CHAIN_SEAL missing signature".to_string()],
+    };
+
+    let event_hash = match seal.get("event_hash").and_then(Value::as_str) {
+        Some(h) => h,
+        None => return vec!["CHAIN_SEAL missing event_hash".to_string()],
+    };
+
+    // Key pinning: if a trusted key is specified, reject any other key.
+    if let Some(trusted) = trusted_pubkey {
+        if pubkey_b64 != trusted {
+            return vec![format!(
+                "CHAIN_SEAL signed by untrusted key — expected {}…, got {}…",
+                &trusted[..trusted.len().min(16)],
+                &pubkey_b64[..pubkey_b64.len().min(16)]
+            )];
+        }
+    }
+
+    let pubkey_bytes = match BASE64.decode(pubkey_b64) {
+        Ok(b) => b,
+        Err(_) => return vec!["CHAIN_SEAL server_pubkey is not valid base64".to_string()],
+    };
+    let sig_bytes = match BASE64.decode(sig_b64) {
+        Ok(b) => b,
+        Err(_) => return vec!["CHAIN_SEAL signature is not valid base64".to_string()],
+    };
+
+    if pubkey_bytes.len() != 32 {
+        return vec!["CHAIN_SEAL server_pubkey must be 32 bytes".to_string()];
+    }
+    if sig_bytes.len() != 64 {
+        return vec!["CHAIN_SEAL signature must be 64 bytes".to_string()];
+    }
+
+    let pub_key = UnparsedPublicKey::new(&ring_sig::ED25519, &pubkey_bytes);
+    match pub_key.verify(event_hash.as_bytes(), &sig_bytes) {
+        Ok(_) => vec![],
+        Err(_) => vec!["CHAIN_SEAL signature invalid — seal has been tampered with".to_string()],
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Result type
 // ---------------------------------------------------------------------------
 
@@ -145,7 +222,7 @@ struct VerifyResult {
 // Core verifier
 // ---------------------------------------------------------------------------
 
-fn verify_file(path: &str) -> VerifyResult {
+fn verify_file(path: &str, trusted_pubkey: Option<&str>) -> VerifyResult {
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => return error_result(format!("Cannot read '{}': {}", path, e)),
@@ -238,7 +315,7 @@ fn verify_file(path: &str) -> VerifyResult {
         root_hash = Some(last_hash.clone());
     }
 
-    // Check 4: session bookends and evidence class
+    // Check 4: session bookends
     let first_type = raw_events.first()
         .and_then(|e| e.get("event_type"))
         .and_then(Value::as_str)
@@ -263,13 +340,17 @@ fn verify_file(path: &str) -> VerifyResult {
     // Accept CHAIN_SEAL as last when SESSION_END is also present.
     let closing_ok = last_type == "SESSION_END"
         || (last_type == "CHAIN_SEAL" && has_session_end)
-        || has_chain_seal && !has_session_end; // CHAIN_SEAL alone is an acceptable closing marker
+        || has_chain_seal && !has_session_end;
     if !closing_ok {
         errors.push(format!(
             "Session must end with SESSION_END or CHAIN_SEAL, found '{}'",
             last_type
         ));
     }
+
+    // Check 5: CHAIN_SEAL Ed25519 signature + key pinning
+    let seal_errors = verify_seal_signature(&raw_events, trusted_pubkey);
+    errors.extend(seal_errors);
 
     let (status, evidence_class) = if !errors.is_empty() {
         ("COMPROMISED".to_string(), "NO_EVIDENCE".to_string())
@@ -326,12 +407,16 @@ fn print_human(result: &VerifyResult, path: &str) {
     let seq_ok     = !result.errors.iter().any(|e| e.contains("Sequence gap"));
     let struct_ok  = !result.errors.iter().any(|e| e.contains("missing required"));
     let bookend_ok = !result.errors.iter().any(|e| e.contains("SESSION_START") || e.contains("SESSION_END"));
+    let seal_ok    = !result.errors.iter().any(|e| e.contains("CHAIN_SEAL") || e.contains("seal"));
 
-    println!("Check 1 — Structural validity ......... {}", if struct_ok  { pass } else { fail });
-    println!("Check 2 — Sequence continuity ......... {}", if seq_ok     { pass } else { fail });
-    println!("Check 3 — Hash chain integrity ........ {}", if hash_ok    { pass } else { fail });
-    println!("Check 4 — Session bookends ............ {}", if bookend_ok { pass } else { fail });
-    println!("Check 5 — Log drop analysis ........... {} ({} drops)", pass, result.log_drop_count);
+    println!("[1/5] Structural validity  ... {}", if struct_ok  { pass } else { fail });
+    println!("[2/5] Sequence integrity   ... {}", if seq_ok     { pass } else { fail });
+    println!("[3/5] Hash chain integrity ... {}", if hash_ok    { pass } else { fail });
+    println!("[4/5] Session completeness ... {}", if bookend_ok { pass } else { fail });
+    println!("[5/5] Seal signature       ... {}", if seal_ok    { pass } else { fail });
+    if result.log_drop_count > 0 {
+        println!("      ({} LOG_DROP events)", result.log_drop_count);
+    }
     println!();
 
     match result.status.as_str() {
@@ -365,12 +450,13 @@ fn usage() {
     eprintln!("Sasana Verifier v{}", VERIFIER_VERSION);
     eprintln!();
     eprintln!("USAGE:");
-    eprintln!("  sasana verify <session.jsonl>          Verify session hash chain");
-    eprintln!("  sasana verify <session.jsonl> --json   JSON output");
+    eprintln!("  sasana verify <session.jsonl>                         Verify session");
+    eprintln!("  sasana verify <session.jsonl> --json                  JSON output");
+    eprintln!("  sasana verify <session.jsonl> --trust-key BASE64      Pin Archeion pubkey");
     eprintln!();
     eprintln!("EXIT CODES:");
-    eprintln!("  0  INTACT      — chain is valid");
-    eprintln!("  1  COMPROMISED — chain has integrity violations");
+    eprintln!("  0  INTACT      — chain is valid, seal signature verified");
+    eprintln!("  1  COMPROMISED — chain or seal has integrity violations");
     eprintln!("  2  PARTIAL     — valid but LOG_DROP events present");
     eprintln!("  3  ERROR       — file unreadable or malformed");
 }
@@ -386,12 +472,17 @@ fn main() {
     match args[1].as_str() {
         "verify" => {
             if args.len() < 3 {
-                eprintln!("Usage: sasana verify <session.jsonl> [--json]");
+                eprintln!("Usage: sasana verify <session.jsonl> [--json] [--trust-key BASE64]");
                 process::exit(3);
             }
             let path = &args[2];
             let json_output = args.iter().any(|a| a == "--json");
-            let result = verify_file(path);
+            let trusted_pubkey: Option<&str> = args
+                .iter()
+                .position(|a| a == "--trust-key")
+                .and_then(|i| args.get(i + 1))
+                .map(|s| s.as_str());
+            let result = verify_file(path, trusted_pubkey);
             let exit_code = match result.status.as_str() {
                 "INTACT"      => 0,
                 "COMPROMISED" => 1,
