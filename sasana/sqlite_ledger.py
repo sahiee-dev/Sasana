@@ -151,7 +151,9 @@ class SqliteLedger:
                 event["payload"]["rfc3161_token"] = _b64.b64encode(token_der).decode()
 
                 # Recompute event_hash — strips event_hash and signature per envelope convention
-                event_for_hash = {k: v for k, v in event.items() if k not in ("event_hash", "signature")}
+                event_for_hash = {
+                    k: v for k, v in event.items() if k not in ("event_hash", "signature")
+                }
                 new_hash = _hashlib.sha256(_jcs(event_for_hash)).hexdigest()
                 event["event_hash"] = new_hash
 
@@ -174,7 +176,10 @@ class SqliteLedger:
                 )
                 self._conn.commit()
                 self._last_hash = new_hash
-                logger.info("Sasana: RFC 3161 token embedded in SESSION_START (session=%s)", self._session_id)
+                logger.info(
+                    "Sasana: RFC 3161 token embedded in SESSION_START (session=%s)",
+                    self._session_id,
+                )
             except Exception as exc:
                 logger.warning("Sasana: RFC 3161 token embedding failed: %s", exc)
 

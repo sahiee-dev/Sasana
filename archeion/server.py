@@ -114,9 +114,7 @@ async def seal(request: Request) -> str:
                     if k != "rfc3161_token"
                 }
                 ev_no_tok = {
-                    k: v
-                    for k, v in session_start.items()
-                    if k not in ("event_hash", "signature")
+                    k: v for k, v in session_start.items() if k not in ("event_hash", "signature")
                 }
                 ev_no_tok["payload"] = payload_no_tok
                 pre_token_hash = _hl.sha256(_jcs(ev_no_tok)).digest()

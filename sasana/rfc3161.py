@@ -248,7 +248,10 @@ def request_timestamp(hash_bytes: bytes) -> Optional[bytes]:
         )
         with urllib.request.urlopen(http_req, timeout=10) as resp:
             if resp.status != 200:
-                logger.warning("Sasana RFC 3161: TSA returned HTTP %d — session proceeds without timestamp", resp.status)
+                logger.warning(
+                    "Sasana RFC 3161: TSA returned HTTP %d — session proceeds without timestamp",
+                    resp.status,
+                )
                 return None
             return resp.read()
     except Exception as exc:
