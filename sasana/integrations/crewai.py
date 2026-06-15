@@ -139,11 +139,70 @@ class SasanaCrewAITracer(BaseCallbackHandler):  # type: ignore[misc]
             self._ledger = None
             self._started = False
 
+    # ------------------------------------------------------------------ #
+    # Passive context manager — auto-injects callbacks into CrewAI classes #
+    # ------------------------------------------------------------------ #
+
     def __enter__(self) -> "SasanaCrewAITracer":
-        return self.start()
+        self.start()
+        self._patch_crewai()
+        return self
 
     def __exit__(self, exc_type: Any, *_: Any) -> None:
+        self._unpatch_crewai()
         self.stop(status="error" if exc_type else "success")
+
+    def _patch_crewai(self) -> None:
+        """Monkey-patch Crew and Agent __init__ to auto-inject Sasana callbacks.
+
+        While this tracer is active as a context manager, any Crew or Agent
+        constructed inside the block receives step_callback / callbacks
+        automatically — no explicit wiring required.
+        """
+        tracer = self
+        try:
+            import crewai as _crewai
+
+            orig_crew_init = _crewai.Crew.__init__
+            orig_agent_init = _crewai.Agent.__init__
+
+            def _crew_init(crew_self: Any, *args: Any, **kwargs: Any) -> None:
+                if "step_callback" not in kwargs:
+                    kwargs["step_callback"] = tracer.step_callback
+                orig_crew_init(crew_self, *args, **kwargs)
+
+            def _agent_init(agent_self: Any, *args: Any, **kwargs: Any) -> None:
+                existing: list = list(kwargs.get("callbacks") or [])
+                if tracer not in existing:
+                    kwargs["callbacks"] = existing + [tracer]
+                orig_agent_init(agent_self, *args, **kwargs)
+
+            _crewai.Crew.__init__ = _crew_init  # type: ignore[method-assign]
+            _crewai.Agent.__init__ = _agent_init  # type: ignore[method-assign]
+
+            # Store originals for teardown — keyed to this tracer instance
+            self._patched_crewai = _crewai
+            self._orig_crew_init = orig_crew_init
+            self._orig_agent_init = orig_agent_init
+            logger.debug("Sasana: CrewAI auto-wiring active for session %s", self._session_id)
+        except Exception as exc:
+            logger.debug("Sasana: CrewAI patch skipped: %s", exc)
+
+    def _unpatch_crewai(self) -> None:
+        """Restore original Crew and Agent __init__ methods."""
+        try:
+            crewai = getattr(self, "_patched_crewai", None)
+            if crewai is None:
+                return
+            crewai.Crew.__init__ = self._orig_crew_init  # type: ignore[method-assign]
+            crewai.Agent.__init__ = self._orig_agent_init  # type: ignore[method-assign]
+            logger.debug("Sasana: CrewAI auto-wiring removed for session %s", self._session_id)
+        except Exception as exc:
+            logger.debug("Sasana: CrewAI unpatch error: %s", exc)
+        finally:
+            self._patched_crewai = None
+            self._orig_crew_init = None  # type: ignore[assignment]
+            self._orig_agent_init = None  # type: ignore[assignment]
 
     def _record(self, event_type: str, payload: dict) -> None:
         if not self._started:

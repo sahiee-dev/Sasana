@@ -87,10 +87,10 @@ class SqliteLedger:
             from sasana.signing import pubkey_from_private
 
             payload["session_pubkey"] = pubkey_from_private(self._private_key)
-        self._write_event("SESSION_START", payload)
+        self.__write_event("SESSION_START", payload)
 
     def close_session(self, status: str = "success") -> None:
-        self._write_event(
+        self.__write_event(
             "SESSION_END", {"status": status if status in ("success", "error") else "success"}
         )
 
@@ -101,7 +101,7 @@ class SqliteLedger:
                 return
         except ValueError:
             return
-        self._write_event(event_type, payload)
+        self.__write_event(event_type, payload)
 
     def export_jsonl(self, output_path: str | Path) -> Path:
         if self._conn is None or self._session_id is None:
@@ -121,7 +121,7 @@ class SqliteLedger:
     def session_id(self) -> str | None:
         return self._session_id
 
-    def _write_event(self, event_type: str, payload: dict) -> None:
+    def __write_event(self, event_type: str, payload: dict) -> None:
         if self._conn is None:
             self.connect()
         with self._lock:
