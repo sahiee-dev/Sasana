@@ -169,7 +169,7 @@ class TestRfc3161TokenEmbeddedOnSessionStart(unittest.TestCase):
             ledger.export_jsonl(jsonl_path)
             ledger.close()
 
-            events = [json.loads(l) for l in jsonl_path.read_text().splitlines() if l.strip()]
+            events = [json.loads(ln) for ln in jsonl_path.read_text().splitlines() if ln.strip()]
 
             ss = next(e for e in events if e["event_type"] == "SESSION_START")
             self.assertIn("rfc3161_token", ss["payload"], "TOKEN not embedded in SESSION_START")
@@ -202,7 +202,7 @@ class TestRfc3161TsaFailureDoesNotBlockRecording(unittest.TestCase):
             ledger.export_jsonl(jsonl_path)
             ledger.close()
 
-            events = [json.loads(l) for l in jsonl_path.read_text().splitlines() if l.strip()]
+            events = [json.loads(ln) for ln in jsonl_path.read_text().splitlines() if ln.strip()]
             ss = next(e for e in events if e["event_type"] == "SESSION_START")
 
             self.assertNotIn("rfc3161_token", ss["payload"])
