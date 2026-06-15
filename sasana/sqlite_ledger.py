@@ -88,6 +88,9 @@ class SqliteLedger:
 
             payload["session_pubkey"] = pubkey_from_private(self._private_key)
         self.__write_event("SESSION_START", payload)
+        # self._last_hash is now the SESSION_START event_hash (pre-token).
+        # Attempt RFC 3161 anchoring — fail-open, never blocks session recording.
+        self._try_anchor_rfc3161(bytes.fromhex(self._last_hash))
 
     def close_session(self, status: str = "success") -> None:
         self.__write_event(
@@ -102,6 +105,78 @@ class SqliteLedger:
         except ValueError:
             return
         self.__write_event(event_type, payload)
+
+    def _try_anchor_rfc3161(self, pre_token_hash: bytes) -> None:
+        """Request a RFC 3161 timestamp and embed it in SESSION_START. Fail-open."""
+        try:
+            from sasana.rfc3161 import request_timestamp
+
+            token_der = request_timestamp(pre_token_hash)
+            if token_der is None:
+                return
+            self._embed_rfc3161_token(token_der)
+        except Exception as exc:
+            logger.warning("Sasana: RFC 3161 anchoring skipped: %s", exc)
+
+    def _embed_rfc3161_token(self, token_der: bytes) -> None:
+        """
+        Embed a TSA token in the SESSION_START row, recompute event_hash, update DB.
+
+        Two-pass design: SESSION_START was already written without the token so its
+        hash could be submitted to the TSA. Here we add the token to the stored
+        payload, recompute event_hash over the full payload (including the token),
+        update the DB row, and advance self._last_hash so the rest of the chain
+        chains correctly from the new hash.
+        """
+        import base64 as _b64
+        import hashlib as _hashlib
+        import json as _json
+
+        from sasana.jcs import canonicalize as _jcs
+
+        if self._conn is None or self._session_id is None:
+            return
+
+        with self._lock:
+            try:
+                cursor = self._conn.execute(
+                    "SELECT raw_json FROM events WHERE session_id = ? AND seq = 1",
+                    (self._session_id,),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    return
+
+                event = _json.loads(row[0])
+                event["payload"]["rfc3161_token"] = _b64.b64encode(token_der).decode()
+
+                # Recompute event_hash — strips event_hash and signature per envelope convention
+                event_for_hash = {k: v for k, v in event.items() if k not in ("event_hash", "signature")}
+                new_hash = _hashlib.sha256(_jcs(event_for_hash)).hexdigest()
+                event["event_hash"] = new_hash
+
+                # Recompute signature if private key is set
+                if self._private_key is not None:
+                    try:
+                        from sasana.signing import sign_event_hash
+
+                        event["signature"] = sign_event_hash(self._private_key, new_hash)
+                    except Exception as exc:
+                        logger.debug("Sasana: RFC 3161 re-sign failed: %s", exc)
+
+                new_raw_json = _json.dumps(event)
+                new_payload_json = _json.dumps(event["payload"])
+
+                self._conn.execute(
+                    "UPDATE events SET payload_json = ?, event_hash = ?, raw_json = ? "
+                    "WHERE session_id = ? AND seq = 1",
+                    (new_payload_json, new_hash, new_raw_json, self._session_id),
+                )
+                self._conn.commit()
+                self._last_hash = new_hash
+                logger.info("Sasana: RFC 3161 token embedded in SESSION_START (session=%s)", self._session_id)
+            except Exception as exc:
+                logger.warning("Sasana: RFC 3161 token embedding failed: %s", exc)
 
     def export_jsonl(self, output_path: str | Path) -> Path:
         if self._conn is None or self._session_id is None:

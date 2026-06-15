@@ -67,6 +67,7 @@ class VerifyResult:
     root_hash: Optional[str]
     errors: list = dataclasses.field(default_factory=list)
     checks: dict = dataclasses.field(default_factory=dict)
+    timestamp_verified: bool = False  # True when RFC 3161 token present and hash-verified
 
     def as_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -288,6 +289,83 @@ def _check_session_signatures(events: list) -> tuple[bool, dict]:
     return all_signed, {"status": "PASS", "errors": []}
 
 
+def _check_rfc3161_timestamp(events: list) -> tuple[bool, dict]:
+    """
+    Verify RFC 3161 timestamp token in SESSION_START payload if present.
+
+    Returns (timestamp_verified: bool, check_result: dict).
+
+    - SKIPPED when SESSION_START has no rfc3161_token field.
+    - PASS when the token parses and its MessageImprint matches the pre-token hash.
+    - FAIL when the token is present but verification fails (malformed or hash mismatch).
+
+    The pre-token hash is the SESSION_START event_hash as it was when submitted to the
+    TSA — i.e. the hash computed WITHOUT rfc3161_token in the payload. Stripping only
+    that field from a copy of the payload and recomputing the JCS/SHA-256 hash reproduces
+    the value that was sent to Freetsa.
+
+    Note: this verifies hash integrity. TSA signature chain verification is not performed
+    here; the embedded DER token is verifiable offline with standard RFC 3161 tools.
+    """
+    import base64 as _b64
+
+    start_events = [e for e in events if e.get("event_type") == "SESSION_START"]
+    if not start_events:
+        return False, {"status": "SKIPPED", "errors": [], "timestamp_utc": None}
+
+    session_start = start_events[0]
+    payload = session_start.get("payload", {})
+    token_b64 = payload.get("rfc3161_token")
+
+    if not token_b64:
+        return False, {"status": "SKIPPED", "errors": [], "timestamp_utc": None}
+
+    try:
+        token_der = _b64.b64decode(token_b64)
+    except Exception:
+        return False, {
+            "status": "FAIL",
+            "errors": ["rfc3161_token is not valid base64"],
+            "timestamp_utc": None,
+        }
+
+    # Reconstruct the hash that was submitted to the TSA:
+    # SESSION_START fields minus event_hash, signature, and rfc3161_token from payload.
+    try:
+        payload_without_token = {k: v for k, v in payload.items() if k != "rfc3161_token"}
+        event_without_token = {
+            k: v for k, v in session_start.items() if k not in ("event_hash", "signature")
+        }
+        event_without_token["payload"] = payload_without_token
+        pre_token_hash = hashlib.sha256(jcs_canonicalize(event_without_token)).digest()
+    except Exception as exc:
+        return False, {
+            "status": "FAIL",
+            "errors": [f"Pre-token hash computation failed: {exc}"],
+            "timestamp_utc": None,
+        }
+
+    try:
+        from sasana.rfc3161 import verify_timestamp
+
+        valid, utc_time = verify_timestamp(token_der, pre_token_hash)
+    except Exception as exc:
+        return False, {
+            "status": "FAIL",
+            "errors": [f"Token verification error: {exc}"],
+            "timestamp_utc": None,
+        }
+
+    if not valid:
+        return False, {
+            "status": "FAIL",
+            "errors": ["RFC 3161 MessageImprint does not match SESSION_START hash"],
+            "timestamp_utc": None,
+        }
+
+    return True, {"status": "PASS", "errors": [], "timestamp_utc": utc_time}
+
+
 def _determine_evidence_class(events: list, signatures_valid: bool = False) -> str:
     has_seal = any(e.get("event_type") == "CHAIN_SEAL" for e in events)
     has_drop = any(e.get("event_type") == "LOG_DROP" for e in events)
@@ -352,6 +430,7 @@ def verify(
                 "completeness": _skipped,
                 "seal_signature": _skipped,
                 "session_signatures": _skipped,
+                "rfc3161_timestamp": _skipped,
             },
         )
 
@@ -360,6 +439,7 @@ def verify(
     c4 = _check_completeness(events)
     c5 = _check_seal_signature(events, trusted_pubkey=trusted_seal_pubkey)
     _sigs_valid, c6 = _check_session_signatures(events)
+    _ts_verified, c7 = _check_rfc3161_timestamp(events)
     # Accept caller override (for testing) or auto-detected result
     computed_sigs_valid = signatures_valid or _sigs_valid
     checks = {
@@ -369,7 +449,10 @@ def verify(
         "completeness": c4,
         "seal_signature": c5,
         "session_signatures": c6,
+        "rfc3161_timestamp": c7,
     }
+    # RFC 3161 failure is informational — does not cause COMPROMISED on its own.
+    # A tampered token would need the hash chain to also be broken to go undetected.
     all_errors = c2["errors"] + c3["errors"] + c4["errors"] + c5["errors"] + c6["errors"]
 
     if all_errors:
@@ -382,6 +465,7 @@ def verify(
             root_hash=root_hash,
             errors=all_errors,
             checks=checks,
+            timestamp_verified=_ts_verified,
         )
 
     evidence = _determine_evidence_class(events, signatures_valid=computed_sigs_valid)
@@ -396,4 +480,5 @@ def verify(
         root_hash=root_hash,
         errors=[],
         checks=checks,
+        timestamp_verified=_ts_verified,
     )

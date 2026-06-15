@@ -93,17 +93,53 @@ async def seal(request: Request) -> str:
     sorted_events = sorted(events, key=lambda e: e.get("seq", 0))
     last = sorted_events[-1]
 
+    # Verify RFC 3161 timestamp token if SESSION_START carries one
+    _ts_verified = False
+    _ts_utc: str | None = None
+    session_start = next((e for e in sorted_events if e.get("event_type") == "SESSION_START"), None)
+    if session_start:
+        import base64 as _b64
+        import hashlib as _hl
+
+        from sasana.jcs import canonicalize as _jcs
+        from sasana.rfc3161 import verify_timestamp
+
+        token_b64 = session_start.get("payload", {}).get("rfc3161_token")
+        if token_b64:
+            try:
+                token_der = _b64.b64decode(token_b64)
+                payload_no_tok = {
+                    k: v
+                    for k, v in session_start.get("payload", {}).items()
+                    if k != "rfc3161_token"
+                }
+                ev_no_tok = {
+                    k: v
+                    for k, v in session_start.items()
+                    if k not in ("event_hash", "signature")
+                }
+                ev_no_tok["payload"] = payload_no_tok
+                pre_token_hash = _hl.sha256(_jcs(ev_no_tok)).digest()
+                _ts_verified, _ts_utc = verify_timestamp(token_der, pre_token_hash)
+            except Exception as exc:
+                logger.debug("Archeion: RFC 3161 verification skipped: %s", exc)
+
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+    seal_payload: dict = {
+        "session_hash": last["event_hash"],
+        "sealed_by": "archeion",
+        "server_pubkey": _pubkey,
+        "timestamp_verified": _ts_verified,
+    }
+    if _ts_utc is not None:
+        seal_payload["timestamp_utc"] = _ts_utc
+
     seal_event: dict = {
         "seq": last["seq"] + 1,
         "event_type": "CHAIN_SEAL",
         "session_id": last["session_id"],
         "timestamp": ts,
-        "payload": {
-            "session_hash": last["event_hash"],
-            "sealed_by": "archeion",
-            "server_pubkey": _pubkey,
-        },
+        "payload": seal_payload,
         "prev_hash": last["event_hash"],
     }
     seal_event["event_hash"] = compute_event_hash(seal_event)

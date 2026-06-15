@@ -79,18 +79,29 @@ def main() -> None:
         print(f"Events   : {result.event_count}")
         print(f"Evidence : {result.evidence_class}")
         print()
+        _ts_check = result.checks.get("rfc3161_timestamp", {})
+        _has_ts = _ts_check.get("status") not in (None, "SKIPPED")
+        _total = 6 if _has_ts else 5
         for label, key in [
-            ("[1/5] Structural validity ", "structural"),
-            ("[2/5] Sequence integrity  ", "sequence"),
-            ("[3/5] Hash chain integrity", "hash_chain"),
-            ("[4/5] Session completeness", "completeness"),
-            ("[5/5] Seal signature      ", "seal_signature"),
+            (f"[1/{_total}] Structural validity ", "structural"),
+            (f"[2/{_total}] Sequence integrity  ", "sequence"),
+            (f"[3/{_total}] Hash chain integrity", "hash_chain"),
+            (f"[4/{_total}] Session completeness", "completeness"),
+            (f"[5/{_total}] Seal signature      ", "seal_signature"),
         ]:
             r = result.checks.get(key)
             st = r["status"] if r else "SKIPPED"
             print(f"{label} ... {st}")
             if args.verbose and r and r.get("errors"):
                 for err in r["errors"]:
+                    print(f"      {err}")
+        if _has_ts:
+            st = _ts_check.get("status", "SKIPPED")
+            ts_utc = _ts_check.get("timestamp_utc")
+            suffix = f"  ({ts_utc})" if ts_utc else ""
+            print(f"[6/6] RFC 3161 timestamp   ... {st}{suffix}")
+            if args.verbose and _ts_check.get("errors"):
+                for err in _ts_check["errors"]:
                     print(f"      {err}")
         print()
         if result.status == INTACT:
