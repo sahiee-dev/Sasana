@@ -2,7 +2,7 @@
 
 ## The Problem
 
-Every major AI agent observability tool — LangSmith, Arize, Langfuse, W&B, Helicone, Datadog — records what your agent did. None of them can prove it.
+Every major AI agent observability tool: LangSmith, Arize, Langfuse, W&B, Helicone, Datadog — records what your agent did. None of them can prove it.
 
 The logs these tools produce are mutable files sitting on a file system or in a database controlled by the same operator who runs the agent. An attacker with file-system access, a database administrator, or even the agent developer themselves can alter those logs after the fact — silently, without any trace. There is no structural guarantee that what you see in the log reflects what actually happened during the session.
 
