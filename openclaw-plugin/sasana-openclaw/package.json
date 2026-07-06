@@ -1,0 +1,18 @@
+{
+  "name": "sasana-openclaw",
+  "version": "1.0.0",
+  "description": "OpenClaw plugin bridging Gateway lifecycle events into the Sasana tamper-evident audit ledger.",
+  "type": "module",
+  "license": "MIT",
+  "openclaw": {
+    "extensions": ["./index.ts"],
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2",
+      "minGatewayVersion": "2026.3.24-beta.2"
+    },
+    "build": {
+      "openclawVersion": "2026.6.6",
+      "pluginSdkVersion": "2026.6.6"
+    }
+  }
+}

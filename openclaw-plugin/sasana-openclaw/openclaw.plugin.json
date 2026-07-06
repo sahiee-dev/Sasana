@@ -1,0 +1,13 @@
+{
+  "id": "sasana-openclaw",
+  "name": "Sasana",
+  "description": "Forwards OpenClaw Gateway lifecycle events (session, tool-call, and model-call hooks) to the local Sasana tamper-evident audit ledger over a Unix socket. Raw content never leaves this process — only SHA-256 hashes reach the ledger.",
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

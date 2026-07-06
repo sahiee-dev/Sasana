@@ -5,6 +5,7 @@ sasana_cli.py — CLI entry point.
 Usage:
   sasana verify <session.jsonl> [--json]
   sasana observe [--ws URL] [--output-dir DIR]
+  sasana bridge  [--socket PATH] [--output-dir DIR]
   sasana version
 """
 
@@ -20,6 +21,40 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 VERSION = "1.0.0"
+
+_NO_COLOR = os.environ.get("NO_COLOR") is not None or not sys.stdout.isatty()
+
+
+def _c(code: str, text: str) -> str:
+    return text if _NO_COLOR else f"\033[{code}m{text}\033[0m"
+
+
+def _bold(text: str) -> str:
+    return _c("1", text)
+
+
+def _dim(text: str) -> str:
+    return _c("2", text)
+
+
+def _cyan(text: str) -> str:
+    return _c("36", text)
+
+
+def _green(text: str) -> str:
+    return _c("32", text)
+
+
+def _yellow(text: str) -> str:
+    return _c("33", text)
+
+
+def _red(text: str) -> str:
+    return _c("31", text)
+
+
+def _magenta(text: str) -> str:
+    return _c("35", text)
 
 
 def _cmd_verify(args: list) -> int:
@@ -70,15 +105,20 @@ def _cmd_verify(args: list) -> int:
             )
         )
     else:
-        print(f"Sasana Verifier v{VERIFIER_VERSION}")
-        print(f"File: {parsed.session_file}")
+        print(_bold(_cyan(f"Sasana Verifier v{VERIFIER_VERSION}")))
+        print(_dim(f"File: {parsed.session_file}"))
         if result.session_id:
-            print(f"Session: {result.session_id}")
+            print(_dim(f"Session: {result.session_id}"))
         print(f"Events: {result.event_count}  Evidence: {result.evidence_class}")
         print()
         _ts_check = result.checks.get("rfc3161_timestamp", {})
         _has_ts = _ts_check.get("status") not in (None, "SKIPPED")
         _total = 6 if _has_ts else 5
+
+        def _st(label: str, status: str, suffix: str = "") -> str:
+            color = _green if status == "PASS" else (_yellow if status == "SKIPPED" else _red)
+            return f"{label} ... {color(status)}{suffix}"
+
         for label, key in [
             (f"[1/{_total}] Structural validity ", "structural"),
             (f"[2/{_total}] Sequence integrity  ", "sequence"),
@@ -88,25 +128,25 @@ def _cmd_verify(args: list) -> int:
         ]:
             r = result.checks.get(key)
             st = r["status"] if r else "SKIPPED"
-            print(f"{label} ... {st}")
+            print(_st(label, st))
         if _has_ts:
             st = _ts_check.get("status", "SKIPPED")
             ts_utc = _ts_check.get("timestamp_utc")
             suffix = f"  ({ts_utc})" if ts_utc else ""
-            print(f"[6/6] RFC 3161 timestamp   ... {st}{suffix}")
+            print(_st("[6/6] RFC 3161 timestamp   ", st, suffix))
         print()
         if result.status == "INTACT":
-            print("Result: INTACT ✅")
+            print(_bold(_green("Result: INTACT ✅")))
         elif result.status == "PARTIAL":
-            print(f"Result: PARTIAL ⚠️  ({result.log_drop_count} LOG_DROP events)")
+            print(_bold(_yellow(f"Result: PARTIAL ⚠️  ({result.log_drop_count} LOG_DROP events)")))
         elif result.status == "COMPROMISED":
-            print("Result: COMPROMISED ❌")
+            print(_bold(_red("Result: COMPROMISED ❌")))
             for err in result.errors[:10]:
-                print(f"  → {err}")
+                print(_red(f"  → {err}"))
         else:
-            print("Result: ERROR ❌")
+            print(_bold(_red("Result: ERROR ❌")))
             for err in result.errors[:10]:
-                print(f"  → {err}")
+                print(_red(f"  → {err}"))
 
     return {"INTACT": 0, "PARTIAL": 2, "COMPROMISED": 1, "ERROR": 3}.get(result.status, 3)
 
@@ -168,18 +208,53 @@ def _cmd_observe(args: list) -> int:
     return 0
 
 
+def _cmd_bridge(args: list) -> int:
+    ap = argparse.ArgumentParser(prog="sasana bridge")
+    ap.add_argument("--socket", dest="socket_path", default=None, metavar="PATH")
+    ap.add_argument("--output-dir", dest="output_dir", default=None, metavar="DIR")
+    parsed = ap.parse_args(args)
+
+    from sasana.integrations.openclaw import _DEFAULT_OUTPUT_DIR, _DEFAULT_SOCKET_PATH, run
+
+    socket_path = parsed.socket_path or str(_DEFAULT_SOCKET_PATH)
+    output_dir = parsed.output_dir or str(_DEFAULT_OUTPUT_DIR)
+
+    print(_bold(_magenta("╭─ Sasana ⇄ OpenClaw bridge ─────────────────────────╮")))
+    print(f"{_dim('│')} socket : {_cyan(socket_path)}")
+    print(f"{_dim('│')} ledger : {_cyan(output_dir)}")
+    print(f"{_dim('│')} hooks  : {_dim('session_start/end, before/after_tool_call,')}")
+    print(f"{_dim('│')}          {_dim('model_call_started/ended, llm_input/output')}")
+    print(_bold(_magenta("╰─────────────────────────────────────────────────────╯")))
+    print(_green("listening… ") + _dim("(Ctrl-C to stop)"))
+    try:
+        run(socket_path=parsed.socket_path, output_dir=parsed.output_dir)
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    return 0
+
+
 def main() -> None:
     args = sys.argv[1:]
     if not args or args[0] in ("--help", "-h", "help"):
-        print(f"Sasana v{VERSION} — tamper-evident audit trail for OpenClaw sessions")
-        print("\nUSAGE:")
-        print("  sasana verify <session.jsonl> [--json]          Verify hash chain")
-        print("  sasana seal   <session.jsonl> [--server URL]    Submit to Archeion for sealing")
-        print("  sasana observe [--ws URL]                       Passive WebSocket observer")
-        print("  sasana version                                  Print version")
+        print(
+            _bold(_cyan(f"Sasana v{VERSION}")) + _dim(" — tamper-evident audit trail for AI agents")
+        )
+        print(_dim("  hash-chained · Ed25519-signed · RFC 3161-anchored"))
+        print(_bold("\nUSAGE:"))
+        print(f"  {_green('sasana verify')}  <session.jsonl> [--json]        Verify hash chain")
+        print(
+            f"  {_green('sasana seal')}    <session.jsonl> [--server URL]  Submit to Archeion for sealing"
+        )
+        print(
+            f"  {_green('sasana observe')} [--ws URL]                      Passive WebSocket observer"
+        )
+        print(
+            f"  {_green('sasana bridge')}  [--socket PATH]                 Real OpenClaw plugin bridge"
+        )
+        print(f"  {_green('sasana version')}                                 Print version")
         sys.exit(0)
     if args[0] in ("--version", "-V", "version"):
-        print(f"sasana {VERSION}")
+        print(_bold(_cyan(f"sasana {VERSION}")))
         sys.exit(0)
     if args[0] == "verify":
         sys.exit(_cmd_verify(args[1:]))
@@ -187,7 +262,9 @@ def main() -> None:
         sys.exit(_cmd_seal(args[1:]))
     if args[0] == "observe":
         sys.exit(_cmd_observe(args[1:]))
-    print(f"Unknown command: {args[0]}", file=sys.stderr)
+    if args[0] == "bridge":
+        sys.exit(_cmd_bridge(args[1:]))
+    print(_red(f"Unknown command: {args[0]}"), file=sys.stderr)
     sys.exit(3)
 
 
