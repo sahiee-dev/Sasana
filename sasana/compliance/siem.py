@@ -34,6 +34,7 @@ import urllib.error
 from pathlib import Path
 from typing import Dict, Optional
 
+from sasana import __version__
 from sasana.compliance import load_session, verify_session
 
 logger = logging.getLogger("sasana.compliance.siem")
@@ -179,7 +180,7 @@ class SiemExporter:
         events, verification = self._load()
         return [
             {
-                "sasana_version": "1.0.0",
+                "sasana_version": __version__,
                 "device_vendor": self._vendor,
                 "device_product": self._product,
                 "session_id": verification["session_id"],

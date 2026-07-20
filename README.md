@@ -123,6 +123,38 @@ pip install sasana[observer]
 sasana observe  # auto-detects OpenClaw WebSocket port
 ```
 
+Already using OpenTelemetry? Keep your existing tracing (LangSmith, Langfuse, Datadog,
+OTLP) and get a tamper-evident evidence ledger underneath — one session per trace:
+
+```bash
+pip install sasana[otel]
+```
+
+```python
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from sasana.integrations.otel import SasanaSpanExporter
+
+provider.add_span_processor(BatchSpanProcessor(SasanaSpanExporter()))
+```
+
+---
+
+## Evidence packs
+
+Turn any verified session into the artifact an auditor actually reads — a self-contained
+report plus a machine-readable manifest anyone can re-verify:
+
+```bash
+sasana evidence-pack session.jsonl --standard eu_ai_act
+```
+
+Writes `<session>_eu_ai_act_art12.html` (the report) and `.json` (re-verifiable
+independently with `sasana verify`). Standards: `eu_ai_act`, `soc2`, `hipaa`, `siem`.
+Exit codes `0` (compliant) / `2` (gaps) / `3` (error) for CI.
+
+Try it with no install at **[sasana.site/verify](https://sasana.site/verify)** — paste a
+session and the hash chain + Article 12 checks run live in your browser.
+
 ---
 
 ## Authority sealing

@@ -21,7 +21,7 @@ _ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-VERSION = "1.0.0"
+from sasana import __version__ as VERSION  # noqa: E402  (must follow sys.path setup above)
 
 _NO_COLOR = os.environ.get("NO_COLOR") is not None or not sys.stdout.isatty()
 
