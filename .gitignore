@@ -10,3 +10,4 @@ build/
 *.db
 *.jsonl
 sasana-rs/target/
+.DS_Store
