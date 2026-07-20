@@ -353,5 +353,42 @@ class TestTimestampConversion(unittest.TestCase):
         assert abs(_ts_to_epoch("not-a-timestamp") - time.time()) < 5
 
 
+class TestEvidencePackCLI(unittest.TestCase):
+    """The `sasana evidence-pack` command wraps every compliance generator."""
+
+    def setUp(self):
+        import importlib
+        import tempfile
+
+        self.tmp = Path(tempfile.mkdtemp())
+        self.session = _make_session_jsonl(self.tmp)
+        self.out = self.tmp / "packs"
+        self.cli = importlib.import_module("sasana_cli")
+
+    def _run(self, standard):
+        return self.cli._cmd_evidence_pack(
+            [str(self.session), "--standard", standard, "--out", str(self.out)]
+        )
+
+    def test_eu_ai_act_pack_exit_zero_and_files(self):
+        assert self._run("eu_ai_act") == 0
+        assert list(self.out.glob("*_eu_ai_act_art12.json"))
+        assert list(self.out.glob("*_eu_ai_act_art12.html"))
+
+    def test_all_standards_produce_output(self):
+        for standard in ("eu_ai_act", "soc2", "hipaa", "siem"):
+            self._run(standard)
+        # every generator wrote at least one artifact into the shared out dir
+        assert len(list(self.out.iterdir())) >= 4
+
+    def test_default_standard_is_eu_ai_act(self):
+        rc = self.cli._cmd_evidence_pack([str(self.session), "--out", str(self.out)])
+        assert rc == 0
+        assert list(self.out.glob("*_eu_ai_act_art12.json"))
+
+    def test_missing_file_returns_three(self):
+        assert self.cli._cmd_evidence_pack([str(self.tmp / "absent.jsonl")]) == 3
+
+
 if __name__ == "__main__":
     unittest.main()
