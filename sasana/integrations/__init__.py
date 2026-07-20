@@ -5,4 +5,5 @@ Supported frameworks:
     langgraph   TamperEvidentCheckpointSaver
     crewai      SasanaCrewAITracer
     autogpt     SasanaAutoGPTPlugin
+    otel        SasanaSpanExporter (OpenTelemetry GenAI spans → Sasana ledger)
 """
