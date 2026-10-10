@@ -2,14 +2,22 @@
  * sasana — Tamper-Evident Audit Verifier for OpenClaw sessions
  *
  * Usage:
- *   sasana verify <session.jsonl>         Verify hash chain integrity
- *   sasana verify <session.jsonl> --json  JSON output
+ *   sasana verify <session.jsonl> [--json] [--trust-key B64] [--require-seal] [--strict]
  *
  * Exit codes:
  *   0  INTACT      — chain is valid, no drops
  *   1  COMPROMISED — hash chain has integrity violations
  *   2  PARTIAL     — valid chain but LOG_DROP events present
- *   3  ERROR       — file not found, malformed JSONL, or missing fields
+ *   3  ERROR       — file not found, malformed JSONL, bad usage (incl. unknown flags)
+ *   4  --strict only: INTACT but not AUTHORITATIVE_EVIDENCE
+ *
+ * Trust model (matches the Python verifier v2.0.0):
+ *   AUTHORITATIVE_EVIDENCE requires --trust-key: a CHAIN_SEAL that only verifies against its
+ *   own embedded server_pubkey is SELF_SEALED_EVIDENCE. --trust-key and --require-seal both
+ *   make a missing CHAIN_SEAL a COMPROMISED verdict.
+ *
+ * NOT implemented here (the Python verifier does these): RFC 3161 timestamp checks, per-event
+ * Ed25519 signatures, the per-check breakdown in --json output.
  *
  * Hash algorithm: SHA-256 over RFC 8785 canonical JSON of each event
  * (excluding the event_hash field itself), chained via prev_hash.
@@ -28,7 +36,7 @@ use std::fs;
 use std::process;
 
 const GENESIS_HASH: &str = "0000000000000000000000000000000000000000000000000000000000000000";
-const VERIFIER_VERSION: &str = "1.0.0";
+const VERIFIER_VERSION: &str = "2.0.0";
 
 // ---------------------------------------------------------------------------
 // RFC 8785 canonical JSON
@@ -136,70 +144,117 @@ fn compute_event_hash(event_map: &Map<String, Value>) -> String {
 //   - message: event_hash as UTF-8 bytes (the 64-char hex string)
 // ---------------------------------------------------------------------------
 
+struct SealOutcome {
+    errors: Vec<String>,
+    present: bool,
+    trusted: bool,
+}
+
+fn seal_fail(msgs: Vec<String>, present: bool) -> SealOutcome {
+    SealOutcome { errors: msgs, present, trusted: false }
+}
+
 fn verify_seal_signature(
     events: &[Map<String, Value>],
     trusted_pubkey: Option<&str>,
-) -> Vec<String> {
-    let seal = match events
+    require_seal: bool,
+) -> SealOutcome {
+    let seals: Vec<usize> = events
         .iter()
-        .find(|e| e.get("event_type").and_then(Value::as_str) == Some("CHAIN_SEAL"))
-    {
-        Some(s) => s,
-        None => return vec![],
-    };
+        .enumerate()
+        .filter(|(_, e)| e.get("event_type").and_then(Value::as_str) == Some("CHAIN_SEAL"))
+        .map(|(i, _)| i)
+        .collect();
 
-    let pubkey_b64 = match seal
-        .get("payload")
-        .and_then(Value::as_object)
-        .and_then(|p| p.get("server_pubkey"))
-        .and_then(Value::as_str)
-    {
+    if seals.is_empty() {
+        let mut errors = Vec::new();
+        if trusted_pubkey.is_some() {
+            errors.push("pinned key provided but session has no CHAIN_SEAL".to_string());
+        }
+        if require_seal {
+            errors.push("seal required but session has no CHAIN_SEAL".to_string());
+        }
+        return seal_fail(errors, false);
+    }
+    if seals.len() > 1 {
+        return seal_fail(
+            vec![format!("session has {} CHAIN_SEAL events; exactly one is allowed", seals.len())],
+            true,
+        );
+    }
+    let seal_idx = seals[0];
+    if seal_idx != events.len() - 1 {
+        return seal_fail(vec!["CHAIN_SEAL must be the final event".to_string()], true);
+    }
+    let seal = &events[seal_idx];
+
+    let payload = seal.get("payload").and_then(Value::as_object);
+    let pubkey_b64 = match payload.and_then(|p| p.get("server_pubkey")).and_then(Value::as_str) {
         Some(k) => k,
-        None => return vec!["CHAIN_SEAL missing server_pubkey in payload".to_string()],
+        None => return seal_fail(vec!["CHAIN_SEAL missing server_pubkey in payload".to_string()], true),
     };
-
     let sig_b64 = match seal.get("signature").and_then(Value::as_str) {
         Some(s) => s,
-        None => return vec!["CHAIN_SEAL missing signature".to_string()],
+        None => return seal_fail(vec!["CHAIN_SEAL missing signature".to_string()], true),
     };
-
     let event_hash = match seal.get("event_hash").and_then(Value::as_str) {
         Some(h) => h,
-        None => return vec!["CHAIN_SEAL missing event_hash".to_string()],
+        None => return seal_fail(vec!["CHAIN_SEAL missing event_hash".to_string()], true),
     };
 
     // Key pinning: if a trusted key is specified, reject any other key.
     if let Some(trusted) = trusted_pubkey {
         if pubkey_b64 != trusted {
-            return vec![format!(
-                "CHAIN_SEAL signed by untrusted key — expected {}…, got {}…",
-                &trusted[..trusted.len().min(16)],
-                &pubkey_b64[..pubkey_b64.len().min(16)]
-            )];
+            return seal_fail(
+                vec![format!(
+                    "CHAIN_SEAL signed by untrusted key — expected {}…, got {}…",
+                    &trusted[..trusted.len().min(16)],
+                    &pubkey_b64[..pubkey_b64.len().min(16)]
+                )],
+                true,
+            );
         }
     }
 
     let pubkey_bytes = match BASE64.decode(pubkey_b64) {
         Ok(b) => b,
-        Err(_) => return vec!["CHAIN_SEAL server_pubkey is not valid base64".to_string()],
+        Err(_) => return seal_fail(vec!["CHAIN_SEAL server_pubkey is not valid base64".to_string()], true),
     };
     let sig_bytes = match BASE64.decode(sig_b64) {
         Ok(b) => b,
-        Err(_) => return vec!["CHAIN_SEAL signature is not valid base64".to_string()],
+        Err(_) => return seal_fail(vec!["CHAIN_SEAL signature is not valid base64".to_string()], true),
     };
-
     if pubkey_bytes.len() != 32 {
-        return vec!["CHAIN_SEAL server_pubkey must be 32 bytes".to_string()];
+        return seal_fail(vec!["CHAIN_SEAL server_pubkey must be 32 bytes".to_string()], true);
     }
     if sig_bytes.len() != 64 {
-        return vec!["CHAIN_SEAL signature must be 64 bytes".to_string()];
+        return seal_fail(vec!["CHAIN_SEAL signature must be 64 bytes".to_string()], true);
     }
 
     let pub_key = UnparsedPublicKey::new(&ring_sig::ED25519, &pubkey_bytes);
-    match pub_key.verify(event_hash.as_bytes(), &sig_bytes) {
-        Ok(_) => vec![],
-        Err(_) => vec!["CHAIN_SEAL signature invalid — seal has been tampered with".to_string()],
+    if pub_key.verify(event_hash.as_bytes(), &sig_bytes).is_err() {
+        return seal_fail(
+            vec!["CHAIN_SEAL signature invalid — seal has been tampered with".to_string()],
+            true,
+        );
     }
+
+    // The seal must attest to the chain head it follows.
+    if events.len() >= 2 {
+        let head = events[events.len() - 2].get("event_hash").and_then(Value::as_str);
+        let claimed = payload.and_then(|p| p.get("session_hash")).and_then(Value::as_str);
+        if claimed.is_none() || claimed != head {
+            return seal_fail(
+                vec![
+                    "CHAIN_SEAL session_hash does not match the preceding event's event_hash"
+                        .to_string(),
+                ],
+                true,
+            );
+        }
+    }
+
+    SealOutcome { errors: vec![], present: true, trusted: trusted_pubkey.is_some() }
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +270,11 @@ struct VerifyResult {
     log_drop_count: usize,
     root_hash: Option<String>,
     errors: Vec<String>,
+    warnings: Vec<String>,
+    pinned: bool,
+    require_seal: bool,
+    seal_present: bool,
+    seal_trusted: bool,
     verifier_version: String,
 }
 
@@ -222,10 +282,12 @@ struct VerifyResult {
 // Core verifier
 // ---------------------------------------------------------------------------
 
-fn verify_file(path: &str, trusted_pubkey: Option<&str>) -> VerifyResult {
+fn verify_file(path: &str, trusted_pubkey: Option<&str>, require_seal: bool) -> VerifyResult {
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
-        Err(e) => return error_result(format!("Cannot read '{}': {}", path, e)),
+        Err(e) => {
+            return error_result(format!("Cannot read '{}': {}", path, e), trusted_pubkey, require_seal)
+        }
     };
 
     let mut raw_events: Vec<Map<String, Value>> = Vec::new();
@@ -236,13 +298,28 @@ fn verify_file(path: &str, trusted_pubkey: Option<&str>) -> VerifyResult {
         }
         match serde_json::from_str::<Value>(trimmed) {
             Ok(Value::Object(map)) => raw_events.push(map),
-            Ok(_) => return error_result(format!("Line {}: not a JSON object", i + 1)),
-            Err(e) => return error_result(format!("Line {}: JSON parse error: {}", i + 1, e)),
+            Ok(_) => {
+                return error_result(format!("Line {}: not a JSON object", i + 1), trusted_pubkey, require_seal)
+            }
+            Err(e) => {
+                return error_result(
+                    format!("Line {}: JSON parse error: {}", i + 1, e),
+                    trusted_pubkey,
+                    require_seal,
+                )
+            }
         }
     }
+    verify_events(&raw_events, trusted_pubkey, require_seal)
+}
 
+fn verify_events(
+    raw_events: &[Map<String, Value>],
+    trusted_pubkey: Option<&str>,
+    require_seal: bool,
+) -> VerifyResult {
     if raw_events.is_empty() {
-        return error_result("File is empty or contains no JSON objects".to_string());
+        return error_result("File is empty or contains no JSON objects".to_string(), trusted_pubkey, require_seal);
     }
 
     let event_count = raw_events.len();
@@ -254,7 +331,7 @@ fn verify_file(path: &str, trusted_pubkey: Option<&str>) -> VerifyResult {
 
     // Check 1: structural validity
     let required = ["seq", "event_type", "session_id", "timestamp", "payload", "prev_hash", "event_hash"];
-    for event_map in &raw_events {
+    for event_map in raw_events {
         let seq = event_map.get("seq").and_then(Value::as_i64).unwrap_or(0);
         for field in &required {
             if !event_map.contains_key(*field) {
@@ -284,7 +361,7 @@ fn verify_file(path: &str, trusted_pubkey: Option<&str>) -> VerifyResult {
     }
 
     // Check 3: hash chain integrity
-    for event_map in &raw_events {
+    for event_map in raw_events {
         let seq = event_map.get("seq").and_then(Value::as_i64).unwrap_or(0);
 
         if let Some(stored_prev) = event_map.get("prev_hash").and_then(Value::as_str) {
@@ -348,16 +425,35 @@ fn verify_file(path: &str, trusted_pubkey: Option<&str>) -> VerifyResult {
         ));
     }
 
-    // Check 5: CHAIN_SEAL Ed25519 signature + key pinning
-    let seal_errors = verify_seal_signature(&raw_events, trusted_pubkey);
-    errors.extend(seal_errors);
+    // Check 5: CHAIN_SEAL Ed25519 signature, key pinning, single/final seal, session_hash
+    let seal = verify_seal_signature(raw_events, trusted_pubkey, require_seal);
+    errors.extend(seal.errors);
+    let seal_trusted = seal.trusted && errors.is_empty();
+
+    let mut warnings: Vec<String> = Vec::new();
+    if seal.present && trusted_pubkey.is_none() {
+        warnings.push(
+            "seal not verified against a trusted key; anyone can produce this \
+             (pass --trust-key with the Archeion public key to verify who sealed it)"
+                .to_string(),
+        );
+    }
+    if !seal.present && !require_seal && trusted_pubkey.is_none() {
+        warnings.push(
+            "session has no CHAIN_SEAL: only internal consistency was checked, so a complete \
+             rewrite of this log cannot be detected"
+                .to_string(),
+        );
+    }
 
     let (status, evidence_class) = if !errors.is_empty() {
         ("COMPROMISED".to_string(), "NO_EVIDENCE".to_string())
     } else if log_drop_count > 0 {
         ("PARTIAL".to_string(), "PARTIAL_EVIDENCE".to_string())
-    } else if has_chain_seal {
+    } else if has_chain_seal && seal_trusted {
         ("INTACT".to_string(), "AUTHORITATIVE_EVIDENCE".to_string())
+    } else if has_chain_seal {
+        ("INTACT".to_string(), "SELF_SEALED_EVIDENCE".to_string())
     } else {
         ("INTACT".to_string(), "NON_AUTHORITATIVE_EVIDENCE".to_string())
     };
@@ -370,11 +466,16 @@ fn verify_file(path: &str, trusted_pubkey: Option<&str>) -> VerifyResult {
         log_drop_count,
         root_hash,
         errors,
+        warnings,
+        pinned: trusted_pubkey.is_some(),
+        require_seal,
+        seal_present: seal.present,
+        seal_trusted,
         verifier_version: VERIFIER_VERSION.to_string(),
     }
 }
 
-fn error_result(msg: String) -> VerifyResult {
+fn error_result(msg: String, trusted_pubkey: Option<&str>, require_seal: bool) -> VerifyResult {
     VerifyResult {
         status: "ERROR".to_string(),
         evidence_class: "NO_EVIDENCE".to_string(),
@@ -383,6 +484,11 @@ fn error_result(msg: String) -> VerifyResult {
         log_drop_count: 0,
         root_hash: None,
         errors: vec![msg],
+        warnings: vec![],
+        pinned: trusted_pubkey.is_some(),
+        require_seal,
+        seal_present: false,
+        seal_trusted: false,
         verifier_version: VERIFIER_VERSION.to_string(),
     }
 }
@@ -399,6 +505,10 @@ fn print_human(result: &VerifyResult, path: &str) {
     }
     println!("Events:  {}", result.event_count);
     println!("Evidence class: {}", result.evidence_class);
+    println!(
+        "Trusted key: {}",
+        if result.pinned { "pinned (--trust-key)" } else { "none (seal key NOT trusted)" }
+    );
     println!();
 
     let pass = "PASS";
@@ -413,11 +523,26 @@ fn print_human(result: &VerifyResult, path: &str) {
     println!("[2/5] Sequence integrity   ... {}", if seq_ok     { pass } else { fail });
     println!("[3/5] Hash chain integrity ... {}", if hash_ok    { pass } else { fail });
     println!("[4/5] Session completeness ... {}", if bookend_ok { pass } else { fail });
-    println!("[5/5] Seal signature       ... {}", if seal_ok    { pass } else { fail });
+    let seal_label = if !seal_ok {
+        fail
+    } else if !result.seal_present {
+        "NO SEAL (no CHAIN_SEAL present)"
+    } else if result.seal_trusted {
+        "PASS (signed by the pinned key)"
+    } else {
+        "SELF-SIGNED (valid against its own embedded key only)"
+    };
+    println!("[5/5] Seal signature       ... {}", seal_label);
     if result.log_drop_count > 0 {
         println!("      ({} LOG_DROP events)", result.log_drop_count);
     }
     println!();
+    for w in &result.warnings {
+        println!("⚠  {}", w);
+    }
+    if !result.warnings.is_empty() {
+        println!();
+    }
 
     match result.status.as_str() {
         "INTACT" => println!("RESULT: INTACT ✅"),
@@ -452,13 +577,33 @@ fn usage() {
     eprintln!("USAGE:");
     eprintln!("  sasana verify <session.jsonl>                         Verify session");
     eprintln!("  sasana verify <session.jsonl> --json                  JSON output");
-    eprintln!("  sasana verify <session.jsonl> --trust-key BASE64      Pin Archeion pubkey");
+    eprintln!("  sasana verify <session.jsonl> --trust-key BASE64      Pin Archeion pubkey (needed for AUTHORITATIVE)");
+    eprintln!("  sasana verify <session.jsonl> --require-seal          Missing CHAIN_SEAL is COMPROMISED");
+    eprintln!("  sasana verify <session.jsonl> --trust-key K --strict  Exit 4 unless AUTHORITATIVE_EVIDENCE");
     eprintln!();
     eprintln!("EXIT CODES:");
-    eprintln!("  0  INTACT      — chain is valid, seal signature verified");
+    eprintln!("  0  INTACT      — chain is valid (see Evidence class: unpinned seals are SELF_SEALED)");
     eprintln!("  1  COMPROMISED — chain or seal has integrity violations");
     eprintln!("  2  PARTIAL     — valid but LOG_DROP events present");
-    eprintln!("  3  ERROR       — file unreadable or malformed");
+    eprintln!("  3  ERROR       — file unreadable or malformed, or bad usage / unknown flag");
+    eprintln!("  4  --strict only: INTACT but not AUTHORITATIVE_EVIDENCE");
+}
+
+fn usage_error(msg: &str) -> ! {
+    eprintln!("sasana verify: error: {}", msg);
+    process::exit(3);
+}
+
+fn exit_code_for(result: &VerifyResult, strict: bool) -> i32 {
+    if strict && result.status == "INTACT" && result.evidence_class != "AUTHORITATIVE_EVIDENCE" {
+        return 4;
+    }
+    match result.status.as_str() {
+        "INTACT" => 0,
+        "COMPROMISED" => 1,
+        "PARTIAL" => 2,
+        _ => 3,
+    }
 }
 
 fn main() {
@@ -471,28 +616,55 @@ fn main() {
 
     match args[1].as_str() {
         "verify" => {
-            if args.len() < 3 {
-                eprintln!("Usage: sasana verify <session.jsonl> [--json] [--trust-key BASE64]");
-                process::exit(3);
+            let rest = &args[2..];
+            let mut path: Option<&str> = None;
+            let mut json_output = false;
+            let mut require_seal = false;
+            let mut strict = false;
+            let mut trusted_pubkey: Option<String> = None;
+            let mut i = 0;
+            // Unknown flags are an error: silently ignoring e.g. `--trust_key` would drop a
+            // security control while still printing a verdict.
+            while i < rest.len() {
+                match rest[i].as_str() {
+                    "--json" => json_output = true,
+                    "--require-seal" => require_seal = true,
+                    "--strict" => strict = true,
+                    "--trust-key" => {
+                        i += 1;
+                        match rest.get(i) {
+                            Some(v) if !v.starts_with("--") => trusted_pubkey = Some(v.clone()),
+                            _ => usage_error("--trust-key requires a base64 public key"),
+                        }
+                    }
+                    flag if flag.starts_with("--") => {
+                        usage_error(&format!("unrecognized argument: {}", flag))
+                    }
+                    other => {
+                        if path.is_some() {
+                            usage_error(&format!("unexpected extra argument: {}", other));
+                        }
+                        path = Some(other);
+                    }
+                }
+                i += 1;
             }
-            let path = &args[2];
-            let json_output = args.iter().any(|a| a == "--json");
-            let trusted_pubkey: Option<&str> = args
-                .iter()
-                .position(|a| a == "--trust-key")
-                .and_then(|i| args.get(i + 1))
-                .map(|s| s.as_str());
-            let result = verify_file(path, trusted_pubkey);
-            let exit_code = match result.status.as_str() {
-                "INTACT"      => 0,
-                "COMPROMISED" => 1,
-                "PARTIAL"     => 2,
-                _             => 3,
+            let path = match path {
+                Some(p) => p,
+                None => usage_error("missing <session.jsonl>"),
             };
+            if strict && trusted_pubkey.is_none() {
+                usage_error("--strict requires --trust-key (AUTHORITATIVE_EVIDENCE needs a pinned key)");
+            }
+            let result = verify_file(path, trusted_pubkey.as_deref(), require_seal);
+            let exit_code = exit_code_for(&result, strict);
             if json_output {
                 println!("{}", serde_json::to_string_pretty(&result).unwrap());
             } else {
                 print_human(&result, path);
+                if exit_code == 4 {
+                    println!("--strict: INTACT but {} (exit 4)", result.evidence_class);
+                }
             }
             process::exit(exit_code);
         }
@@ -568,8 +740,219 @@ mod tests {
 
     #[test]
     fn error_result_has_error_status() {
-        let r = error_result("test error".to_string());
+        let r = error_result("test error".to_string(), None, false);
         assert_eq!(r.status, "ERROR");
         assert_eq!(r.event_count, 0);
+    }
+
+    // ----- trust-model tests: same cases as tests/test_tamper_matrix.py -----------------
+
+    use ring::rand::SystemRandom;
+    use ring::signature::{Ed25519KeyPair, KeyPair};
+
+    type Ev = Map<String, Value>;
+
+    fn mk_event(seq: i64, et: &str, payload: Value, prev: &str) -> Ev {
+        let mut m = Map::new();
+        m.insert("seq".into(), json!(seq));
+        m.insert("event_type".into(), json!(et));
+        m.insert("session_id".into(), json!("rs-matrix"));
+        m.insert("timestamp".into(), json!("2026-01-01T00:00:00.000000Z"));
+        m.insert("payload".into(), payload);
+        m.insert("prev_hash".into(), json!(prev));
+        let h = compute_event_hash(&m);
+        m.insert("event_hash".into(), json!(h));
+        m
+    }
+
+    fn base_session() -> Vec<Ev> {
+        let spec = [
+            ("SESSION_START", json!({"agent_id": "a1"})),
+            ("TOOL_CALL", json!({"tool_name": "bash"})),
+            ("TOOL_RESULT", json!({"result_hash": "d"})),
+            ("SESSION_END", json!({"status": "success", "classification": "DIVERGENT"})),
+        ];
+        let mut out: Vec<Ev> = Vec::new();
+        for (i, (et, pl)) in spec.iter().enumerate() {
+            let prev = out.last().map(|e| e["event_hash"].as_str().unwrap().to_string())
+                .unwrap_or_else(|| GENESIS_HASH.to_string());
+            out.push(mk_event(i as i64 + 1, et, pl.clone(), &prev));
+        }
+        out
+    }
+
+    fn keypair() -> (Ed25519KeyPair, String) {
+        let pkcs8 = Ed25519KeyPair::generate_pkcs8(&SystemRandom::new()).unwrap();
+        let kp = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).unwrap();
+        let pubkey = BASE64.encode(kp.public_key().as_ref());
+        (kp, pubkey)
+    }
+
+    fn rechain(evs: &mut [Ev]) {
+        for i in 0..evs.len() {
+            let prev = if i == 0 { GENESIS_HASH.to_string() }
+                else { evs[i - 1]["event_hash"].as_str().unwrap().to_string() };
+            evs[i].insert("prev_hash".into(), json!(prev));
+            let h = compute_event_hash(&evs[i]);
+            evs[i].insert("event_hash".into(), json!(h));
+        }
+    }
+
+    fn seal_over(evs: &[Ev], kp: &Ed25519KeyPair, pubkey: &str) -> Ev {
+        let head = evs.last().unwrap()["event_hash"].as_str().unwrap().to_string();
+        let seq = evs.last().unwrap()["seq"].as_i64().unwrap() + 1;
+        let mut m = mk_event(
+            seq,
+            "CHAIN_SEAL",
+            json!({"session_hash": head, "sealed_by": "test", "server_pubkey": pubkey}),
+            &head,
+        );
+        let sig = BASE64.encode(kp.sign(m["event_hash"].as_str().unwrap().as_bytes()).as_ref());
+        m.insert("signature".into(), json!(sig));
+        m
+    }
+
+    fn sealed(kp: &Ed25519KeyPair, pubkey: &str) -> Vec<Ev> {
+        let mut evs = base_session();
+        let s = seal_over(&evs, kp, pubkey);
+        evs.push(s);
+        evs
+    }
+
+    fn run(evs: &[Ev], pin: Option<&str>, require: bool) -> VerifyResult {
+        verify_events(evs, pin, require)
+    }
+
+    #[test]
+    fn a_genuine_seal_unpinned_is_self_sealed_pinned_is_authoritative() {
+        let (kp, pk) = keypair();
+        let evs = sealed(&kp, &pk);
+        let r = run(&evs, None, false);
+        assert_eq!((r.status.as_str(), r.evidence_class.as_str()), ("INTACT", "SELF_SEALED_EVIDENCE"));
+        assert!(!r.seal_trusted && r.warnings.iter().any(|w| w.contains("anyone can produce this")));
+        let r = run(&evs, Some(&pk), false);
+        assert_eq!((r.status.as_str(), r.evidence_class.as_str()), ("INTACT", "AUTHORITATIVE_EVIDENCE"));
+        assert!(r.seal_trusted);
+    }
+
+    #[test]
+    fn b_edit_only_is_compromised() {
+        let (kp, pk) = keypair();
+        let mut evs = sealed(&kp, &pk);
+        evs[3].get_mut("payload").unwrap()["classification"] = json!("IN-BOUNDS");
+        assert_eq!(run(&evs, Some(&pk), false).status, "COMPROMISED");
+        assert_eq!(run(&evs, None, false).status, "COMPROMISED");
+    }
+
+    #[test]
+    fn c_rechain_keeping_old_seal_is_compromised() {
+        let (kp, pk) = keypair();
+        let mut evs = sealed(&kp, &pk);
+        evs[3].get_mut("payload").unwrap()["classification"] = json!("IN-BOUNDS");
+        rechain(&mut evs[..4]); // seal event untouched (c1)
+        assert_eq!(run(&evs, Some(&pk), false).status, "COMPROMISED");
+        let head = evs[3]["event_hash"].clone();
+        evs[4].insert("prev_hash".into(), head.clone()); // c2: relink + rehash, stale signature
+        evs[4].get_mut("payload").unwrap()["session_hash"] = head;
+        let h = compute_event_hash(&evs[4]);
+        evs[4].insert("event_hash".into(), json!(h));
+        let r = run(&evs, Some(&pk), false);
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("signature invalid")));
+    }
+
+    #[test]
+    fn d_e_attacker_reseal_pinned_rejected_unpinned_not_authoritative() {
+        let (real_kp, real_pk) = keypair();
+        let (atk_kp, atk_pk) = keypair();
+        let mut evs = base_session();
+        evs[3].get_mut("payload").unwrap()["classification"] = json!("IN-BOUNDS");
+        rechain(&mut evs);
+        let s = seal_over(&evs, &atk_kp, &atk_pk);
+        evs.push(s);
+        let r = run(&evs, Some(&real_pk), false); // d
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("untrusted key")));
+        let r = run(&evs, None, false); // e
+        assert_eq!((r.status.as_str(), r.evidence_class.as_str()), ("INTACT", "SELF_SEALED_EVIDENCE"));
+        assert_ne!(r.evidence_class, "AUTHORITATIVE_EVIDENCE");
+        let _ = real_kp;
+    }
+
+    #[test]
+    fn f_stripped_seal_is_compromised_when_pinned_or_required() {
+        let (_kp, pk) = keypair();
+        let mut evs = base_session();
+        evs[3].get_mut("payload").unwrap()["classification"] = json!("IN-BOUNDS");
+        rechain(&mut evs);
+        let r = run(&evs, Some(&pk), false); // f
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("pinned key provided but session has no CHAIN_SEAL")));
+        let r = run(&evs, None, true); // f'
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("seal required")));
+        // neither flag: still INTACT/NON_AUTHORITATIVE, but with a warning
+        let r = run(&evs, None, false);
+        assert_eq!((r.status.as_str(), r.evidence_class.as_str()), ("INTACT", "NON_AUTHORITATIVE_EVIDENCE"));
+        assert!(!r.warnings.is_empty());
+    }
+
+    #[test]
+    fn g_seal_claiming_real_key_signed_by_attacker_is_compromised() {
+        let (_real_kp, real_pk) = keypair();
+        let (atk_kp, _atk_pk) = keypair();
+        let mut evs = base_session();
+        let s = seal_over(&evs, &atk_kp, &real_pk); // advertises real key, signed by attacker
+        evs.push(s);
+        assert_eq!(run(&evs, None, false).status, "COMPROMISED");
+        assert_eq!(run(&evs, Some(&real_pk), false).status, "COMPROMISED");
+    }
+
+    #[test]
+    fn two_seals_and_non_final_seal_are_rejected() {
+        let (kp, pk) = keypair();
+        let mut evs = sealed(&kp, &pk);
+        let second = seal_over(&evs, &kp, &pk);
+        evs.push(second);
+        let r = run(&evs, Some(&pk), false);
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("2 CHAIN_SEAL events")));
+
+        // seal in the middle of an otherwise valid chain
+        let base = base_session();
+        let mut mid: Vec<Ev> = vec![base[0].clone(), base[1].clone()];
+        let s = seal_over(&mid, &kp, &pk);
+        mid.push(s);
+        for (seq, src) in [(4i64, &base[2]), (5, &base[3])] {
+            let prev = mid.last().unwrap()["event_hash"].as_str().unwrap().to_string();
+            mid.push(mk_event(seq, src["event_type"].as_str().unwrap(), src["payload"].clone(), &prev));
+        }
+        let r = run(&mid, None, false);
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("must be the final event")));
+    }
+
+    #[test]
+    fn seal_session_hash_must_match_chain_head() {
+        let (kp, pk) = keypair();
+        let mut evs = sealed(&kp, &pk);
+        evs[4].get_mut("payload").unwrap()["session_hash"] = json!("a".repeat(64));
+        let h = compute_event_hash(&evs[4]);
+        evs[4].insert("event_hash".into(), json!(h.clone()));
+        let sig = BASE64.encode(kp.sign(h.as_bytes()).as_ref());
+        evs[4].insert("signature".into(), json!(sig));
+        let r = run(&evs, Some(&pk), false);
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("session_hash")));
+    }
+
+    #[test]
+    fn strict_exit_codes() {
+        let (kp, pk) = keypair();
+        let r = run(&sealed(&kp, &pk), Some(&pk), false);
+        assert_eq!(exit_code_for(&r, true), 0);
+        let r = run(&base_session(), None, false);
+        assert_eq!(exit_code_for(&r, false), 0);
+        assert_eq!(exit_code_for(&r, true), 4);
     }
 }
