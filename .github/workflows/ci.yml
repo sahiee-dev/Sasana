@@ -15,7 +15,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install ruff
+      # ruff 0.16+ enables extra default rules (191 errors on the untouched v1.1.0 tag);
+      # stay below it until the codebase is migrated deliberately.
+      - run: pip install "ruff<0.16"
       - run: ruff check .
       - run: ruff format --check .
 
@@ -32,6 +34,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
+      # The Python/Rust agreement tests are a release gate. With CI=true (set by Actions) a missing
+      # binary FAILS them instead of skipping, so build it here.
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --manifest-path sasana-rs/Cargo.toml
       - run: pytest tests/ -v
 
   test-rust:

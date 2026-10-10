@@ -16,6 +16,7 @@ from typing import Any
 
 from sasana.envelope import build_event, GENESIS_HASH
 from sasana.events import EventType
+from sasana.jcs import CANON_FIELD, CANON_RFC8785
 
 logger = logging.getLogger("sasana.sqlite_ledger")
 
@@ -83,6 +84,9 @@ class SqliteLedger:
         payload: dict = {"agent_id": agent_id or session_id}
         if metadata:
             payload.update(metadata)
+        # Declared in the hashed SESSION_START payload so the chain (and any seal) covers it.
+        # Set last so caller metadata can never override it.
+        payload[CANON_FIELD] = CANON_RFC8785
         if self._private_key is not None:
             from sasana.signing import pubkey_from_private
 
@@ -132,7 +136,7 @@ class SqliteLedger:
         import hashlib as _hashlib
         import json as _json
 
-        from sasana.jcs import canonicalize as _jcs
+        from sasana.jcs import canonicalize as _jcs  # RFC 8785: what open_session declared
 
         if self._conn is None or self._session_id is None:
             return

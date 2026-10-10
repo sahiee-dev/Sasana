@@ -1,0 +1,119 @@
+{
+  "about": "Logs written by PUBLISHED Sasana releases. They must verify INTACT forever under every verifier (Python and Rust). Never regenerate these to make a test pass.",
+  "releases": {
+    "v1.0.0": {
+      "git_commit": "86645bd",
+      "pypi_wheel": "sasana-1.0.0-py3-none-any.whl",
+      "pypi_wheel_sha256": "3e2c55c3a101ec81e4ab8d68c846a537eab0a014d382389843ea9fb1c581d0fb",
+      "pypi_upload_time": "2026-07-06T10:14:40Z"
+    },
+    "v1.1.0": {
+      "git_commit": "0c94b6f",
+      "pypi_wheel": "sasana-1.1.0-py3-none-any.whl",
+      "pypi_wheel_sha256": "51d0aa6a5dfea0515600f3ed22ceb97aa1bf351187c3a92a79a60b00519377a2",
+      "pypi_upload_time": "2026-07-20T14:27:38Z"
+    }
+  },
+  "files": {
+    "v1.0.0_unsealed.jsonl": {
+      "release": "v1.0.0",
+      "kind": "unsealed",
+      "description": "plain hash chain",
+      "sha256": "0fdd07fb7dfc9bc7a22a9ba6fe7f7d494811750bc6b5bc6a04b400d54a380d72",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "NON_AUTHORITATIVE_EVIDENCE"
+      },
+      "canonicalization": "legacy"
+    },
+    "v1.0.0_signed.jsonl": {
+      "release": "v1.0.0",
+      "kind": "signed",
+      "description": "per-event Ed25519 signatures",
+      "sha256": "d14427bd2ea2a150640b8f43e33266dcdf5b9467f4e4847b0737fa538dbb0092",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "SIGNED_NON_AUTHORITATIVE_EVIDENCE"
+      },
+      "canonicalization": "legacy"
+    },
+    "v1.0.0_sealed.jsonl": {
+      "release": "v1.0.0",
+      "kind": "sealed",
+      "description": "sealed by this release's Archeion (throwaway key)",
+      "sha256": "35d06d47dc74055ed451788816fd4bc3a595dae09bbb4148c17a06a0e06da1a0",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "SELF_SEALED_EVIDENCE"
+      },
+      "canonicalization": "legacy",
+      "archeion_pubkey": "kprHjpeHlu7F4nIEh5RFyhZU3VIggKror45nQ7Kxz+c=",
+      "pinned": {
+        "status": "INTACT",
+        "evidence_class": "AUTHORITATIVE_EVIDENCE"
+      }
+    },
+    "v1.0.0_timestamped.jsonl": {
+      "release": "v1.0.0",
+      "kind": "timestamped",
+      "description": "SESSION_START carries an RFC 3161 token (offline test TSA)",
+      "sha256": "d08bb364f5808d580d79048952f7e24e35b063869a515f743104239b9c671e98",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "NON_AUTHORITATIVE_EVIDENCE"
+      },
+      "canonicalization": "legacy",
+      "timestamp_status": "IMPRINT_MATCH"
+    },
+    "v1.1.0_unsealed.jsonl": {
+      "release": "v1.1.0",
+      "kind": "unsealed",
+      "description": "plain hash chain",
+      "sha256": "23c7a51b194b4d73437485fd2cfd0b2464f8f6657c2a0a72e55ec2c8dfcb688f",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "NON_AUTHORITATIVE_EVIDENCE"
+      },
+      "canonicalization": "legacy"
+    },
+    "v1.1.0_signed.jsonl": {
+      "release": "v1.1.0",
+      "kind": "signed",
+      "description": "per-event Ed25519 signatures",
+      "sha256": "dc1de618ba3ebd62a4257e76524af8944c78e4de989f155397efa95c5ad90aec",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "SIGNED_NON_AUTHORITATIVE_EVIDENCE"
+      },
+      "canonicalization": "legacy"
+    },
+    "v1.1.0_sealed.jsonl": {
+      "release": "v1.1.0",
+      "kind": "sealed",
+      "description": "sealed by this release's Archeion (throwaway key)",
+      "sha256": "c2d8dc2d190fe8eba91ab9cd6ccbd925d3c933bb3eedff6999744e0c5fe623e4",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "SELF_SEALED_EVIDENCE"
+      },
+      "canonicalization": "legacy",
+      "archeion_pubkey": "n42lk5fALMZNxu8mYoS8CBVaaR534b/7e+h2ueip8Lg=",
+      "pinned": {
+        "status": "INTACT",
+        "evidence_class": "AUTHORITATIVE_EVIDENCE"
+      }
+    },
+    "v1.1.0_timestamped.jsonl": {
+      "release": "v1.1.0",
+      "kind": "timestamped",
+      "description": "SESSION_START carries an RFC 3161 token (offline test TSA)",
+      "sha256": "ebb52800af40b7499021252fdd6792b59da1ee4dbd70169fe4d283de3d9d163f",
+      "unpinned": {
+        "status": "INTACT",
+        "evidence_class": "NON_AUTHORITATIVE_EVIDENCE"
+      },
+      "canonicalization": "legacy",
+      "timestamp_status": "IMPRINT_MATCH"
+    }
+  }
+}

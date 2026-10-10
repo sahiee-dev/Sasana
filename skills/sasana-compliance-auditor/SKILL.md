@@ -42,11 +42,16 @@ Exit codes: `0` (INTACT), `1` (COMPROMISED), `2` (PARTIAL), `3` (ERROR).
 ## Verify with key pinning
 
 If the session was sealed by an Archeion authority server, pin the expected
-public key to reject seals from any other source:
+public key (recorded out-of-band when Archeion was deployed). The pin rejects seals
+from any other key **and** makes a missing seal a failure:
 
 ```bash
-sasana verify <session.jsonl> --trust-key <base64-pubkey>
+sasana verify <session.jsonl> --trust-key <base64-pubkey> --strict
 ```
+
+Without `--trust-key`, a seal only proves the file is self-consistent (anyone can produce
+one) and the result is `SELF_SEALED_EVIDENCE`. Use `--require-seal` if you cannot pin a
+key but still need to reject unsealed logs.
 
 ## Evidence classes
 
@@ -54,14 +59,16 @@ The verifier returns an evidence class alongside the result:
 
 | Class | What it means |
 |---|---|
-| `AUTHORITATIVE_EVIDENCE` | Independently sealed — agent could not have forged this |
-| `SIGNED_NON_AUTHORITATIVE` | Ed25519 signatures present — requires private key to forge |
-| `NON_AUTHORITATIVE_EVIDENCE` | Hash chain intact — proves no post-hoc modification |
+| `AUTHORITATIVE_EVIDENCE` | Seal verified against the Archeion key you pinned with `--trust-key` |
+| `SELF_SEALED_EVIDENCE` | Valid seal, but only against its own embedded key — anyone can produce this |
+| `SIGNED_NON_AUTHORITATIVE_EVIDENCE` | Per-event signatures against a key inside the log — consistency, not identity |
+| `NON_AUTHORITATIVE_EVIDENCE` | Hash chain intact — detects edits to events, not a complete rewrite |
 | `PARTIAL_EVIDENCE` | Chain intact but events were dropped |
 | `NO_EVIDENCE` | Chain broken or structurally invalid |
 
 For regulatory submissions and legal proceedings where the operator is a party
-to the dispute, `AUTHORITATIVE_EVIDENCE` is the correct target.
+to the dispute, `AUTHORITATIVE_EVIDENCE` (pinned `--trust-key`) is the correct target.
+Reports from `evidence-pack` also need `--trust-key` to show a session as sealed.
 
 ## Generate a compliance report
 
@@ -83,8 +90,8 @@ sasana export <session.jsonl> --format siem
 
 | Regulation | Requirement | How Sasana addresses it |
 |---|---|---|
-| EU AI Act Article 12 | Tamper-evident automatic recording for high-risk AI systems | SHA-256 hash chain detects any post-hoc modification |
-| SOC 2 CC7.2 | System monitoring with verifiable audit trail | Sealed sessions provide cryptographic evidence of monitoring |
+| EU AI Act Article 12 | Automatic event recording for high-risk AI systems | SHA-256 hash chain detects edits to recorded events; a pinned Archeion seal detects a complete rewrite |
+| SOC 2 CC7.2 | System monitoring with verifiable audit trail | Sessions sealed and verified with a pinned key provide cryptographic evidence of monitoring |
 | HIPAA §164.312(b) | Audit control for healthcare AI | Hash-only storage — raw PHI never recorded |
 
 ## What Sasana does not do

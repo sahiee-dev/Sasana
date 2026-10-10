@@ -84,7 +84,7 @@ What needs to be built:
 
 **What the phase delivers:** Full parity between the Python and Rust verifiers.
 
-Currently the Rust verifier does not verify Ed25519 seal signatures (check 5). It reports `AUTHORITATIVE_EVIDENCE` based on the presence of a `CHAIN_SEAL` event without verifying the signature. This is incorrect for forensic use — a forged seal would pass the Rust verifier.
+**Status: done in 2.0.0** (Ed25519 seal verification, `--trust-key`, `--require-seal`, `--strict`). Earlier Rust releases reported `AUTHORITATIVE_EVIDENCE` from the mere presence of a `CHAIN_SEAL` event; that was wrong for forensic use. Still open: RFC 3161 token checks in Rust.
 
 What needs to be built:
 - Ed25519 signature verification in Rust (using `ed25519-dalek` or `ring` crate)

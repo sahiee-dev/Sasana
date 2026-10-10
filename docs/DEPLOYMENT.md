@@ -354,11 +354,15 @@ sasana seal <session.jsonl> --server http://localhost:8747 --out sealed_<session
 ### Verify the sealed session
 
 ```bash
-# Without key pinning (trusts whichever key is embedded in the seal)
+# Without key pinning: the seal is checked against the key embedded in the seal itself,
+# so anyone can produce it. Result: INTACT / SELF_SEALED_EVIDENCE (with a warning) — never
+# AUTHORITATIVE. A stripped seal is not detected unless you also pass --require-seal.
 sasana verify <session.jsonl>
 
-# With key pinning (recommended — rejects seals from any other key)
-sasana verify <session.jsonl> --trust-key <archeion-pubkey>
+# With key pinning (required for AUTHORITATIVE_EVIDENCE): the session must carry a seal
+# signed by exactly this key; a missing or foreign seal is COMPROMISED.
+# --strict additionally exits 4 for anything weaker than AUTHORITATIVE_EVIDENCE.
+sasana verify <session.jsonl> --trust-key <archeion-pubkey> --strict
 
 # Using the Rust binary (zero Python dependency — for forensic environments)
 ./sasana-rs/target/release/sasana verify <session.jsonl> --trust-key <archeion-pubkey>
@@ -366,11 +370,11 @@ sasana verify <session.jsonl> --trust-key <archeion-pubkey>
 
 Expected output for a correctly sealed session:
 ```
-Sasana Verifier v1.0.0
-File     : session.jsonl
-Session  : <session-id>
-Events   : 7
-Evidence : AUTHORITATIVE_EVIDENCE
+Sasana Verifier v2.0.0
+File: session.jsonl
+Session: <session-id>
+Events: 7  Evidence: AUTHORITATIVE_EVIDENCE
+Trusted key: pinned (--trust-key)
 
 [1/5] Structural validity  ... PASS
 [2/5] Sequence integrity   ... PASS
@@ -394,11 +398,12 @@ to include are:
 - The signing key is generated and held inside the client's infrastructure
 
 **Evidence produced:**
-- Sessions sealed by Archeion carry evidence class `AUTHORITATIVE_EVIDENCE`
+- Sessions sealed by Archeion verify as `AUTHORITATIVE_EVIDENCE` when checked with
+  `--trust-key <archeion-pubkey>`; without the pin they are `SELF_SEALED_EVIDENCE`
 - The seal is a cryptographic signature by an authority server that the agent process
-  has no access to — the agent cannot forge its own seal
-- Sealed sessions can be verified offline, without Archeion running, using the embedded
-  public key
+  has no access to — the agent cannot produce a seal that verifies against Archeion's key
+- Sealed sessions can be verified offline, without Archeion running, given the public key
+  you recorded at deployment (the key embedded in the seal must not be the only source)
 
 **Key management:**
 - The Archeion signing key is retained for the lifetime of sealed sessions
@@ -406,9 +411,10 @@ to include are:
 - The client should back up the key to offline storage and treat it as CA root material
 
 **Regulatory mapping:**
-- EU AI Act Article 12: AUTHORITATIVE_EVIDENCE satisfies the tamper-evident logging
-  requirement for high-risk AI systems
-- SOC 2 CC7.2: sealed sessions provide cryptographically verifiable evidence of
-  AI system monitoring
-- HIPAA §164.312(b): the hash-chain audit log satisfies audit control requirements;
+- EU AI Act Article 12: AUTHORITATIVE_EVIDENCE gives integrity evidence for the automatic
+  event logging that Article 12 describes; whether a deployment complies is for you and
+  your auditor to determine
+- SOC 2 CC7.2: sealed sessions verified with a pinned key provide cryptographically
+  verifiable evidence of AI system monitoring
+- HIPAA §164.312(b): the hash-chain audit log supports audit control requirements;
   raw PHI is never recorded

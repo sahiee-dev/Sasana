@@ -176,9 +176,11 @@ class TestRfc3161TokenEmbeddedOnSessionStart(unittest.TestCase):
 
             result = verify(events)
             self.assertNotEqual(result.status, "COMPROMISED", result.errors)
-            self.assertTrue(result.timestamp_verified, "timestamp_verified should be True")
+            # Imprint match only: verify() never claims "verified time".
+            self.assertTrue(result.timestamp_imprint_match)
+            self.assertFalse(result.timestamp_verified)
             ts_check = result.checks.get("rfc3161_timestamp", {})
-            self.assertEqual(ts_check.get("status"), "PASS")
+            self.assertEqual(ts_check.get("status"), "IMPRINT_MATCH")
             self.assertEqual(ts_check.get("timestamp_utc"), "2026-06-15T10:32:11Z")
 
 
@@ -226,13 +228,15 @@ class TestRfc3161TokenVerifiesAgainstSessionStartHash(unittest.TestCase):
         self.assertTrue(valid)
         self.assertEqual(utc_time, "2026-06-15T10:32:11Z")
 
-    def test_verifier_check_passes_for_valid_token(self) -> None:
+    def test_verifier_check_reports_imprint_match_for_valid_token(self) -> None:
         events = _make_session_events(with_token=True)
         result = verify(events)
 
-        self.assertTrue(result.timestamp_verified)
+        self.assertTrue(result.timestamp_imprint_match)
+        self.assertFalse(result.timestamp_verified)
         ts_check = result.checks.get("rfc3161_timestamp", {})
-        self.assertEqual(ts_check.get("status"), "PASS")
+        self.assertEqual(ts_check.get("status"), "IMPRINT_MATCH")
+        self.assertIn("NOT verified", ts_check.get("detail", ""))
         self.assertIsNotNone(ts_check.get("timestamp_utc"))
 
     def test_session_without_token_check_is_skipped(self) -> None:

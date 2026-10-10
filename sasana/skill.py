@@ -28,11 +28,12 @@ class SasanaSkill:
 
     Env vars:
         SASANA_OUTPUT_DIR  — output directory (default: ~/.openclaw/sasana/)
-        SASANA_SERVER_URL  — ingestion server URL (enables AUTHORITATIVE_EVIDENCE)
+        (Sealing is a separate step: `sasana seal` against an Archeion server, then verify
+         with `--trust-key`. This class does not seal sessions.)
     """
 
     name = "sasana"
-    version = "1.0.0"
+    version = "2.0.0"
 
     def __init__(self, config: dict | None = None) -> None:
         cfg = config or {}

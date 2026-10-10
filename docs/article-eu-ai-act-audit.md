@@ -71,7 +71,7 @@ commits to all prior events. Changing any byte in any prior event breaks every s
 hash. Canonical JSON (RFC 8785) matters because without a deterministic serialization,
 two implementations can hash the same logical object to different bytes — producing
 different hashes for identical content, or the same hash for different content. The chain
-gives you internal consistency: you can verify the log was not modified after the fact.
+gives you internal consistency: edits to individual events are detectable. It does not stop someone who can write the whole file from rebuilding a consistent chain.
 
 **Attribution.** A hash chain proves internal consistency. It does not prove who wrote it.
 An operator who controls the storage can rewrite the entire chain — generating a fresh,
@@ -110,7 +110,7 @@ The correct architecture separates these two roles:
 
 The SDK enforces the boundary at the type level: `EventType.is_sdk_authority` blocks any
 attempt by the agent process to emit a `CHAIN_SEAL` event. The agent cannot produce its
-own seal. This is a structural guarantee, not a policy.
+own seal. A verifier recognises a seal as Archeion's only if it checks it against Archeion's public key, which you record when you deploy it and pin with `--trust-key`. This is a structural guarantee, not a policy — provided the key is pinned.
 
 Archeion runs inside your security perimeter, controlled by your security team — not the
 agent developers. No session content leaves: only hashes pass through `POST /seal`. The
@@ -120,20 +120,22 @@ sealing authority appends one event and returns the sealed log.
 
 ## Evidence classes
 
-Not every deployment has an independent sealing authority. The verifier produces five
+Not every deployment has an independent sealing authority. The verifier produces six
 evidence classes reflecting what can be cryptographically proven given what is present:
 
 | Class | What it means | When you have it |
 |---|---|---|
-| `AUTHORITATIVE_EVIDENCE` | Independent party sealed it. Agent could not have forged this. | Archeion sealed |
-| `SIGNED_NON_AUTHORITATIVE` | Ed25519 signatures present. Requires private key to forge. | SDK signing enabled |
-| `NON_AUTHORITATIVE_EVIDENCE` | Hash chain intact. Proves no post-hoc modification. | Default |
+| `AUTHORITATIVE_EVIDENCE` | Sealed by Archeion and verified against the Archeion key you pinned (`--trust-key`). | Archeion sealed + pinned key |
+| `SELF_SEALED_EVIDENCE` | Valid seal, but only against its own embedded key. Anyone can produce this. | Sealed, no pinned key |
+| `SIGNED_NON_AUTHORITATIVE_EVIDENCE` | Ed25519 signatures against a key inside the log. Consistency, not identity. | SDK signing enabled |
+| `NON_AUTHORITATIVE_EVIDENCE` | Hash chain intact. Detects edits to events, not a complete rewrite. | Default |
 | `PARTIAL_EVIDENCE` | Chain intact but events were dropped during the session. | `LOG_DROP` events present |
 | `NO_EVIDENCE` | Chain broken or structurally invalid. | Verification failed |
 
 For most internal compliance purposes, `NON_AUTHORITATIVE_EVIDENCE` is sufficient. For
 regulatory submissions and legal proceedings where the operator is a party to the dispute,
-`AUTHORITATIVE_EVIDENCE` is the correct target.
+`AUTHORITATIVE_EVIDENCE` is the correct target. It is reached only when the verifier is given
+Archeion's public key — see below.
 
 ---
 
@@ -142,11 +144,11 @@ regulatory submissions and legal proceedings where the operator is a party to th
 ```
 $ sasana verify session.jsonl --trust-key <archeion-pubkey>
 
-Sasana Verifier v1.0.0
-File     : session.jsonl
-Session  : 3f8a2c1d-…
-Events   : 7
-Evidence : AUTHORITATIVE_EVIDENCE
+Sasana Verifier v2.0.0
+File: session.jsonl
+Session: 3f8a2c1d-…
+Events: 7  Evidence: AUTHORITATIVE_EVIDENCE
+Trusted key: pinned (--trust-key)
 
 [1/5] Structural validity  ... PASS
 [2/5] Sequence integrity   ... PASS
@@ -170,7 +172,7 @@ Result   : COMPROMISED ❌
 ```
 
 The verification binary has no external dependencies. It reads one file, checks five
-properties, and exits 0 (INTACT), 1 (COMPROMISED), 2 (PARTIAL), or 3 (ERROR). No network
+properties, and exits 0 (INTACT), 1 (COMPROMISED), 2 (PARTIAL), or 3 (ERROR; also 4 with `--strict` if the result is not AUTHORITATIVE). No network
 calls. No API keys. No running server required. A Rust binary ships alongside the Python
 implementation for forensic environments where Python is not available.
 
@@ -185,8 +187,8 @@ rotated only on compromise.
 
 - **Does not record raw content.** Hashes only. You cannot reconstruct what the agent
   said from a Sasana log.
-- **Does not prevent tampering.** Detects it after the fact. Detection and prevention are
-  different properties.
+- **Does not prevent tampering.** Detects it after the fact — a complete rewrite only with
+  a seal verified against a pinned key. Detection and prevention are different properties.
 - **Does not replace LangSmith or Arize.** Those tools are for debugging and
   observability. Sasana is for evidence production. The two are complementary.
 - **Does not rate-limit, filter, or modify agent behaviour.**

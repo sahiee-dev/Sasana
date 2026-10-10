@@ -24,7 +24,7 @@ Sasana is a tamper-evident cryptographic audit trail for AI agent sessions.
 
 It does not record what your agent said. It records that your agent said something, and cryptographically commits to that record in a way that makes any subsequent modification detectable. Any post-hoc change — to a single character in a single event — breaks the hash chain and is detected on the next verification.
 
-The core guarantee: if `sasana verify` reports `INTACT`, the session log has not been altered since it was recorded. This is a mathematical guarantee, not a policy guarantee.
+The core guarantee: if `sasana verify` reports `INTACT`, every event is consistent with the chain, so editing, inserting, deleting or reordering individual events is detected. This is a mathematical property, not a policy. What it does *not* guarantee on its own: someone who can write the whole file can rebuild a consistent chain. Detecting that requires an Archeion seal verified against a pinned `--trust-key`; read the evidence class, not just `INTACT`.
 
 ---
 
@@ -41,23 +41,24 @@ Raw content — prompts, responses, tool arguments, tool results — is **never 
 
 When the session ends, the ledger is exported to a portable JSONL file. That file can be verified by anyone — offline, without contacting any server — using the `sasana verify` command or the Rust binary.
 
-Optionally, a completed session can be submitted to **Archeion**, a self-hosted authority sealing server. Archeion appends a signed `CHAIN_SEAL` event to the log using its own Ed25519 keypair, upgrading the evidence class to `AUTHORITATIVE_EVIDENCE`. Because Archeion holds the sealing key — and the agent process never does — even a fully compromised agent cannot forge a valid seal.
+Optionally, a completed session can be submitted to **Archeion**, a self-hosted authority sealing server. Archeion appends a signed `CHAIN_SEAL` event to the log using its own Ed25519 keypair. Because Archeion holds the sealing key — and the agent process never does — a compromised agent cannot produce a seal that verifies against Archeion's public key. Verifiers get `AUTHORITATIVE_EVIDENCE` only when they pin that public key with `--trust-key`; without the pin the seal is reported as `SELF_SEALED_EVIDENCE`, because the seal carries its own key and anyone can seal a rewritten log with a key of their own.
 
 ---
 
 ## Evidence Classes
 
-Sasana does not produce binary pass/fail output. It produces an evidence class that describes how much a court, regulator, or auditor can trust the log.
+Sasana does not produce binary pass/fail output. It produces an evidence class that describes what the log can and cannot show an auditor. Whether any record is admissible or sufficient is for the court, regulator or auditor to decide.
 
 | Class | What it means | When you get it |
 |---|---|---|
-| `AUTHORITATIVE_EVIDENCE` | Independent third-party sealed. The agent could not have forged this. | Session sealed by Archeion |
-| `SIGNED_NON_AUTHORITATIVE_EVIDENCE` | Per-session Ed25519 signatures present. Requires the private key to forge. | SDK signing enabled |
-| `NON_AUTHORITATIVE_EVIDENCE` | Local hash chain only. Proves internal consistency. | Default for all sessions |
+| `AUTHORITATIVE_EVIDENCE` | Sealed by Archeion **and** verified against the Archeion public key the verifier pinned (`--trust-key`). | Session sealed by Archeion, verified with the pin |
+| `SELF_SEALED_EVIDENCE` | A valid `CHAIN_SEAL` that verifies only against its own embedded key. Anyone can produce this. | Sealed, verified without `--trust-key` |
+| `SIGNED_NON_AUTHORITATIVE_EVIDENCE` | Per-session Ed25519 signatures verify against a key embedded in the log. Consistency, not identity: a rewrite under a new key verifies too. | SDK signing enabled |
+| `NON_AUTHORITATIVE_EVIDENCE` | Local hash chain only. Proves internal consistency; cannot detect a complete rewrite. | Default for all sessions |
 | `PARTIAL_EVIDENCE` | Valid chain, but LOG_DROP events indicate gaps. | Events were dropped during recording |
 | `NO_EVIDENCE` | Chain is broken or structurally invalid. | Verification failed |
 
-`NON_AUTHORITATIVE_EVIDENCE` is still meaningful — it proves that the log has not been modified since it was written, assuming the writing process was not compromised. For most internal audit and compliance purposes this is sufficient. `AUTHORITATIVE_EVIDENCE` is required when you need to prove to an external party that the log was not edited by the operator.
+`NON_AUTHORITATIVE_EVIDENCE` is still meaningful — it detects edits to individual events, but not a complete rewrite by someone with write access to the file. For many internal audit purposes that is acceptable. `AUTHORITATIVE_EVIDENCE` (a seal verified against a pinned Archeion key) is what you need to show an external party that the log was not rewritten by the operator.
 
 ---
 
@@ -118,7 +119,7 @@ The core product is complete:
 - Archeion authority sealing server (FastAPI)
 - Compliance exports for EU AI Act Art. 12, SOC 2 CC7.2, HIPAA §164.312(b), SIEM
 - CLI (`sasana verify`, `sasana seal`, `sasana observe`)
-- 117 tests passing, CI green on Python 3.10 and 3.12
+- 359 Python tests and 26 Rust unit tests (v2.0.0), run in CI on Python 3.10 and 3.12
 
 ### Near-term (next 3 months)
 
@@ -148,9 +149,9 @@ The analogy is HashiCorp Vault — organisations run Vault inside their own peri
 
 ## Parameters and Constraints
 
-**What Sasana guarantees:** If `verify` reports `INTACT`, the log has not been modified since it was written. This is a cryptographic guarantee.
+**What Sasana guarantees:** If `verify` reports `INTACT`, no event was edited, inserted, removed or reordered relative to the chain. Against an attacker who can rewrite the entire file, the guarantee holds only for logs sealed by Archeion and verified with `--trust-key`.
 
-**What Sasana does not guarantee:** That the agent was honest when writing the log. A malicious agent can write false records into the hash chain. Sasana makes those false records immutable and attributable, but it cannot detect lies told at write time. The AUTHORITATIVE_EVIDENCE class reduces (but does not eliminate) this concern because the agent and the sealing authority are structurally separated — the agent cannot forge a seal it did not earn.
+**What Sasana does not guarantee:** That the agent was honest when writing the log. A malicious agent can write false records into the hash chain. Sasana makes those false records immutable and attributable, but it cannot detect lies told at write time. The AUTHORITATIVE_EVIDENCE class reduces (but does not eliminate) this concern because the agent and the sealing authority are structurally separated — a seal verifies against Archeion's key only if Archeion produced it, provided the verifier pinned that key.
 
 **Performance:** The SQLite ledger uses WAL mode and `synchronous=FULL`. This means every event write is crash-safe but involves a file sync. On typical hardware this is measured in milliseconds per event. It is not suitable for extremely high-frequency event streams (thousands of events per second per session) without modification.
 

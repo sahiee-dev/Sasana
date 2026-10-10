@@ -36,10 +36,11 @@ def generate_eu_ai_act_report(
     system_version: str = "1.0.0",
     operator_id: Optional[str] = None,
     output_dir: Optional[str | Path] = None,
+    trusted_seal_pubkey: Optional[str] = None,
 ) -> dict:
     path = Path(session_jsonl).expanduser()
     events = load_session(path)
-    verification = verify_session(events)
+    verification = verify_session(events, trusted_seal_pubkey=trusted_seal_pubkey)
 
     generated_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     session_id = verification["session_id"] or path.stem
@@ -53,7 +54,9 @@ def generate_eu_ai_act_report(
     has_output_logging = bool(event_types & {"LLM_RESPONSE", "TOOL_RESULT"})
     has_error_logging = "TOOL_ERROR" in event_types
     has_session_bounds = "SESSION_START" in event_types and "SESSION_END" in event_types
-    has_integrity_seal = "CHAIN_SEAL" in event_types
+    # A CHAIN_SEAL event existing proves nothing: anyone can write one. "Sealed" here means
+    # the seal verified against the Archeion key the caller pinned.
+    has_integrity_seal = verification["seal_trusted"]
 
     requirement_checks = {
         "timestamps_on_all_events": has_timestamps,
@@ -216,7 +219,7 @@ def _render_eu_html(r: dict) -> str:
   {check_row("Session lifecycle logged (start/end)", "session_lifecycle_logged")}
   {check_row("Hash chain tamper-evident", "hash_chain_tamper_evident")}
   {check_row("No log drops detected", "no_log_drops")}
-  {check_row("Server-sealed (AUTHORITATIVE_EVIDENCE)", "server_sealed")}
+  {check_row("Sealed by a pinned, trusted Archeion key (AUTHORITATIVE_EVIDENCE)", "server_sealed")}
 </table>
 
 <h2>Interaction Timeline (first 50)</h2>

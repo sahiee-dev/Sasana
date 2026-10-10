@@ -112,8 +112,10 @@ class SiemExporter:
         device_vendor: str = "Sasana",
         device_product: str = "AI Audit Trail",
         device_version: str = "1.0.0",
+        trusted_seal_pubkey: Optional[str] = None,
     ) -> None:
         self._path = Path(session_jsonl).expanduser()
+        self._trusted_seal_pubkey = trusted_seal_pubkey
         self._vendor = device_vendor
         self._product = device_product
         self._version = device_version
@@ -123,7 +125,9 @@ class SiemExporter:
     def _load(self) -> tuple[list[dict], dict]:
         if self._events is None:
             self._events = load_session(self._path)
-            self._verification = verify_session(self._events)
+            self._verification = verify_session(
+                self._events, trusted_seal_pubkey=self._trusted_seal_pubkey
+            )
         return self._events, self._verification
 
     def to_cef(self) -> list[str]:

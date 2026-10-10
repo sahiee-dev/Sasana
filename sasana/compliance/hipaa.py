@@ -59,10 +59,11 @@ def generate_hipaa_audit_log(
     covered_entity: Optional[str] = None,
     business_associate: Optional[str] = None,
     output_dir: Optional[str | Path] = None,
+    trusted_seal_pubkey: Optional[str] = None,
 ) -> dict:
     path = Path(session_jsonl).expanduser()
     events = load_session(path)
-    verification = verify_session(events)
+    verification = verify_session(events, trusted_seal_pubkey=trusted_seal_pubkey)
 
     generated_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     session_id = verification["session_id"] or path.stem

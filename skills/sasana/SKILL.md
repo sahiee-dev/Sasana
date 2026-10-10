@@ -71,6 +71,9 @@ Evidence : NON_AUTHORITATIVE_EVIDENCE
 Result   : INTACT ✅
 ```
 
+`INTACT` means the file is internally consistent. Without a pinned Archeion seal it cannot
+detect someone rewriting the whole log; check the evidence class.
+
 If any byte was changed after the session ended:
 
 ```
@@ -78,18 +81,21 @@ Evidence : NO_EVIDENCE
 Result   : COMPROMISED ❌
 ```
 
-Exit codes: `0` (INTACT), `1` (COMPROMISED), `2` (PARTIAL), `3` (ERROR) — suitable
-for scripting and CI pipelines.
+Exit codes: `0` (INTACT), `1` (COMPROMISED), `2` (PARTIAL), `3` (ERROR / bad usage),
+`4` (`--strict` and not AUTHORITATIVE). `0` also covers weak evidence classes, so scripts
+should read `--json` `evidence_class` or use `--strict`.
 
 ## Authority sealing (optional)
 
 For compliance use cases requiring an independent third-party attestation,
-submit a completed session to Archeion — a self-hosted sealing server that
-produces `AUTHORITATIVE_EVIDENCE`:
+submit a completed session to Archeion — a self-hosted sealing server. The result is
+`AUTHORITATIVE_EVIDENCE` only when you verify with Archeion's public key pinned
+(recorded out-of-band at deployment); without `--trust-key` it is `SELF_SEALED_EVIDENCE`,
+which anyone can produce:
 
 ```bash
 sasana seal <session.jsonl> --server http://localhost:8747
-sasana verify <session.jsonl> --trust-key <archeion-pubkey>
+sasana verify <session.jsonl> --trust-key <archeion-pubkey> --strict
 ```
 
 Archeion runs inside your own security perimeter. No session data is sent to

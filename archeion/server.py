@@ -23,13 +23,16 @@ from fastapi.responses import PlainTextResponse
 
 from archeion.keys import load_or_generate, pubkey_b64
 from sasana.signing import sign_event_hash
-from sasana.verifier import compute_event_hash, verify
+from sasana.verifier import compute_event_hash, select_canonicalization, verify
 
 logger = logging.getLogger("archeion")
 
 app = FastAPI(
     title="Archeion",
-    description="Sasana authority sealing server — upgrades sessions to AUTHORITATIVE_EVIDENCE.",
+    description=(
+        "Sasana authority sealing server — appends a signed CHAIN_SEAL. Verifiers reach "
+        "AUTHORITATIVE_EVIDENCE only when they pin this server's public key (--trust-key)."
+    ),
     version="1.0.0",
 )
 
@@ -73,6 +76,13 @@ async def seal(request: Request) -> str:
     if any(e.get("event_type") == "CHAIN_SEAL" for e in events):
         raise HTTPException(status_code=409, detail="Session is already sealed")
 
+    # The session's own declaration decides how its hashes are computed. The seal event is part
+    # of the same chain, so it must use the same algorithm (RFC 8785 for sessions written by
+    # Sasana >= 2.0.0; "legacy" for older logs, which can still be sealed).
+    canon, canon_error = select_canonicalization(events)
+    if canon_error:
+        raise HTTPException(status_code=422, detail=f"Cannot seal: {canon_error}")
+
     result = verify(events)
     if result.status == "PARTIAL":
         raise HTTPException(
@@ -101,7 +111,7 @@ async def seal(request: Request) -> str:
         import base64 as _b64
         import hashlib as _hl
 
-        from sasana.jcs import canonicalize as _jcs
+        from sasana.jcs import canonicalizer
         from sasana.rfc3161 import verify_timestamp
 
         token_b64 = session_start.get("payload", {}).get("rfc3161_token")
@@ -117,7 +127,7 @@ async def seal(request: Request) -> str:
                     k: v for k, v in session_start.items() if k not in ("event_hash", "signature")
                 }
                 ev_no_tok["payload"] = payload_no_tok
-                pre_token_hash = _hl.sha256(_jcs(ev_no_tok)).digest()
+                pre_token_hash = _hl.sha256(canonicalizer(canon)(ev_no_tok)).digest()
                 _ts_verified, _ts_utc = verify_timestamp(token_der, pre_token_hash)
             except Exception as exc:
                 logger.debug("Archeion: RFC 3161 verification skipped: %s", exc)
@@ -127,10 +137,12 @@ async def seal(request: Request) -> str:
         "session_hash": last["event_hash"],
         "sealed_by": "archeion",
         "server_pubkey": _pubkey,
-        "timestamp_verified": _ts_verified,
+        # Imprint match only — Archeion does not validate the TSA signature or certificate
+        # chain, so it must not sign a claim that the timestamp is "verified".
+        "timestamp_imprint_match": _ts_verified,
     }
     if _ts_utc is not None:
-        seal_payload["timestamp_utc"] = _ts_utc
+        seal_payload["timestamp_claimed_utc"] = _ts_utc
 
     seal_event: dict = {
         "seq": last["seq"] + 1,
@@ -140,7 +152,7 @@ async def seal(request: Request) -> str:
         "payload": seal_payload,
         "prev_hash": last["event_hash"],
     }
-    seal_event["event_hash"] = compute_event_hash(seal_event)
+    seal_event["event_hash"] = compute_event_hash(seal_event, canon)
     seal_event["signature"] = sign_event_hash(_private_key, seal_event["event_hash"])
 
     logger.info("Sealed session=%s events=%d", last["session_id"], len(sorted_events) + 1)
