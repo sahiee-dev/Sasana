@@ -24,6 +24,8 @@ from pathlib import Path
 _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
+if str(_ROOT / "tests") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "tests"))
 
 # Never touch a real signing key (conftest.py does this too; repeated for direct runs).
 if "ARCHEION_KEY_FILE" not in os.environ:
@@ -41,7 +43,9 @@ try:
 except ImportError:
     _FASTAPI_AVAILABLE = False
 
+from rust_bin import require_rust_binary, rust_binary, rust_verify  # noqa: E402
 from sasana.envelope import build_event  # noqa: E402
+from sasana.jcs import CANON_FIELD, CANON_LEGACY, CANON_RFC8785  # noqa: E402
 from sasana.signing import generate_keypair, sign_event_hash  # noqa: E402
 from sasana.verifier import GENESIS_HASH, compute_event_hash  # noqa: E402
 
@@ -49,11 +53,20 @@ _CLI = str(_ROOT / "sasana_cli.py")
 _SID = "tamper-matrix"
 
 
-def _base_session() -> list:
+def _base_session(canon: str = CANON_RFC8785) -> list:
+    """Four-event session. `canon` is the algorithm the hashes use; RFC 8785 sessions declare it
+    in SESSION_START (as Sasana >= 2.0.0 does), legacy sessions carry no declaration (as 1.x).
+    The payloads hold whole-number floats, so the two algorithms hash them differently."""
+    start = {"agent_id": "a1", "phase": "authorization"}
+    if canon == CANON_RFC8785:
+        start[CANON_FIELD] = CANON_RFC8785
     spec = [
-        ("SESSION_START", {"agent_id": "a1", "phase": "authorization"}),
+        ("SESSION_START", start),
         ("TOOL_CALL", {"tool_name": "bash", "args_hash": "c" * 64, "phase": "execution"}),
-        ("TOOL_RESULT", {"result_hash": "d" * 64, "phase": "observation"}),
+        (
+            "TOOL_RESULT",
+            {"result_hash": "d" * 64, "phase": "observation", "duration_ms": 1200.0, "cost": 0.0},
+        ),
         (
             "SESSION_END",
             {"status": "success", "phase": "reconciliation", "classification": "DIVERGENT"},
@@ -62,18 +75,18 @@ def _base_session() -> list:
     events: list = []
     prev = GENESIS_HASH
     for i, (et, payload) in enumerate(spec, start=1):
-        ev = build_event(i, et, _SID, payload, prev)
+        ev = build_event(i, et, _SID, payload, prev, canonicalization=canon)
         events.append(ev)
         prev = ev["event_hash"]
     return events
 
 
-def _rechain(events: list) -> list:
+def _rechain(events: list, canon: str = CANON_RFC8785) -> list:
     """Recompute prev_hash / event_hash for every event; leave `signature` as it is."""
     events = copy.deepcopy(events)
     for i, ev in enumerate(events):
         ev["prev_hash"] = events[i - 1]["event_hash"] if i else GENESIS_HASH
-        ev["event_hash"] = compute_event_hash(ev)
+        ev["event_hash"] = compute_event_hash(ev, canon)
     return events
 
 
@@ -130,17 +143,18 @@ MATRIX = {
 }
 
 
-def build_cases(workdir: Path) -> dict:
+def build_cases(workdir: Path, canon: str = CANON_RFC8785) -> dict:
     """Seal through the real Archeion app and derive every tampered variant. Returns
     {"real_pubkey": str, "files": {case_id: Path}}."""
     client = TestClient(app)
     real_pub = client.get("/pubkey").json()["pubkey"]
 
-    base = _base_session()
+    base = _base_session(canon)
     resp = client.post("/seal", content=("\n".join(json.dumps(e) for e in base) + "\n").encode())
     assert resp.status_code == 200, resp.text
     sealed = [json.loads(ln) for ln in resp.text.splitlines() if ln.strip()]
     assert [e["event_type"] for e in sealed][-1] == "CHAIN_SEAL" and len(sealed) == 5
+    assert (sealed[0]["payload"].get(CANON_FIELD) == CANON_RFC8785) == (canon == CANON_RFC8785)
 
     files: dict = {}
     files["a"] = _write(sealed, workdir / "a.jsonl")
@@ -151,7 +165,7 @@ def build_cases(workdir: Path) -> dict:
 
     # c1: rechain events 1-4 only; the CHAIN_SEAL event is left byte-identical
     c1 = copy.deepcopy(b)
-    c1[:4] = _rechain(c1[:4])
+    c1[:4] = _rechain(c1[:4], canon)
     files["c1"] = _write(c1, workdir / "c1.jsonl")
 
     # c2: rechain everything, including the seal event's hash/prev_hash/session_hash,
@@ -159,25 +173,25 @@ def build_cases(workdir: Path) -> dict:
     c2 = copy.deepcopy(c1)
     c2[4]["payload"]["session_hash"] = c2[3]["event_hash"]
     c2[4]["prev_hash"] = c2[3]["event_hash"]
-    c2[4]["event_hash"] = compute_event_hash(c2[4])
+    c2[4]["event_hash"] = compute_event_hash(c2[4], canon)
     files["c2"] = _write(c2, workdir / "c2.jsonl")
 
     # d/e: attacker rebuilds the whole seal under their own key
     atk_priv, atk_pub = generate_keypair()
     d = copy.deepcopy(c2)
     d[4]["payload"]["server_pubkey"] = atk_pub
-    d[4]["event_hash"] = compute_event_hash(d[4])
+    d[4]["event_hash"] = compute_event_hash(d[4], canon)
     d[4]["signature"] = sign_event_hash(atk_priv, d[4]["event_hash"])
     files["d"] = files["e"] = _write(d, workdir / "d.jsonl")
 
     # f/f': attacker deletes the seal and rechains the four events
-    f = _rechain(copy.deepcopy(b[:4]))
+    f = _rechain(copy.deepcopy(b[:4]), canon)
     files["f"] = files["f'"] = _write(f, workdir / "f.jsonl")
 
     # g: seal advertises the real pubkey but is signed with the attacker's key
     g = copy.deepcopy(d)
     g[4]["payload"]["server_pubkey"] = real_pub
-    g[4]["event_hash"] = compute_event_hash(g[4])
+    g[4]["event_hash"] = compute_event_hash(g[4], canon)
     g[4]["signature"] = sign_event_hash(atk_priv, g[4]["event_hash"])
     files["g"] = _write(g, workdir / "g.jsonl")
 
@@ -194,12 +208,15 @@ def run_case(cases: dict, case_id: str):
     )
 
 
-@unittest.skipUnless(_FASTAPI_AVAILABLE, "fastapi / httpx not installed")
-class TestTamperMatrix(unittest.TestCase):
+class _MatrixTests:
+    """The ten cases. Run once per canonicalization (see the two concrete classes below)."""
+
+    CANON = CANON_RFC8785
+
     @classmethod
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory()
-        cls.cases = build_cases(Path(cls._tmp.name))
+        cls.cases = build_cases(Path(cls._tmp.name), cls.CANON)
 
     @classmethod
     def tearDownClass(cls):
@@ -250,47 +267,62 @@ class TestTamperMatrix(unittest.TestCase):
         _, data, out, _ = run_case(self.cases, "a")
         self.assertEqual(data.get("evidence_class"), "SELF_SEALED_EVIDENCE", out)
 
-
-def _rust_binary():
-    """Compiled sasana-rs verifier, if built (`cargo build --manifest-path sasana-rs/Cargo.toml`)."""
-    override = os.environ.get("SASANA_RS_BIN")
-    candidates = [Path(override)] if override else []
-    candidates += [_ROOT / "sasana-rs" / "target" / d / "sasana" for d in ("debug", "release")]
-    return next((c for c in candidates if c.is_file()), None)
+    def test_reports_the_algorithm_the_session_declares(self):
+        _, data, out, _ = run_case(self.cases, "a")
+        self.assertEqual(data.get("canonicalization"), self.CANON, out)
 
 
 @unittest.skipUnless(_FASTAPI_AVAILABLE, "fastapi / httpx not installed")
-@unittest.skipUnless(_rust_binary(), "sasana-rs binary not built")
+class TestTamperMatrix(_MatrixTests, unittest.TestCase):
+    """Sessions written by Sasana >= 2.0.0: SESSION_START declares jcs-rfc8785."""
+
+    CANON = CANON_RFC8785
+
+
+@unittest.skipUnless(_FASTAPI_AVAILABLE, "fastapi / httpx not installed")
+class TestTamperMatrixLegacy(_MatrixTests, unittest.TestCase):
+    """The same ten attacks against Sasana 1.x-format sessions (no declaration)."""
+
+    CANON = CANON_LEGACY
+
+
+@unittest.skipUnless(_FASTAPI_AVAILABLE, "fastapi / httpx not installed")
 class TestRustVerifierParity(unittest.TestCase):
-    """The Rust verifier must reach the same verdict as Python on every matrix case."""
+    """The Rust verifier must reach the same verdict as Python on every case, in both formats.
+    Fails in CI if the binary is missing (see rust_bin.py)."""
 
     @classmethod
     def setUpClass(cls):
+        require_rust_binary()
         cls._tmp = tempfile.TemporaryDirectory()
-        cls.cases = build_cases(Path(cls._tmp.name))
+        cls.cases = {}
+        for canon in (CANON_RFC8785, CANON_LEGACY):
+            d = Path(cls._tmp.name) / canon
+            d.mkdir()
+            cls.cases[canon] = build_cases(d, canon)
 
     @classmethod
     def tearDownClass(cls):
         cls._tmp.cleanup()
 
     def test_matrix_parity(self):
-        for cid, (desc, status, evidence, exit_code, pinned, require_seal) in MATRIX.items():
-            cmd = [str(_rust_binary()), "verify", str(self.cases["files"][cid]), "--json"]
-            if pinned:
-                cmd += ["--trust-key", self.cases["real_pubkey"]]
-            if require_seal:
-                cmd += ["--require-seal"]
-            r = subprocess.run(cmd, capture_output=True, text=True)
-            data = json.loads(r.stdout)
-            with self.subTest(case=cid, desc=desc):
-                self.assertEqual(data["status"], status, r.stdout)
-                if evidence:
-                    self.assertEqual(data["evidence_class"], evidence, r.stdout)
-                self.assertEqual(r.returncode, exit_code)
+        for canon, cases in self.cases.items():
+            for cid, (desc, status, evidence, exit_code, pinned, require_seal) in MATRIX.items():
+                rc, data, out, _ = rust_verify(
+                    cases["files"][cid],
+                    trust_key=cases["real_pubkey"] if pinned else None,
+                    require_seal=require_seal,
+                )
+                with self.subTest(canon=canon, case=cid, desc=desc):
+                    self.assertEqual(data.get("status"), status, out)
+                    if evidence:
+                        self.assertEqual(data.get("evidence_class"), evidence, out)
+                    self.assertEqual(rc, exit_code)
 
     def test_unknown_flag_is_rejected(self):
+        cases = self.cases[CANON_RFC8785]
         r = subprocess.run(
-            [str(_rust_binary()), "verify", str(self.cases["files"]["a"]), "--trust_key", "x"],
+            [str(require_rust_binary()), "verify", str(cases["files"]["a"]), "--trust_key", "x"],
             capture_output=True,
             text=True,
         )
@@ -298,26 +330,51 @@ class TestRustVerifierParity(unittest.TestCase):
 
 
 def _print_table() -> int:
+    """Print the matrix for BOTH verifiers (Python CLI and, when built, the Rust binary) and
+    BOTH canonicalization formats."""
     if not _FASTAPI_AVAILABLE:
         print("fastapi/httpx not installed")
         return 3
-    with tempfile.TemporaryDirectory() as tmp:
-        cases = build_cases(Path(tmp))
-        rows = [("case", "expected", "actual status", "class", "exit", "match")]
-        all_ok = True
-        for cid, (desc, status, evidence, exit_code, _, _) in MATRIX.items():
-            rc, data, _, _ = run_case(cases, cid)
-            got_s, got_c = data.get("status", "?"), data.get("evidence_class", "?")
-            ok = got_s == status and rc == exit_code and (evidence is None or got_c == evidence)
-            all_ok &= ok
-            exp = status + (f"/{evidence}" if evidence else "") + f"/{exit_code}"
-            rows.append((f"{cid} {desc}", exp, got_s, got_c, str(rc), "yes" if ok else "NO"))
-        widths = [max(len(r[i]) for r in rows) for i in range(6)]
-        for i, r in enumerate(rows):
-            print(" | ".join(c.ljust(widths[j]) for j, c in enumerate(r)))
-            if i == 0:
-                print("-+-".join("-" * w for w in widths))
-        return 0 if all_ok else 1
+    have_rust = rust_binary() is not None
+    all_ok = True
+    for canon in (CANON_RFC8785, CANON_LEGACY):
+        with tempfile.TemporaryDirectory() as tmp:
+            cases = build_cases(Path(tmp), canon)
+            hdr = ["case", "expected"]
+            hdr += ["py status/class/exit"] + (["rust status/class/exit"] if have_rust else [])
+            hdr += ["match"]
+            rows = [tuple(hdr)]
+            for cid, (desc, status, evidence, exit_code, pinned, req) in MATRIX.items():
+                exp = status + (f"/{evidence}" if evidence else "") + f"/{exit_code}"
+                row = [f"{cid} {desc}", exp]
+                ok = True
+                impls = [("py", run_case(cases, cid))]
+                if have_rust:
+                    impls.append(
+                        (
+                            "rust",
+                            rust_verify(
+                                cases["files"][cid],
+                                trust_key=cases["real_pubkey"] if pinned else None,
+                                require_seal=req,
+                            ),
+                        )
+                    )
+                for _, (rc, data, _o, _e) in impls:
+                    got_s, got_c = data.get("status", "?"), data.get("evidence_class", "?")
+                    ok &= got_s == status and rc == exit_code
+                    ok &= evidence is None or got_c == evidence
+                    row.append(f"{got_s}/{got_c}/{rc}")
+                all_ok &= ok
+                row.append("yes" if ok else "NO")
+                rows.append(tuple(row))
+            widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
+            print(f"\n=== canonicalization: {canon}")
+            for i, r in enumerate(rows):
+                print(" | ".join(c.ljust(widths[j]) for j, c in enumerate(r)))
+                if i == 0:
+                    print("-+-".join("-" * w for w in widths))
+    return 0 if all_ok else 1
 
 
 if __name__ == "__main__":
