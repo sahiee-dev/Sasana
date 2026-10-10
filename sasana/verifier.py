@@ -380,6 +380,23 @@ def _determine_evidence_class(events: list, signatures_valid: bool = False) -> s
     return NON_AUTHORITATIVE_EVIDENCE
 
 
+def verify_chain_integrity(events: list) -> list:
+    """
+    Structural, sequence and hash-chain checks only — no completeness, seal or
+    timestamp checks. Returns a list of error strings (empty means the events
+    form a valid chain prefix).
+
+    Use this for sessions that may still be open (no SESSION_END yet), e.g. when
+    committing to the current chain tip. A full verdict needs verify().
+    """
+    if not events:
+        return ["Session file is empty"]
+    c1 = _check_structural(events)
+    if c1["status"] != "PASS":
+        return list(c1["errors"])
+    return list(_check_sequence(events)["errors"]) + list(_check_hash_chain(events)["errors"])
+
+
 def verify(
     events: list,
     signatures_valid: bool = False,

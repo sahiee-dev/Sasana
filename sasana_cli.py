@@ -5,6 +5,7 @@ sasana_cli.py — CLI entry point.
 Usage:
   sasana verify <session.jsonl> [--json]
   sasana evidence-pack <session.jsonl> [--standard eu_ai_act|soc2|hipaa|siem]
+  sasana verify-commitment <bundle.json> --deadline ISO8601 --tsa-anchor CERT [--json]
   sasana observe [--ws URL] [--output-dir DIR]
   sasana bridge  [--socket PATH] [--output-dir DIR]
   sasana version
@@ -191,6 +192,92 @@ def _cmd_seal(args: list) -> int:
     return 0
 
 
+def _load_cert_der(path: str) -> bytes:
+    """Read a certificate file (PEM or DER) and return DER bytes."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
+
+    raw = open(os.path.expanduser(path), "rb").read()
+    cert = (
+        x509.load_pem_x509_certificate(raw)
+        if b"-----BEGIN" in raw
+        else x509.load_der_x509_certificate(raw)
+    )
+    return cert.public_bytes(serialization.Encoding.DER)
+
+
+def _cmd_verify_commitment(args: list) -> int:
+    ap = argparse.ArgumentParser(prog="sasana verify-commitment", add_help=False)
+    ap.add_argument("bundle_file")
+    ap.add_argument(
+        "--deadline",
+        required=True,
+        metavar="ISO8601",
+        help="UTC deadline, e.g. 2026-06-01T12:00:00Z",
+    )
+    ap.add_argument(
+        "--tsa-anchor",
+        dest="tsa_anchors",
+        action="append",
+        required=True,
+        metavar="CERT",
+        help="Pinned TSA root/leaf certificate (PEM or DER). Repeatable.",
+    )
+    ap.add_argument(
+        "--registry", default=None, metavar="FILE", help="Counterparty receipt log (JSON list)."
+    )
+    ap.add_argument("--trust-key", dest="trust_key", default=None, metavar="BASE64_PUBKEY")
+    ap.add_argument("--allow-partial", dest="allow_partial", action="store_true")
+    ap.add_argument("--json", dest="json_out", action="store_true")
+    parsed, _ = ap.parse_known_args(args)
+
+    from datetime import datetime, timezone
+
+    try:
+        with open(parsed.bundle_file) as f:
+            bundle = json.load(f)
+        registry = None
+        if parsed.registry:
+            with open(parsed.registry) as f:
+                registry = json.load(f)
+        anchors = [_load_cert_der(p) for p in parsed.tsa_anchors]
+        deadline = datetime.fromisoformat(parsed.deadline.replace("Z", "+00:00"))
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 3
+
+    from sasana.commitment import verify_commitment
+
+    v = verify_commitment(
+        bundle,
+        deadline=deadline,
+        trusted_tsa_anchors=anchors,
+        trusted_seal_pubkey=parsed.trust_key,
+        registry=registry,
+        allow_partial=parsed.allow_partial,
+    )
+    if parsed.json_out:
+        print(json.dumps(v.as_dict(), indent=2, default=str))
+    else:
+        print(_bold(_cyan("Sasana Commitment Verifier")))
+        print(_dim(f"Bundle   : {parsed.bundle_file}"))
+        print(_dim(f"Deadline : {deadline.isoformat()}"))
+        print(f"Evidence : {v.evidence_class or '—'}")
+        if v.effective_revision is not None:
+            print(f"Effective revision: {v.effective_revision}")
+        color = (
+            _green if v.verdict == "VALID_ON_TIME" else (_yellow if v.verdict == "LATE" else _red)
+        )
+        print(f"Verdict  : {_bold(color(v.verdict))}")
+        for err in v.errors:
+            print(_red(f"  ✗ {err}"))
+        for w in v.warnings:
+            print(_yellow(f"  ! {w}"))
+    return {"VALID_ON_TIME": 0, "LATE": 2, "INVALID": 1}.get(v.verdict, 3)
+
+
 _STANDARDS = {
     "eu_ai_act": "EU AI Act — Article 12 logging evidence",
     "soc2": "SOC 2 Type II — CC7.2 monitoring evidence",
@@ -357,6 +444,10 @@ def main() -> None:
             f"  {_green('sasana evidence-pack')} <session.jsonl> [--standard S]  Auditor-ready compliance report"
         )
         print(
+            f"  {_green('sasana verify-commitment')} <bundle.json> --deadline T --tsa-anchor CERT"
+            "  Verify a pre-outcome commitment"
+        )
+        print(
             f"  {_green('sasana observe')} [--ws URL]                      Passive WebSocket observer"
         )
         print(
@@ -371,6 +462,8 @@ def main() -> None:
         sys.exit(_cmd_verify(args[1:]))
     if args[0] == "seal":
         sys.exit(_cmd_seal(args[1:]))
+    if args[0] in ("verify-commitment", "verify_commitment"):
+        sys.exit(_cmd_verify_commitment(args[1:]))
     if args[0] in ("evidence-pack", "evidence_pack"):
         sys.exit(_cmd_evidence_pack(args[1:]))
     if args[0] == "observe":

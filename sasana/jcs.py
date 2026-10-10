@@ -2,23 +2,50 @@
 jcs.py — Strict JSON Canonicalization Scheme (RFC 8785).
 
 Keys sorted lexicographically by UTF-16BE code unit sequence.
-Numbers: IEEE-754 doubles, no NaN/Infinity, -0.0 → "0".
+Numbers: IEEE-754 doubles serialized per ECMAScript Number::toString, no
+NaN/Infinity, -0.0 → "0". Integers beyond ±2**53 are rounded through a double.
 """
 
+import decimal
 import json
 import math
 from typing import Any
 
 
+_MAX_SAFE_INT = 2**53
+
+
 def _float_to_string(f: float) -> str:
+    """
+    ECMAScript Number::toString(10) as required by RFC 8785 section 3.2.2.3.
+
+    Shortest round-trip digits come from repr(); layout follows the ES rules:
+    plain decimal for 1e-6 <= |f| < 1e21, otherwise exponent form with an
+    explicit sign ("1e+21", "1e-7").
+    """
     if math.isnan(f) or math.isinf(f):
         raise ValueError("NaN and Infinity are not permitted in JSON")
     if f == 0.0:
         return "0"
-    s = json.dumps(f, allow_nan=False)
-    if "e+" in s:
-        s = s.replace("e+", "e")
-    return s
+    sign = "-" if f < 0 else ""
+    d = decimal.Decimal(repr(abs(f)))
+    _, digit_tuple, exp = d.as_tuple()
+    digits = "".join(map(str, digit_tuple)).rstrip("0") or "0"
+    # Position of the decimal point relative to the start of `digits`.
+    n = len(digit_tuple) + exp
+    k = len(digits)
+    if k <= n <= 21:
+        body = digits + "0" * (n - k)
+    elif 0 < n <= 21:
+        body = digits[:n] + "." + digits[n:]
+    elif -6 < n <= 0:
+        body = "0." + "0" * (-n) + digits
+    else:
+        e = n - 1
+        esign = "+" if e >= 0 else "-"
+        mant = digits[0] if k == 1 else digits[0] + "." + digits[1:]
+        body = f"{mant}e{esign}{abs(e)}"
+    return sign + body
 
 
 def canonicalize(data: Any) -> bytes:
@@ -29,7 +56,11 @@ def canonicalize(data: Any) -> bytes:
         return b"true" if data else b"false"
     if isinstance(data, (int, float)):
         if isinstance(data, int):
-            return str(data).encode("utf-8")
+            if abs(data) <= _MAX_SAFE_INT:
+                return str(data).encode("utf-8")
+            # RFC 8785 numbers are IEEE-754 doubles; beyond 2**53 an int is
+            # serialized as the double it rounds to, not as exact digits.
+            return _float_to_string(float(data)).encode("utf-8")
         return _float_to_string(data).encode("utf-8")
     if isinstance(data, str):
         return json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
