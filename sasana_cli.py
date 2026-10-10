@@ -98,6 +98,7 @@ def _verify_json(result, parsed, exit_code: int) -> dict:
         "root_hash": result.root_hash,
         "errors": result.errors,
         "warnings": result.warnings,
+        "canonicalization": result.canonicalization,
         "pinned": result.pinned,
         "require_seal": result.require_seal,
         "strict": bool(getattr(parsed, "strict", False)),
@@ -229,6 +230,9 @@ def _cmd_verify(args: list) -> int:
     print(f"Events: {result.event_count}  Evidence: {result.evidence_class}")
     pin_txt = "pinned (--trust-key)" if result.pinned else "none (seal key NOT trusted)"
     print(_dim(f"Trusted key: {pin_txt}"))
+    if result.canonicalization:
+        note = "  (Sasana 1.x log, no declaration)" if result.canonicalization == "legacy" else ""
+        print(_dim(f"Canonicalization: {result.canonicalization}{note}"))
     print()
     _ts_check = result.checks.get("rfc3161_timestamp", {})
     _has_ts = _ts_check.get("status") not in (None, "SKIPPED")

@@ -11,7 +11,12 @@ import dataclasses
 import hashlib
 from typing import Optional
 
-from sasana.jcs import canonicalize as jcs_canonicalize
+from sasana.jcs import (
+    CANON_FIELD,
+    CANON_LEGACY,
+    CANON_RFC8785,
+    canonicalizer,
+)
 
 VERIFIER_VERSION = "2.0.0"
 GENESIS_HASH = "0" * 64
@@ -85,21 +90,63 @@ class VerifyResult:
     require_seal: bool = False  # the caller demanded a CHAIN_SEAL
     seal_present: bool = False
     seal_trusted: bool = False  # seal present AND verified against the pinned key
+    # Algorithm every event hash was computed with, taken from SESSION_START: "jcs-rfc8785"
+    # or "legacy" (Sasana 1.x). Empty when the input could not be assessed.
+    canonicalization: str = ""
 
     def as_dict(self) -> dict:
         return dataclasses.asdict(self)
 
 
-def compute_event_hash(event: dict) -> str:
+def compute_event_hash(event: dict, canonicalization: str = CANON_RFC8785) -> str:
     """
-    SHA-256/JCS hash of an event envelope.
+    SHA-256 of the canonical bytes of an event envelope.
 
     Strips event_hash and signature before hashing — event_hash is the
     output of this function, and signature is added after, so neither
     is part of the hash input.
+
+    canonicalization: "jcs-rfc8785" (default; what Sasana >= 2.0.0 writes) or "legacy"
+    (what 1.0.0/1.1.0 wrote). A verifier takes it from SESSION_START; see
+    select_canonicalization().
     """
     payload = {k: v for k, v in event.items() if k not in ("event_hash", "signature")}
-    return hashlib.sha256(jcs_canonicalize(payload)).hexdigest()
+    return hashlib.sha256(canonicalizer(canonicalization)(payload)).hexdigest()
+
+
+def select_canonicalization(events: list) -> tuple[Optional[str], Optional[str]]:
+    """
+    Read the canonicalization a session declares. Returns (algorithm, error).
+
+    The declaration is the ``canonicalization`` field of the SESSION_START payload. It is part
+    of that event's hash, so it is covered by the chain and by any seal: changing it breaks
+    the chain, and a log cannot be silently downgraded or upgraded.
+
+      * field absent                -> "legacy" (written by Sasana 1.0.0 / 1.1.0)
+      * "jcs-rfc8785"               -> "jcs-rfc8785"
+      * anything else (incl. a non-string, or an explicit "legacy") -> error
+
+    Exactly one algorithm is returned and used for every event. There is no fallback and no
+    "try the other one": two encodings that both verify would stop the hash defining the event
+    uniquely. With no SESSION_START at all the log is structurally invalid regardless; legacy
+    is returned so the ordinary completeness check reports it.
+    """
+    starts = [e for e in events if isinstance(e, dict) and e.get("event_type") == "SESSION_START"]
+    if not starts:
+        return CANON_LEGACY, None
+    start = min(starts, key=lambda e: e.get("seq", 0) if isinstance(e.get("seq"), int) else 0)
+    payload = start.get("payload")
+    if not isinstance(payload, dict) or CANON_FIELD not in payload:
+        return CANON_LEGACY, None
+    declared = payload[CANON_FIELD]
+    if declared == CANON_RFC8785:
+        return CANON_RFC8785, None
+    shown = declared if isinstance(declared, str) else repr(declared)
+    return None, (
+        f"SESSION_START declares unsupported canonicalization {shown[:60]!r}; "
+        f"this verifier supports {CANON_RFC8785!r} (or the field omitted, meaning legacy "
+        "1.x). Refusing to guess."
+    )
 
 
 def _check_structural(events: list) -> dict:
@@ -149,7 +196,7 @@ def _check_sequence(events: list) -> dict:
     return {"status": "PASS" if not errors else "FAIL", "errors": errors}
 
 
-def _check_hash_chain(events: list) -> dict:
+def _check_hash_chain(events: list, canonicalization: str = CANON_RFC8785) -> dict:
     """
     Verifies event_hash integrity and prev_hash linkage.
 
@@ -166,7 +213,7 @@ def _check_hash_chain(events: list) -> dict:
     for event in sorted_events:
         seq = event.get("seq", "?")
         try:
-            expected = compute_event_hash(event)
+            expected = compute_event_hash(event, canonicalization)
         except Exception as exc:
             errors.append(f"seq={seq}: hash computation failed: {exc}")
             break
@@ -362,7 +409,9 @@ _TS_CAVEAT = (
 )
 
 
-def _check_rfc3161_timestamp(events: list) -> tuple[bool, dict]:
+def _check_rfc3161_timestamp(
+    events: list, canonicalization: str = CANON_RFC8785
+) -> tuple[bool, dict]:
     """
     Check the RFC 3161 token in the SESSION_START payload, if present.
 
@@ -415,7 +464,9 @@ def _check_rfc3161_timestamp(events: list) -> tuple[bool, dict]:
             k: v for k, v in session_start.items() if k not in ("event_hash", "signature")
         }
         event_without_token["payload"] = payload_without_token
-        pre_token_hash = hashlib.sha256(jcs_canonicalize(event_without_token)).digest()
+        pre_token_hash = hashlib.sha256(
+            canonicalizer(canonicalization)(event_without_token)
+        ).digest()
     except Exception as exc:
         return False, result("FAIL", [f"Pre-token hash computation failed: {exc}"])
 
@@ -495,7 +546,12 @@ def verify_chain_integrity(events: list) -> list:
     c1 = _check_structural(events)
     if c1["status"] != "PASS":
         return list(c1["errors"])
-    return list(_check_sequence(events)["errors"]) + list(_check_hash_chain(events)["errors"])
+    canon, canon_error = select_canonicalization(events)
+    if canon_error:
+        return [canon_error]
+    return list(_check_sequence(events)["errors"]) + list(
+        _check_hash_chain(events, canon)["errors"]
+    )
 
 
 def _error_result(errors: list, session_id: Optional[str] = None, **flags) -> VerifyResult:
@@ -538,8 +594,11 @@ def verify(
     bad_input = _validate_input(events)
     if bad_input:
         return _error_result(bad_input, **flags)
+    canon, canon_error = select_canonicalization(events)
+    if canon_error:
+        return _error_result([canon_error], session_id=events[0].get("session_id"), **flags)
     try:
-        return _verify(events, signatures_valid, trusted_seal_pubkey, require_seal)
+        return _verify(events, signatures_valid, trusted_seal_pubkey, require_seal, canon)
     except Exception as exc:  # pragma: no cover - defensive: a verifier must never crash open
         return _error_result(
             [f"internal verifier error ({type(exc).__name__}): {exc}"],
@@ -553,6 +612,7 @@ def _verify(
     signatures_valid: bool,
     trusted_seal_pubkey: Optional[str],
     require_seal: bool,
+    canon: str,
 ) -> VerifyResult:
     pinned = trusted_seal_pubkey is not None
     session_id = events[0].get("session_id")
@@ -582,17 +642,18 @@ def _verify(
                 "rfc3161_timestamp": _skipped,
             },
             seal_present=any(e.get("event_type") == "CHAIN_SEAL" for e in events),
+            canonicalization=canon,
             **flags,
         )
 
     c2 = _check_sequence(events)
-    c3 = _check_hash_chain(events)
+    c3 = _check_hash_chain(events, canon)
     c4 = _check_completeness(events)
     c5 = _check_seal_signature(
         events, trusted_pubkey=trusted_seal_pubkey, require_seal=require_seal
     )
     _sigs_valid, c6 = _check_session_signatures(events)
-    _ts_match, c7 = _check_rfc3161_timestamp(events)
+    _ts_match, c7 = _check_rfc3161_timestamp(events, canon)
     # Accept caller override (for testing) or auto-detected result
     computed_sigs_valid = signatures_valid or _sigs_valid
     checks = {
@@ -633,6 +694,7 @@ def _verify(
         warnings=warnings,
         seal_present=seal_present,
         seal_trusted=bool(c5.get("seal_trusted")) and not all_errors,
+        canonicalization=canon,
         **flags,
     )
 
