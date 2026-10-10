@@ -268,15 +268,22 @@ Failure: `COMPROMISED`, evidence `NO_EVIDENCE`.
 
 ### Check 5 — Seal signature
 
-If no `CHAIN_SEAL` event is present, this check passes as a no-op (non-sealed sessions are valid).
+`verify(events, trusted_seal_pubkey=None, require_seal=False)`.
+
+With no `CHAIN_SEAL` present the check passes as a no-op, **unless** a key is pinned or a seal is required:
+- `trusted_seal_pubkey` given and no seal → `COMPROMISED` ("pinned key provided but session has no CHAIN_SEAL"). A pin means "this session must have been sealed by that key"; deleting the seal must not weaken the verdict.
+- `require_seal=True` and no seal → `COMPROMISED`, independent of any pin.
 
 If a `CHAIN_SEAL` is present:
-- Must have `payload.server_pubkey`
-- Must have a `signature` field
-- Must have `event_hash`
+- Exactly one is allowed, and it must be the final event
+- Must have `payload.server_pubkey`, a `signature` and an `event_hash`
+- If a key is pinned, `server_pubkey` must equal it exactly (string comparison)
 - `signature` must be a valid Ed25519 signature over `event_hash` using `server_pubkey`
+- `payload.session_hash` must equal the `event_hash` of the event immediately before the seal
 
-A `CHAIN_SEAL` with an invalid signature is treated as `COMPROMISED` — not merely non-authoritative. An invalid seal is stronger evidence of tampering than no seal at all.
+Any failure is `COMPROMISED` — an invalid seal is stronger evidence of tampering than no seal at all. The verifier also reports `seal_present` and `seal_trusted` (seal present, all checks passed, **and** a key was pinned).
+
+**The pin is what makes a seal mean something.** `server_pubkey` lives inside the sealed event, so an unpinned check only proves the seal is signed by whatever key it carries. An attacker can generate a keypair, rewrite the log, recompute the chain and seal it with their own key; unpinned, that verifies. Pin the key you recorded out-of-band when deploying Archeion.
 
 Failure: `COMPROMISED`, evidence `NO_EVIDENCE`.
 
@@ -285,26 +292,41 @@ Failure: `COMPROMISED`, evidence `NO_EVIDENCE`.
 After all checks pass (status is `INTACT` or `PARTIAL`):
 
 ```python
-def _determine_evidence_class(events, signatures_valid=False):
+def _determine_evidence_class(events, signatures_valid=False, seal_trusted=False):
     has_seal = any(e["event_type"] == "CHAIN_SEAL" for e in events)
     has_drop = any(e["event_type"] == "LOG_DROP" for e in events)
     if has_drop:
         return PARTIAL_EVIDENCE      # LOG_DROP degrades class even with a seal
     if has_seal:
-        return AUTHORITATIVE_EVIDENCE
+        # A seal vouches for nothing unless its key is one the caller chose to trust.
+        return AUTHORITATIVE_EVIDENCE if seal_trusted else SELF_SEALED_EVIDENCE
     if signatures_valid:
         return SIGNED_NON_AUTHORITATIVE_EVIDENCE
     return NON_AUTHORITATIVE_EVIDENCE
 ```
 
+| Class | Requires |
+|---|---|
+| `AUTHORITATIVE_EVIDENCE` | A valid `CHAIN_SEAL` verified against the key passed as `trusted_seal_pubkey` / `--trust-key` |
+| `SELF_SEALED_EVIDENCE` | A valid `CHAIN_SEAL`, no pinned key. Verifies only against its own embedded key: anyone can produce it |
+| `SIGNED_NON_AUTHORITATIVE_EVIDENCE` | Per-event signatures valid against the key in `SESSION_START` (self-asserted, so a rewrite under a new key verifies too) |
+| `NON_AUTHORITATIVE_EVIDENCE` | Intact chain, no seal. Cannot detect a complete rewrite |
+| `PARTIAL_EVIDENCE` | `LOG_DROP` events present |
+| `NO_EVIDENCE` | `COMPROMISED` or `ERROR` |
+
+`verify()` fails closed: input that is not a list of event objects (non-object lines, non-integer `seq`, non-string `event_type`/`session_id`, non-object `payload`, non-string `signature`) returns status `ERROR` / `NO_EVIDENCE` instead of raising, and any unexpected internal exception is converted to `ERROR`. Missing fields, malformed hashes and duplicate `seq` values are ordinary structural findings (`COMPROMISED`).
+
 ### Exit codes
 
 | Code | Status |
 |---|---|
-| 0 | INTACT |
+| 0 | INTACT (read `evidence_class`: `0` also covers `SELF_SEALED_EVIDENCE` and `NON_AUTHORITATIVE_EVIDENCE`) |
 | 1 | COMPROMISED |
 | 2 | PARTIAL |
-| 3 | ERROR |
+| 3 | ERROR, or bad usage (an unrecognised flag is an error, never ignored) |
+| 4 | `--strict` only: INTACT but not `AUTHORITATIVE_EVIDENCE` (`--strict` requires `--trust-key`) |
+
+CLI flags: `--json`, `--trust-key BASE64`, `--require-seal`, `--strict`, `--verbose`. `--json` includes `checks`, `warnings`, `pinned`, `require_seal`, `seal_present`, `seal_trusted`, `timestamp` (`status`, `imprint_match`, `verified`, `claimed_time_utc`, `detail`) and `exit_code`.
 
 ### `VerifyResult` fields
 
@@ -343,7 +365,7 @@ The keypair is loaded once at module import. All requests within the server proc
 
 **`GET /pubkey`**
 
-Returns the server's Ed25519 public key. Clients can pin this key to independently verify sealed sessions without contacting the server again.
+Returns the server's Ed25519 public key. Record it out-of-band when you deploy Archeion and pass it as `--trust-key` when verifying: that pin is what makes a seal meaningful. A key copied from the file being verified, or fetched over an untrusted channel at verification time, proves nothing.
 
 Response:
 ```json
@@ -452,7 +474,7 @@ Requirement checks performed:
 - `session_lifecycle_logged` — both `SESSION_START` and `SESSION_END` present
 - `hash_chain_tamper_evident` — verifier reports `intact`
 - `no_log_drops` — no `LOG_DROP` events
-- `server_sealed` — `CHAIN_SEAL` present
+- `server_sealed` — a `CHAIN_SEAL` verified against the pinned `--trust-key` (a `CHAIN_SEAL` merely being present does not count)
 
 Compliance (`compliant: true`) requires: timestamps, input logging, output logging, hash chain intact, and session lifecycle. Server sealing is reported separately but not required for the `compliant` flag.
 
@@ -618,14 +640,21 @@ fastapi>=0.110
 
 ## 14. Test Coverage
 
-117 tests as of v1.0.0.
+314 Python tests and 17 Rust unit tests as of v1.2.0 (`pytest -q`, `cargo test --manifest-path sasana-rs/Cargo.toml`). Two of the Python tests compare the compiled Rust binary against Python and skip when `sasana-rs` has not been built, as in CI's Python jobs.
 
 | Module | Tests | Coverage notes |
 |---|---|---|
-| `test_verifier.py` | Core verification cases | 5-check pipeline, evidence classes, CHAIN_SEAL signature verification, tamper detection |
-| `test_e2e.py` | 13 tests | SDK → Archeion → verify full flow; tamper detection; double-seal rejection; broken chain rejection |
-| `test_compliance.py` | Compliance export generation | EU AI Act, SOC 2, HIPAA, SIEM |
-| `test_integrations.py` | Integration wrappers | LangGraph, CrewAI, AutoGPT |
+| `test_verifier.py` | 39 | Verification pipeline, evidence classes, attack surfaces (insertion, deletion, reordering, replacement) |
+| `test_verifier_hardening.py` | 53 | Pinned-key-implies-seal, `--require-seal`, single/final seal, seal `session_hash`, fail-closed malformed input (API + CLI), `--json` completeness, exit codes, `--strict`, timestamp honesty (backdated / corrupted-signature tokens are not "verified time"), compliance reports not trusting a seal's mere presence |
+| `test_tamper_matrix.py` | 13 | The audit matrix: edit, rechain, re-seal with an attacker key (pinned / unpinned), seal stripping, forged seal; run through the real CLI and cross-checked against the Rust binary |
+| `test_e2e.py` | 18 | SDK → Archeion → verify full flow; tamper detection; double-seal rejection; broken chain rejection; key pinning |
+| `test_compliance.py` | 45 | EU AI Act, SOC 2, HIPAA, SIEM, evidence-pack CLI |
+| `test_integrations.py` | 25 | LangGraph, CrewAI, AutoGPT |
+| `test_rfc3161.py`, `test_rfc3161_strict.py` | 11 + 20 | Token parsing and imprint matching; strict CMS / certificate-chain verification against an offline test TSA |
+| `test_commitment.py`, `test_jcs.py` | 60 + 7 | Pre-outcome commitments; RFC 8785 canonicalisation |
+| `test_openclaw_bridge.py`, `test_otel_exporter.py` | 13 + 10 | OpenClaw bridge, OTel exporter |
+
+`tests/conftest.py` points `ARCHEION_KEY_FILE` at a temp directory before any test imports the Archeion server, so the suite never reads or creates a real signing key.
 
 CI: GitHub Actions, Python 3.10 and 3.12, ruff lint + format check.
 
@@ -633,13 +662,17 @@ CI: GitHub Actions, Python 3.10 and 3.12, ruff lint + format check.
 
 ## 15. Known Gaps and Honest Limitations
 
-**Rust verifier does not check seal signature.** The Rust binary performs 4 checks. Check 5 (Ed25519 seal signature verification) is not implemented in Rust. A sealed session will be reported as `INTACT` / `AUTHORITATIVE_EVIDENCE` by the Rust verifier based on the presence of a `CHAIN_SEAL` event, without verifying that the signature is valid. For full forensic verification of sealed sessions, use the Python verifier.
+**Rust verifier scope.** The Rust binary implements the same seal trust model as verifier v2.0.0 (pinned key, `--require-seal`, `--strict`, `SELF_SEALED_EVIDENCE`, single/final seal, `session_hash` check) and is run against the same tamper-matrix cases. It does not check RFC 3161 tokens or per-event signatures, and its `--json` output has no per-check breakdown. Releases before 1.2.0 of the Rust verifier did not share this model (see CHANGELOG).
+
+**RFC 3161 timestamps are checked for imprint match only.** `verify()` confirms the token's MessageImprint equals the recomputed `SESSION_START` hash and reports `IMPRINT_MATCH`. It does not verify the TSA's CMS signature, the certificate chain, or that the claimed `genTime` is real; a forged or backdated token passes. `timestamp_verified` is always `False`. `sasana.rfc3161.verify_timestamp_strict` does the full check but is used only by `sasana verify-commitment`.
+
+**A seal is only as good as the pinned key.** Without `--trust-key`, a well-formed `CHAIN_SEAL` yields `SELF_SEALED_EVIDENCE`; an attacker who rewrites a log can re-seal it with a fresh key and it verifies as INTACT. Stripping the seal is detected only with `--trust-key` or `--require-seal`.
 
 **Observer does not auto-detect dropped events.** The passive WebSocket observer reconnects on disconnect, but it does not currently insert `LOG_DROP` events when it detects a gap in the event stream. This would require framework-specific sequence tracking and is not implemented.
 
 **No post-quantum signatures.** SHA-256 and Ed25519 are both pre-quantum algorithms. Ed25519's security assumption (discrete logarithm on Curve25519) is broken by Grover's and Shor's algorithms on a sufficiently capable quantum computer. Post-quantum migration is a known future concern, not an immediate operational risk.
 
-**Per-session signing is SDK-controlled.** When SDK signing is enabled, the agent process generates and holds the per-session keypair. A fully compromised agent process could forge signed events for that session. `SIGNED_NON_AUTHORITATIVE_EVIDENCE` is meaningfully harder to forge than an unsigned log, but it is not equivalent to `AUTHORITATIVE_EVIDENCE`.
+**Per-session signing is SDK-controlled and self-asserted.** When SDK signing is enabled, the agent process generates and holds the per-session keypair, and its public key is embedded in `SESSION_START`. A compromised agent, or anyone who rewrites the log, can generate a new keypair, replace the embedded key and re-sign every event; that verifies equally well. `SIGNED_NON_AUTHORITATIVE_EVIDENCE` shows consistency, not identity, and is not equivalent to `AUTHORITATIVE_EVIDENCE`.
 
 **Single-session JSONL only.** The verifier operates on one session file at a time. Cross-session consistency checks (e.g. detecting that a session was split across multiple files or that sessions overlap in time) are not implemented.
 

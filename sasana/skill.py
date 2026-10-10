@@ -28,7 +28,8 @@ class SasanaSkill:
 
     Env vars:
         SASANA_OUTPUT_DIR  — output directory (default: ~/.openclaw/sasana/)
-        SASANA_SERVER_URL  — ingestion server URL (enables AUTHORITATIVE_EVIDENCE)
+        (Sealing is a separate step: `sasana seal` against an Archeion server, then verify
+         with `--trust-key`. This class does not seal sessions.)
     """
 
     name = "sasana"

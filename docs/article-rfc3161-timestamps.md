@@ -1,5 +1,5 @@
 ---
-title: Your tamper-evident log can still be backdated. Here's what closes that.
+title: Your hash-chained log can still be backdated. Here's what closes that.
 published: false
 description: A demonstration of how operator-controlled timestamps fail Article 12 compliance, and what RFC 3161 anchoring actually proves.
 tags: ai, security, compliance, euaiact
@@ -52,7 +52,7 @@ Independently-attested requires an external party, one the operator cannot imper
 
 RFC 3161 is the IETF standard for trusted timestamps. A Timestamp Authority (TSA) receives a hash, not the data itself, only its SHA-256 digest, and returns a signed token containing that hash and the current time. The token is verifiable against the TSA's public certificate.
 
-The operator cannot forge this after the fact. Producing a valid token for a different time requires either finding a SHA-256 collision or obtaining the TSA's private key.
+The operator cannot forge this after the fact: a token that *verifies against the TSA's real certificate* for a different time requires either a SHA-256 collision or the TSA's private key. Note the condition. Anyone can mint a token that merely has the right shape; it only means something if the signature and certificate chain are checked against the TSA's published root. `sasana verify` does not do that check (see below).
 
 Freetsa (`freetsa.org`) is a public TSA based in Wuerzburg, Germany. No account required. The endpoint is `https://freetsa.org/tsr`. You POST a DER-encoded timestamp request and receive a DER-encoded response. The response from the live run for this article:
 
@@ -97,7 +97,7 @@ Message data:
 
 That reconstructs to `ff4be53f333aa85e7491961e0d944093e7a3ef896a399d11f98967d05bb5c34e`. Byte-for-byte identical.
 
-The rest of the session chains from `db37c1d4...`. Swapping the token changes that hash, which breaks every subsequent `prev_hash` link. You cannot substitute the token without breaking the chain. The TSA's statement was produced by an external party and is bound into the record. The operator did not produce it and cannot retroactively produce a different one with a different time.
+The rest of the session chains from `db37c1d4...`. Swapping the token changes that hash, which breaks every subsequent `prev_hash` link. You cannot substitute the token without breaking the chain. The TSA's statement was produced by an external party and is bound into the record. Provided the token is verified against the TSA's certificate, the operator did not produce it and cannot retroactively produce a different one with a different time. An attacker who can rewrite the file can, however, replace the token with one from a TSA of their own and rechain: an unverified token proves nothing.
 
 Network failures are handled fail-open. If the TSA is unreachable, the session records without a token, and the verifier marks the timestamp check SKIPPED rather than failing the session.
 
@@ -105,7 +105,7 @@ Network failures are handled fail-open. If the TSA is unreachable, the session r
 
 ## What in-process verification does and does not check
 
-The `sasana_cli verify` command checks that the token's MessageImprint matches the pre-token hash. It does not verify the TSA's signature chain. A token with a valid hash but a forged TSA signature would pass that check.
+`sasana verify` checks only that the token's MessageImprint matches the pre-token hash, and reports `IMPRINT_MATCH` (never a bare PASS). It does not verify the TSA's CMS signature, the certificate chain, or that the time in the token is genuine, and `timestamp_verified` is always `false`. A token with a valid hash and a forged signature, or a backdated token from an unrelated TSA, passes that check; both are covered by tests. Treat the time it prints as a claim.
 
 The full verification path requires `openssl ts -verify`:
 
@@ -128,7 +128,7 @@ Verification: OK
 
 Article 12 requires that logs enable verification of system functioning. The question regulators will ask is not whether the log was modified after it was created. Hash chains handle that. The question is whether the log reflects what actually happened when it happened.
 
-A session anchored to RFC 3161 provides a verifiable answer to the second question that does not depend on trusting the operator. Any attempt to reconstruct the log for a different time requires forging the TSA's signature. The distinction between `NON_AUTHORITATIVE_EVIDENCE` and `AUTHORITATIVE_EVIDENCE` is architectural. Compliant evidence requires an external anchor.
+A session anchored to RFC 3161 can provide a verifiable answer to the second question that does not depend on trusting the operator, once the token has been verified against the TSA's certificate (with `openssl ts -verify` as above, or `sasana.rfc3161.verify_timestamp_strict`). Until then the token is only a claim, and `sasana verify` does not make that check. The distinction between `NON_AUTHORITATIVE_EVIDENCE` and `AUTHORITATIVE_EVIDENCE` is architectural. Compliant evidence requires an external anchor.
 
 ---
 

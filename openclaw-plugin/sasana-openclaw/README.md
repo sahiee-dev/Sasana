@@ -8,8 +8,9 @@ reach the ledger.
 
 Verified against a live OpenClaw v2026.6.6 gateway (not mocked): the plugin
 loads, registers all 8 hooks below with zero diagnostics, and `session_start`
-was captured end-to-end into a real hash-chained, RFC 3161-anchored ledger
-entry. See `docs/openclaw-integration-notes.md` in the Sasana repo for the
+was captured end-to-end into a real hash-chained ledger entry carrying an RFC 3161
+token (checked for imprint match only; the TSA signature is not verified). The bridge
+ledger is unsigned and unsealed. See `docs/openclaw-integration-notes.md` in the Sasana repo for the
 full verification record, including which hooks still need a live model
 provider credential to fire in a given environment.
 
