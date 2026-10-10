@@ -16,8 +16,8 @@
  *   own embedded server_pubkey is SELF_SEALED_EVIDENCE. --trust-key and --require-seal both
  *   make a missing CHAIN_SEAL a COMPROMISED verdict.
  *
- * NOT implemented here (the Python verifier does these): RFC 3161 timestamp checks, per-event
- * Ed25519 signatures, the per-check breakdown in --json output.
+ * NOT implemented here (the Python verifier does these): RFC 3161 timestamp checks and the
+ * per-check breakdown in --json output.
  *
  * Hash algorithm: SHA-256 over RFC 8785 canonical JSON of each event
  * (excluding the event_hash field itself), chained via prev_hash.
@@ -39,36 +39,184 @@ const GENESIS_HASH: &str = "0000000000000000000000000000000000000000000000000000
 const VERIFIER_VERSION: &str = "2.0.0";
 
 // ---------------------------------------------------------------------------
-// RFC 8785 canonical JSON
+// Canonical JSON — two named algorithms, chosen by the session's own declaration
 //
-// Rules:
-//   1. Object keys sorted by UTF-16 code unit sequence (lexicographic)
-//   2. No whitespace outside strings
-//   3. Control chars U+0000–U+001F escaped as \uXXXX
-//   4. Numbers: shortest round-trip; -0.0 → "0"
-//   5. Arrays: order preserved
+// A session declares its algorithm in the SESSION_START payload, key "canonicalization"
+// (hashed, so covered by the chain and any seal). The verifier reads it once and uses exactly
+// that algorithm for every event; it never tries both.
+//
+//   "jcs-rfc8785"  RFC 8785. Keys sorted by UTF-16 code units, no whitespace, numbers are IEEE
+//                  doubles formatted per ECMAScript Number::toString, -0.0 -> "0". Written by
+//                  Sasana >= 2.0.0.
+//   (absent)       "legacy": what Sasana 1.0.0/1.1.0 wrote. Same as RFC 8785 except numbers:
+//                  floats are Python repr() with "e+" shortened to "e" (100.0, 1e-05, 1e16),
+//                  integers exact. Kept only so old logs still verify.
+//
+// Known limit: an integer larger than u64 in a legacy log cannot be reproduced exactly (serde_json
+// parses it as a double); such a log reports COMPROMISED here but verifies under the Python verifier.
 // ---------------------------------------------------------------------------
 
-fn canonical_json(value: &Value) -> String {
-    match value {
-        Value::Null => "null".to_string(),
-        Value::Bool(b) => b.to_string(),
-        Value::Number(n) => {
+const CANON_FIELD: &str = "canonicalization";
+const CANON_RFC8785: &str = "jcs-rfc8785";
+const CANON_LEGACY: &str = "legacy";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Canon {
+    Legacy,
+    Rfc8785,
+}
+
+impl Canon {
+    fn name(self) -> &'static str {
+        match self {
+            Canon::Legacy => CANON_LEGACY,
+            Canon::Rfc8785 => CANON_RFC8785,
+        }
+    }
+}
+
+/// Shortest decimal digits that round-trip to |f|, plus the decimal-point position `n` such that
+/// value = 0.DIGITS x 10^n. `f` must be finite and non-zero.
+///
+/// This follows ECMAScript Number::toString: take the smallest digit count k for which some k-digit
+/// decimal parses back to the same double; if two k-digit candidates both do, take the one closer to
+/// the exact value, and on an exact tie the one whose last digit is even. Rust's own `{:e}` shortest
+/// formatting breaks ties upward (1424953923781206.25 -> ...206.3), ES and Python choose even
+/// (...206.2), so the exact decimal expansion is used instead of trusting it.
+fn shortest_digits(f: f64) -> (String, i32) {
+    let x = f.abs();
+    // Exact expansion: a double has at most 767 significant digits, so 1100 is exact.
+    let exact = format!("{:.1100e}", x);
+    let (mant, exp) = exact.split_once('e').expect("LowerExp always has an exponent");
+    let all: Vec<u8> = mant.bytes().filter(|b| *b != b'.').collect();
+    let n0: i32 = exp.parse::<i32>().expect("exponent is an integer") + 1;
+
+    let roundtrips = |digits: &[u8], n: i32| -> bool {
+        let text = format!("{}e{}", std::str::from_utf8(digits).unwrap(), n - digits.len() as i32);
+        text.parse::<f64>().map(|v| v == x).unwrap_or(false)
+    };
+
+    for k in 1..=17usize {
+        let lo: Vec<u8> = all[..k].to_vec();
+        let rest = &all[k..];
+        let rest_zero = rest.iter().all(|b| *b == b'0');
+        // 0 = remainder below half, 1 = exactly half, 2 = above half (relative to one unit of the k-th digit)
+        let half = if rest[0] > b'5' {
+            2
+        } else if rest[0] < b'5' {
+            0
+        } else if rest[1..].iter().all(|b| *b == b'0') {
+            1
+        } else {
+            2
+        };
+
+        let mut hi: Vec<u8> = lo.clone();
+        let mut hi_n = n0;
+        let mut i = hi.len();
+        loop {
+            if i == 0 {
+                hi.insert(0, b'1');
+                hi.truncate(k);
+                hi_n += 1;
+                break;
+            }
+            i -= 1;
+            if hi[i] == b'9' {
+                hi[i] = b'0';
+            } else {
+                hi[i] += 1;
+                break;
+            }
+        }
+
+        let lo_ok = roundtrips(&lo, n0);
+        let hi_ok = !rest_zero && roundtrips(&hi, hi_n);
+        let pick_hi = match (lo_ok, hi_ok) {
+            (false, false) => continue,
+            (true, false) => false,
+            (false, true) => true,
+            (true, true) => match half {
+                0 => false,
+                2 => true,
+                _ => (lo[k - 1] - b'0') % 2 == 1, // tie: keep the even last digit
+            },
+        };
+        let (digits, n) = if pick_hi { (hi, hi_n) } else { (lo, n0) };
+        let text = String::from_utf8(digits).unwrap();
+        let trimmed = text.trim_end_matches('0');
+        return (if trimmed.is_empty() { "0".to_string() } else { trimmed.to_string() }, n);
+    }
+    unreachable!("every finite double round-trips within 17 significant digits")
+}
+
+/// ECMAScript Number::toString(10), as RFC 8785 section 3.2.2.3 requires.
+fn es_number(f: f64) -> String {
+    if f == 0.0 {
+        return "0".to_string(); // also -0.0
+    }
+    let sign = if f < 0.0 { "-" } else { "" };
+    let (digits, n) = shortest_digits(f);
+    let k = digits.len() as i32;
+    let body = if k <= n && n <= 21 {
+        format!("{}{}", digits, "0".repeat((n - k) as usize))
+    } else if 0 < n && n <= 21 {
+        format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
+    } else if -6 < n && n <= 0 {
+        format!("0.{}{}", "0".repeat((-n) as usize), digits)
+    } else {
+        let e = n - 1;
+        let mant = if k == 1 { digits.clone() } else { format!("{}.{}", &digits[..1], &digits[1..]) };
+        format!("{}e{}{}", mant, if e >= 0 { "+" } else { "-" }, e.abs())
+    };
+    format!("{}{}", sign, body)
+}
+
+/// Python 3 float repr() with "e+" shortened to "e" — what Sasana 1.0.0/1.1.0 serialized.
+fn legacy_float(f: f64) -> String {
+    if f == 0.0 {
+        return "0".to_string();
+    }
+    let sign = if f < 0.0 { "-" } else { "" };
+    let (digits, n) = shortest_digits(f);
+    let k = digits.len() as i32;
+    let body = if -4 < n && n <= 16 {
+        if n <= 0 {
+            format!("0.{}{}", "0".repeat((-n) as usize), digits)
+        } else if n >= k {
+            format!("{}{}.0", digits, "0".repeat((n - k) as usize))
+        } else {
+            format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
+        }
+    } else {
+        let e = n - 1;
+        let mant = if k == 1 { digits.clone() } else { format!("{}.{}", &digits[..1], &digits[1..]) };
+        // repr gives "e+16" / "e-05"; the legacy code then replaced "e+" with "e"
+        format!("{}e{}{:02}", mant, if e >= 0 { "" } else { "-" }, e.abs())
+    };
+    format!("{}{}", sign, body)
+}
+
+fn canonical_number(n: &serde_json::Number, canon: Canon) -> String {
+    match canon {
+        Canon::Rfc8785 => es_number(n.as_f64().unwrap_or(0.0)),
+        Canon::Legacy => {
             if let Some(i) = n.as_i64() {
                 return i.to_string();
             }
             if let Some(u) = n.as_u64() {
                 return u.to_string();
             }
-            if let Some(f) = n.as_f64() {
-                if f == 0.0 {
-                    return "0".to_string(); // RFC 8785: -0.0 → "0"
-                }
-                let s = format!("{}", n); // serde_json gives shortest round-trip
-                return s;
-            }
-            n.to_string()
+            legacy_float(n.as_f64().unwrap_or(0.0))
         }
+    }
+}
+
+fn canonical_json(value: &Value, canon: Canon) -> String {
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => canonical_number(n, canon),
         Value::String(s) => {
             let mut out = String::with_capacity(s.len() + 2);
             out.push('"');
@@ -91,11 +239,11 @@ fn canonical_json(value: &Value) -> String {
             out
         }
         Value::Array(arr) => {
-            let items: Vec<String> = arr.iter().map(canonical_json).collect();
+            let items: Vec<String> = arr.iter().map(|v| canonical_json(v, canon)).collect();
             format!("[{}]", items.join(","))
         }
         Value::Object(map) => {
-            // RFC 8785: sort by UTF-16 code unit sequence
+            // sort by UTF-16 code unit sequence (both algorithms)
             let mut keys: Vec<&String> = map.keys().collect();
             keys.sort_by(|a, b| {
                 let a16: Vec<u16> = a.encode_utf16().collect();
@@ -107,12 +255,39 @@ fn canonical_json(value: &Value) -> String {
                 .map(|k| {
                     format!(
                         "{}:{}",
-                        canonical_json(&Value::String((*k).clone())),
-                        canonical_json(&map[*k])
+                        canonical_json(&Value::String((*k).clone()), canon),
+                        canonical_json(&map[*k], canon)
                     )
                 })
                 .collect();
             format!("{{{}}}", pairs.join(","))
+        }
+    }
+}
+
+/// Read the canonicalization a session declares (SESSION_START payload). Absent -> legacy;
+/// "jcs-rfc8785" -> RFC 8785; anything else is an error, never a guess.
+fn select_canonicalization(events: &[Map<String, Value>]) -> Result<Canon, String> {
+    let start = events
+        .iter()
+        .filter(|e| e.get("event_type").and_then(Value::as_str) == Some("SESSION_START"))
+        .min_by_key(|e| e.get("seq").and_then(Value::as_i64).unwrap_or(0));
+    let payload = match start.and_then(|e| e.get("payload")).and_then(Value::as_object) {
+        Some(p) => p,
+        None => return Ok(Canon::Legacy),
+    };
+    match payload.get(CANON_FIELD) {
+        None => Ok(Canon::Legacy),
+        Some(Value::String(s)) if s == CANON_RFC8785 => Ok(Canon::Rfc8785),
+        Some(other) => {
+            let shown: String = match other {
+                Value::String(s) => s.chars().take(60).collect(),
+                v => v.to_string().chars().take(60).collect(),
+            };
+            Err(format!(
+                "SESSION_START declares unsupported canonicalization '{}'; this verifier supports '{}' (or the field omitted, meaning legacy 1.x). Refusing to guess.",
+                shown, CANON_RFC8785
+            ))
         }
     }
 }
@@ -123,13 +298,13 @@ fn canonical_json(value: &Value) -> String {
 // event_hash = SHA-256( canonical_json(event_without_event_hash_and_signature) )
 // ---------------------------------------------------------------------------
 
-fn compute_event_hash(event_map: &Map<String, Value>) -> String {
+fn compute_event_hash(event_map: &Map<String, Value>, canon: Canon) -> String {
     let stripped: Map<String, Value> = event_map
         .iter()
         .filter(|(k, _)| k.as_str() != "event_hash" && k.as_str() != "signature")
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
-    let canonical = canonical_json(&Value::Object(stripped));
+    let canonical = canonical_json(&Value::Object(stripped), canon);
     let mut hasher = Sha256::new();
     hasher.update(canonical.as_bytes());
     hex_encode(hasher.finalize())
@@ -143,6 +318,69 @@ fn compute_event_hash(event_map: &Map<String, Value>) -> String {
 //   - signature: base64-encoded 64-byte Ed25519 signature
 //   - message: event_hash as UTF-8 bytes (the 64-char hex string)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Per-event Ed25519 signatures — matches Python sasana.verifier._check_session_signatures
+//
+// Active when SESSION_START.payload carries `session_pubkey`. Every non-CHAIN_SEAL event's
+// `signature` must verify over its event_hash. An invalid signature is an error (COMPROMISED);
+// missing signatures only prevent SIGNED_NON_AUTHORITATIVE_EVIDENCE (all events must be signed).
+// The key is embedded in the log, so this shows consistency, not identity.
+// ---------------------------------------------------------------------------
+
+fn verify_session_signatures(events: &[Map<String, Value>]) -> (bool, Vec<String>) {
+    let start = events
+        .iter()
+        .filter(|e| e.get("event_type").and_then(Value::as_str) == Some("SESSION_START"))
+        .min_by_key(|e| e.get("seq").and_then(Value::as_i64).unwrap_or(0));
+    let pubkey_b64 = match start
+        .and_then(|e| e.get("payload"))
+        .and_then(Value::as_object)
+        .and_then(|p| p.get("session_pubkey"))
+        .and_then(Value::as_str)
+    {
+        Some(k) if !k.is_empty() => k,
+        _ => return (false, vec![]),
+    };
+    let pubkey_bytes = BASE64.decode(pubkey_b64).ok().filter(|b| b.len() == 32);
+
+    let mut errors = Vec::new();
+    let (mut verified, mut unsigned) = (0usize, 0usize);
+    for e in events {
+        if e.get("event_type").and_then(Value::as_str) == Some("CHAIN_SEAL") {
+            continue;
+        }
+        let sig = match e.get("signature") {
+            None | Some(Value::Null) => {
+                unsigned += 1;
+                continue;
+            }
+            Some(v) => v,
+        };
+        let event_hash = e.get("event_hash").and_then(Value::as_str).unwrap_or("");
+        let ok = match (&pubkey_bytes, sig.as_str().and_then(|t| BASE64.decode(t).ok())) {
+            (Some(pk), Some(sig_bytes)) if sig_bytes.len() == 64 => {
+                UnparsedPublicKey::new(&ring_sig::ED25519, pk)
+                    .verify(event_hash.as_bytes(), &sig_bytes)
+                    .is_ok()
+            }
+            _ => false,
+        };
+        if ok {
+            verified += 1;
+        } else {
+            let seq = e.get("seq").and_then(Value::as_i64).unwrap_or(0);
+            errors.push(format!("seq={}: Ed25519 signature invalid", seq));
+        }
+    }
+    if !errors.is_empty() {
+        return (false, errors);
+    }
+    if verified == 0 {
+        return (false, vec![]);
+    }
+    (unsigned == 0, vec![])
+}
 
 struct SealOutcome {
     errors: Vec<String>,
@@ -275,6 +513,7 @@ struct VerifyResult {
     require_seal: bool,
     seal_present: bool,
     seal_trusted: bool,
+    canonicalization: String,
     verifier_version: String,
 }
 
@@ -321,6 +560,12 @@ fn verify_events(
     if raw_events.is_empty() {
         return error_result("File is empty or contains no JSON objects".to_string(), trusted_pubkey, require_seal);
     }
+
+    // One algorithm, chosen once from SESSION_START, used for every event. No fallback.
+    let canon = match select_canonicalization(raw_events) {
+        Ok(c) => c,
+        Err(msg) => return error_result(msg, trusted_pubkey, require_seal),
+    };
 
     let event_count = raw_events.len();
     let mut errors: Vec<String> = Vec::new();
@@ -375,7 +620,7 @@ fn verify_events(
             }
         }
 
-        let recomputed = compute_event_hash(event_map);
+        let recomputed = compute_event_hash(event_map, canon);
         if let Some(stored) = event_map.get("event_hash").and_then(Value::as_str) {
             if stored != recomputed.as_str() {
                 errors.push(format!(
@@ -428,6 +673,8 @@ fn verify_events(
     // Check 5: CHAIN_SEAL Ed25519 signature, key pinning, single/final seal, session_hash
     let seal = verify_seal_signature(raw_events, trusted_pubkey, require_seal);
     errors.extend(seal.errors);
+    let (all_signed, signature_errors) = verify_session_signatures(raw_events);
+    errors.extend(signature_errors);
     let seal_trusted = seal.trusted && errors.is_empty();
 
     let mut warnings: Vec<String> = Vec::new();
@@ -454,6 +701,8 @@ fn verify_events(
         ("INTACT".to_string(), "AUTHORITATIVE_EVIDENCE".to_string())
     } else if has_chain_seal {
         ("INTACT".to_string(), "SELF_SEALED_EVIDENCE".to_string())
+    } else if all_signed {
+        ("INTACT".to_string(), "SIGNED_NON_AUTHORITATIVE_EVIDENCE".to_string())
     } else {
         ("INTACT".to_string(), "NON_AUTHORITATIVE_EVIDENCE".to_string())
     };
@@ -471,6 +720,7 @@ fn verify_events(
         require_seal,
         seal_present: seal.present,
         seal_trusted,
+        canonicalization: canon.name().to_string(),
         verifier_version: VERIFIER_VERSION.to_string(),
     }
 }
@@ -489,6 +739,7 @@ fn error_result(msg: String, trusted_pubkey: Option<&str>, require_seal: bool) -
         require_seal,
         seal_present: false,
         seal_trusted: false,
+        canonicalization: String::new(),
         verifier_version: VERIFIER_VERSION.to_string(),
     }
 }
@@ -509,6 +760,9 @@ fn print_human(result: &VerifyResult, path: &str) {
         "Trusted key: {}",
         if result.pinned { "pinned (--trust-key)" } else { "none (seal key NOT trusted)" }
     );
+    if !result.canonicalization.is_empty() {
+        println!("Canonicalization: {}", result.canonicalization);
+    }
     println!();
 
     let pass = "PASS";
@@ -689,31 +943,32 @@ mod tests {
     #[test]
     fn canonical_json_sorts_keys() {
         let obj = json!({"z": 1, "a": 2, "m": 3});
-        assert_eq!(canonical_json(&obj), r#"{"a":2,"m":3,"z":1}"#);
+        assert_eq!(canonical_json(&obj, Canon::Rfc8785), r#"{"a":2,"m":3,"z":1}"#);
     }
 
     #[test]
     fn canonical_json_negative_zero() {
         let zero = Value::Number(serde_json::Number::from_f64(-0.0_f64).unwrap());
-        assert_eq!(canonical_json(&zero), "0");
+        assert_eq!(canonical_json(&zero, Canon::Rfc8785), "0");
+        assert_eq!(canonical_json(&zero, Canon::Legacy), "0");
     }
 
     #[test]
     fn canonical_json_escapes_newline() {
         let s = Value::String("\n".to_string());
-        assert_eq!(canonical_json(&s), r#""\n""#);
+        assert_eq!(canonical_json(&s, Canon::Rfc8785), r#""\n""#);
     }
 
     #[test]
     fn canonical_json_nested_object() {
         let obj = json!({"b": {"y": 1, "x": 2}, "a": 3});
-        let result = canonical_json(&obj);
+        let result = canonical_json(&obj, Canon::Rfc8785);
         assert!(result.starts_with(r#"{"a":3,"b":{"x":2,"y":1}}"#));
     }
 
     #[test]
     fn canonical_json_empty_object() {
-        assert_eq!(canonical_json(&json!({})), "{}");
+        assert_eq!(canonical_json(&json!({}), Canon::Rfc8785), "{}");
     }
 
     #[test]
@@ -731,10 +986,10 @@ mod tests {
         map.insert("signature".to_string(), json!("also_excluded"));
         map.insert("prev_hash".to_string(), json!(GENESIS_HASH));
 
-        let h1 = compute_event_hash(&map);
+        let h1 = compute_event_hash(&map, Canon::Rfc8785);
         map.remove("event_hash");
         map.remove("signature");
-        let h2 = compute_event_hash(&map);
+        let h2 = compute_event_hash(&map, Canon::Rfc8785);
         assert_eq!(h1, h2);
     }
 
@@ -760,7 +1015,7 @@ mod tests {
         m.insert("timestamp".into(), json!("2026-01-01T00:00:00.000000Z"));
         m.insert("payload".into(), payload);
         m.insert("prev_hash".into(), json!(prev));
-        let h = compute_event_hash(&m);
+        let h = compute_event_hash(&m, Canon::Legacy);
         m.insert("event_hash".into(), json!(h));
         m
     }
@@ -793,7 +1048,7 @@ mod tests {
             let prev = if i == 0 { GENESIS_HASH.to_string() }
                 else { evs[i - 1]["event_hash"].as_str().unwrap().to_string() };
             evs[i].insert("prev_hash".into(), json!(prev));
-            let h = compute_event_hash(&evs[i]);
+            let h = compute_event_hash(&evs[i], Canon::Legacy);
             evs[i].insert("event_hash".into(), json!(h));
         }
     }
@@ -854,7 +1109,7 @@ mod tests {
         let head = evs[3]["event_hash"].clone();
         evs[4].insert("prev_hash".into(), head.clone()); // c2: relink + rehash, stale signature
         evs[4].get_mut("payload").unwrap()["session_hash"] = head;
-        let h = compute_event_hash(&evs[4]);
+        let h = compute_event_hash(&evs[4], Canon::Legacy);
         evs[4].insert("event_hash".into(), json!(h));
         let r = run(&evs, Some(&pk), false);
         assert_eq!(r.status, "COMPROMISED");
@@ -937,7 +1192,7 @@ mod tests {
         let (kp, pk) = keypair();
         let mut evs = sealed(&kp, &pk);
         evs[4].get_mut("payload").unwrap()["session_hash"] = json!("a".repeat(64));
-        let h = compute_event_hash(&evs[4]);
+        let h = compute_event_hash(&evs[4], Canon::Legacy);
         evs[4].insert("event_hash".into(), json!(h.clone()));
         let sig = BASE64.encode(kp.sign(h.as_bytes()).as_ref());
         evs[4].insert("signature".into(), json!(sig));
@@ -954,5 +1209,200 @@ mod tests {
         let r = run(&base_session(), None, false);
         assert_eq!(exit_code_for(&r, false), 0);
         assert_eq!(exit_code_for(&r, true), 4);
+    }
+
+    // ----- canonicalization: shared vectors, declaration, downgrade, legacy fixtures -------
+
+    const VECTORS: &str = include_str!("../../tests/fixtures/jcs_vectors.json");
+
+    fn vectors() -> Value {
+        serde_json::from_str(VECTORS).expect("jcs_vectors.json parses")
+    }
+
+    #[test]
+    fn number_vectors_match_node_oracle_and_legacy_release() {
+        let v = vectors();
+        let nums = v["numbers"].as_array().unwrap();
+        assert!(nums.len() >= 40);
+        for n in nums {
+            let tok = n["json"].as_str().unwrap();
+            let val: Value = serde_json::from_str(tok).unwrap();
+            assert_eq!(
+                canonical_json(&val, Canon::Rfc8785),
+                n["rfc8785"].as_str().unwrap(),
+                "rfc8785 {}",
+                tok
+            );
+            assert_eq!(
+                canonical_json(&val, Canon::Legacy),
+                n["legacy"].as_str().unwrap(),
+                "legacy {}",
+                tok
+            );
+        }
+    }
+
+    #[test]
+    fn rfc8785_appendix_b() {
+        let v = vectors();
+        for (bits, expected) in v["appendix_b"].as_object().unwrap() {
+            let f = f64::from_bits(u64::from_str_radix(bits, 16).unwrap());
+            assert_eq!(es_number(f), expected.as_str().unwrap(), "bits {}", bits);
+        }
+    }
+
+    #[test]
+    fn document_vectors() {
+        let v = vectors();
+        for d in v["documents"].as_array().unwrap() {
+            let val: Value = serde_json::from_str(d["json"].as_str().unwrap()).unwrap();
+            let name = d["name"].as_str().unwrap();
+            assert_eq!(canonical_json(&val, Canon::Rfc8785), d["rfc8785"].as_str().unwrap(), "rfc8785 {}", name);
+            assert_eq!(canonical_json(&val, Canon::Legacy), d["legacy"].as_str().unwrap(), "legacy {}", name);
+        }
+    }
+
+    fn start_with(payload: Value) -> Vec<Ev> {
+        vec![mk_event(1, "SESSION_START", payload, GENESIS_HASH)]
+    }
+
+    #[test]
+    fn declaration_absent_is_legacy_rfc_is_rfc_anything_else_is_an_error() {
+        assert_eq!(select_canonicalization(&start_with(json!({"agent_id": "a"}))), Ok(Canon::Legacy));
+        assert_eq!(
+            select_canonicalization(&start_with(json!({"canonicalization": "jcs-rfc8785"}))),
+            Ok(Canon::Rfc8785)
+        );
+        for bad in [json!("legacy"), json!("jcs-rfc8785 "), json!("JCS-RFC8785"), json!("rfc8785"), json!(""), json!(null), json!(1), json!(["jcs-rfc8785"])] {
+            let r = select_canonicalization(&start_with(json!({ "canonicalization": bad.clone() })));
+            assert!(r.is_err(), "{} should be rejected", bad);
+        }
+    }
+
+    fn rfc_session(float_payload: Value) -> Vec<Ev> {
+        let spec = [
+            ("SESSION_START", json!({"agent_id": "a", "canonicalization": "jcs-rfc8785"})),
+            ("LLM_RESPONSE", float_payload),
+            ("SESSION_END", json!({"status": "success"})),
+        ];
+        let mut out: Vec<Ev> = Vec::new();
+        for (i, (et, pl)) in spec.iter().enumerate() {
+            let prev = out.last().map(|e| e["event_hash"].as_str().unwrap().to_string())
+                .unwrap_or_else(|| GENESIS_HASH.to_string());
+            let mut m = Map::new();
+            m.insert("seq".into(), json!(i as i64 + 1));
+            m.insert("event_type".into(), json!(et));
+            m.insert("session_id".into(), json!("rfc"));
+            m.insert("timestamp".into(), json!("2026-01-01T00:00:00.000000Z"));
+            m.insert("payload".into(), pl.clone());
+            m.insert("prev_hash".into(), json!(prev));
+            let h = compute_event_hash(&m, Canon::Rfc8785);
+            m.insert("event_hash".into(), json!(h));
+            out.push(m);
+        }
+        out
+    }
+
+    #[test]
+    fn rfc8785_session_with_whole_floats_verifies_and_reports_its_algorithm() {
+        let evs = rfc_session(json!({"duration_ms": 1200.0, "cost": 0.0, "tiny": 1e-5}));
+        let r = run(&evs, None, false);
+        assert_eq!((r.status.as_str(), r.canonicalization.as_str()), ("INTACT", "jcs-rfc8785"));
+    }
+
+    #[test]
+    fn changing_the_declaration_breaks_the_chain_in_both_directions() {
+        // RFC 8785 -> legacy: drop the declaration
+        let mut evs = rfc_session(json!({"duration_ms": 1200.0}));
+        evs[0].get_mut("payload").unwrap().as_object_mut().unwrap().remove("canonicalization");
+        let r = run(&evs, None, false);
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("event_hash mismatch")), "{:?}", r.errors);
+        // legacy -> RFC 8785: add a declaration to an undeclared log
+        let mut legacy = base_session();
+        legacy[0].get_mut("payload").unwrap()["canonicalization"] = json!("jcs-rfc8785");
+        assert_eq!(run(&legacy, None, false).status, "COMPROMISED");
+        // unknown value is ERROR, not COMPROMISED
+        let mut evs = rfc_session(json!({"x": 1}));
+        evs[0].get_mut("payload").unwrap()["canonicalization"] = json!("jcs-rfc9999");
+        assert_eq!(run(&evs, None, false).status, "ERROR");
+    }
+
+    #[test]
+    fn the_wrong_algorithm_is_never_tried_as_a_fallback() {
+        // A log whose hashes were computed with RFC 8785 but whose SESSION_START omits the
+        // declaration must NOT verify by quietly retrying with the other algorithm.
+        let mut evs = rfc_session(json!({"duration_ms": 1200.0}));
+        evs[0].get_mut("payload").unwrap().as_object_mut().unwrap().remove("canonicalization");
+        rechain(&mut evs); // consistent under the RFC algorithm after removing the field
+        let r = run(&evs, None, false);
+        // Rechained with Legacy by the helper, so it verifies as legacy ...
+        assert_eq!(r.canonicalization, "legacy");
+        // ... but the same events hashed with RFC 8785 and no declaration do not
+        let mut again = rfc_session(json!({"duration_ms": 1200.0}));
+        again[0].get_mut("payload").unwrap().as_object_mut().unwrap().remove("canonicalization");
+        for i in 0..again.len() {
+            let prev = if i == 0 { GENESIS_HASH.to_string() } else { again[i - 1]["event_hash"].as_str().unwrap().to_string() };
+            again[i].insert("prev_hash".into(), json!(prev));
+            let h = compute_event_hash(&again[i], Canon::Rfc8785);
+            again[i].insert("event_hash".into(), json!(h));
+        }
+        assert_eq!(run(&again, None, false).status, "COMPROMISED");
+    }
+
+    #[test]
+    fn legacy_fixtures_written_by_published_releases_verify() {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/fixtures/legacy");
+        let manifest: Value =
+            serde_json::from_str(&fs::read_to_string(format!("{}/manifest.json", dir)).unwrap()).unwrap();
+        let files = manifest["files"].as_object().unwrap();
+        assert!(files.len() >= 8);
+        for (name, meta) in files {
+            let path = format!("{}/{}", dir, name);
+            let r = verify_file(&path, None, false);
+            assert_eq!(r.status, "INTACT", "{}: {:?}", name, r.errors);
+            assert_eq!(r.canonicalization, "legacy", "{}", name);
+            assert_eq!(r.evidence_class, meta["unpinned"]["evidence_class"].as_str().unwrap(), "{}", name);
+            if let Some(pk) = meta["archeion_pubkey"].as_str() {
+                let r = verify_file(&path, Some(pk), false);
+                assert_eq!((r.status.as_str(), r.evidence_class.as_str()), ("INTACT", "AUTHORITATIVE_EVIDENCE"), "{}", name);
+            }
+        }
+    }
+
+    #[test]
+    fn per_event_signatures_give_signed_class_and_bad_ones_are_compromised() {
+        let (kp, pk) = keypair();
+        let sign = |m: &mut Ev| {
+            let sig = BASE64.encode(kp.sign(m["event_hash"].as_str().unwrap().as_bytes()).as_ref());
+            m.insert("signature".into(), json!(sig));
+        };
+        let mut evs: Vec<Ev> = Vec::new();
+        for (i, (et, pl)) in [
+            ("SESSION_START", json!({"agent_id": "a", "session_pubkey": pk})),
+            ("LLM_CALL", json!({"prompt_hash": "a"})),
+            ("SESSION_END", json!({"status": "success"})),
+        ]
+        .iter()
+        .enumerate()
+        {
+            let prev = evs.last().map(|e| e["event_hash"].as_str().unwrap().to_string())
+                .unwrap_or_else(|| GENESIS_HASH.to_string());
+            let mut m = mk_event(i as i64 + 1, et, pl.clone(), &prev);
+            sign(&mut m);
+            evs.push(m);
+        }
+        let r = run(&evs, None, false);
+        assert_eq!((r.status.as_str(), r.evidence_class.as_str()), ("INTACT", "SIGNED_NON_AUTHORITATIVE_EVIDENCE"));
+        // one unsigned event: still INTACT, but no longer SIGNED
+        let mut partial = evs.clone();
+        partial[1].remove("signature");
+        assert_eq!(run(&partial, None, false).evidence_class, "NON_AUTHORITATIVE_EVIDENCE");
+        // a wrong signature is COMPROMISED
+        let mut bad = evs.clone();
+        bad[1].insert("signature".into(), json!(BASE64.encode([7u8; 64])));
+        let r = run(&bad, None, false);
+        assert_eq!(r.status, "COMPROMISED");
+        assert!(r.errors.iter().any(|e| e.contains("signature invalid")));
     }
 }
