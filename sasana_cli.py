@@ -3,7 +3,7 @@
 sasana_cli.py — CLI entry point.
 
 Usage:
-  sasana verify <session.jsonl> [--json]
+  sasana verify <session.jsonl> [--json] [--trust-key KEY] [--require-seal] [--strict]
   sasana evidence-pack <session.jsonl> [--standard eu_ai_act|soc2|hipaa|siem]
   sasana verify-commitment <bundle.json> --deadline ISO8601 --tsa-anchor CERT [--json]
   sasana observe [--ws URL] [--output-dir DIR]
@@ -59,12 +59,94 @@ def _magenta(text: str) -> str:
     return _c("35", text)
 
 
+# Exit codes for `sasana verify` (documented in README):
+#   0 INTACT        1 COMPROMISED      2 PARTIAL        3 ERROR / bad usage
+#   4 INTACT but not AUTHORITATIVE_EVIDENCE — only with --strict
+EXIT_INTACT = 0
+EXIT_COMPROMISED = 1
+EXIT_PARTIAL = 2
+EXIT_ERROR = 3
+EXIT_NOT_AUTHORITATIVE = 4
+
+
+class _StrictParser(argparse.ArgumentParser):
+    """Argparse that exits 3 (not 2, which means PARTIAL) on bad usage."""
+
+    def error(self, message: str):  # type: ignore[override]
+        self.print_usage(sys.stderr)
+        self.exit(EXIT_ERROR, f"{self.prog}: error: {message}\n")
+
+
+def _parse_strict(ap: argparse.ArgumentParser, args: list) -> argparse.Namespace:
+    """
+    parse_args, not parse_known_args: an unrecognised flag must be an error. Silently
+    ignoring `--trust_key` or `--require-seals` would drop a security control and report a
+    weaker verdict as if the control had been applied.
+    """
+    return ap.parse_args(args)
+
+
+def _verify_json(result, parsed, exit_code: int) -> dict:
+    ts = result.checks.get("rfc3161_timestamp", {}) or {}
+    return {
+        "status": result.status,
+        "evidence_class": result.evidence_class,
+        "exit_code": exit_code,
+        "session_id": result.session_id,
+        "event_count": result.event_count,
+        "log_drop_count": result.log_drop_count,
+        "root_hash": result.root_hash,
+        "errors": result.errors,
+        "warnings": result.warnings,
+        "pinned": result.pinned,
+        "require_seal": result.require_seal,
+        "strict": bool(getattr(parsed, "strict", False)),
+        "seal_present": result.seal_present,
+        "seal_trusted": result.seal_trusted,
+        # RFC 3161: imprint match only. "verified" is always false: the TSA signature,
+        # certificate chain and genTime are not checked by `sasana verify`.
+        "timestamp": {
+            "status": ts.get("status", "SKIPPED"),
+            "imprint_match": result.timestamp_imprint_match,
+            "verified": False,
+            "claimed_time_utc": ts.get("timestamp_utc"),
+            "detail": ts.get("detail"),
+            "errors": ts.get("errors", []),
+        },
+        "timestamp_verified": False,
+        "checks": result.checks,
+        "verifier_version": _verifier_version(),
+    }
+
+
+def _verifier_version() -> str:
+    from sasana.verifier import VERIFIER_VERSION
+
+    return VERIFIER_VERSION
+
+
+def _verify_exit_code(result, strict: bool) -> int:
+    code = {
+        "INTACT": EXIT_INTACT,
+        "PARTIAL": EXIT_PARTIAL,
+        "COMPROMISED": EXIT_COMPROMISED,
+        "ERROR": EXIT_ERROR,
+    }.get(result.status, EXIT_ERROR)
+    if strict and result.status == "INTACT" and result.evidence_class != "AUTHORITATIVE_EVIDENCE":
+        return EXIT_NOT_AUTHORITATIVE
+    return code
+
+
 def _cmd_verify(args: list) -> int:
     if not args:
-        print("Usage: sasana verify <session.jsonl> [--json]", file=sys.stderr)
-        return 3
+        print(
+            "Usage: sasana verify <session.jsonl> [--json] [--trust-key KEY] "
+            "[--require-seal] [--strict]",
+            file=sys.stderr,
+        )
+        return EXIT_ERROR
 
-    ap = argparse.ArgumentParser(prog="sasana verify", add_help=False)
+    ap = _StrictParser(prog="sasana verify", add_help=False)
     ap.add_argument("session_file")
     ap.add_argument("--json", dest="json_out", action="store_true")
     ap.add_argument(
@@ -72,85 +154,150 @@ def _cmd_verify(args: list) -> int:
         dest="trust_key",
         default=None,
         metavar="BASE64_PUBKEY",
-        help="Pin the expected Archeion server public key (base64). Rejects seals from any other key.",
+        help="Pin the Archeion public key (base64, obtained out-of-band). Requires a CHAIN_SEAL "
+        "signed by exactly this key; the only way to reach AUTHORITATIVE_EVIDENCE.",
     )
-    parsed, _ = ap.parse_known_args(args)
+    ap.add_argument(
+        "--require-seal",
+        dest="require_seal",
+        action="store_true",
+        help="Fail (COMPROMISED) if the session has no CHAIN_SEAL, even without --trust-key.",
+    )
+    ap.add_argument(
+        "--verbose",
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Print each failing check's errors.",
+    )
+    ap.add_argument(
+        "--strict",
+        dest="strict",
+        action="store_true",
+        help="Exit 4 unless the result is INTACT with AUTHORITATIVE_EVIDENCE. Requires --trust-key.",
+    )
+    parsed = _parse_strict(ap, args)
+    if parsed.strict and not parsed.trust_key:
+        print(
+            "ERROR: --strict requires --trust-key (AUTHORITATIVE_EVIDENCE needs a pinned key)",
+            file=sys.stderr,
+        )
+        return EXIT_ERROR
+
+    from sasana.verifier import ERROR, NO_EVIDENCE, VERIFIER_VERSION, verify
+
+    def _load_error(message: str) -> int:
+        print(f"ERROR: {message}", file=sys.stderr)
+        if parsed.json_out:
+            print(
+                json.dumps(
+                    {
+                        "status": ERROR,
+                        "evidence_class": NO_EVIDENCE,
+                        "exit_code": EXIT_ERROR,
+                        "errors": [message],
+                        "warnings": [],
+                        "pinned": parsed.trust_key is not None,
+                        "require_seal": parsed.require_seal,
+                        "strict": parsed.strict,
+                        "verifier_version": VERIFIER_VERSION,
+                    },
+                    indent=2,
+                )
+            )
+        return EXIT_ERROR
 
     try:
         with open(parsed.session_file) as f:
             events = [json.loads(line) for line in f if line.strip()]
     except FileNotFoundError:
-        print(f"ERROR: file not found: {parsed.session_file}", file=sys.stderr)
-        return 3
-    except (OSError, json.JSONDecodeError) as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        return 3
+        return _load_error(f"file not found: {parsed.session_file}")
+    except (OSError, ValueError) as e:  # ValueError covers JSONDecodeError and bad UTF-8
+        return _load_error(str(e))
 
-    from sasana.verifier import verify, VERIFIER_VERSION
-
-    result = verify(events, trusted_seal_pubkey=parsed.trust_key)
+    result = verify(events, trusted_seal_pubkey=parsed.trust_key, require_seal=parsed.require_seal)
+    exit_code = _verify_exit_code(result, parsed.strict)
 
     if parsed.json_out:
-        print(
-            json.dumps(
-                {
-                    "status": result.status,
-                    "evidence_class": result.evidence_class,
-                    "session_id": result.session_id,
-                    "event_count": result.event_count,
-                    "log_drop_count": result.log_drop_count,
-                    "root_hash": result.root_hash,
-                    "errors": result.errors,
-                    "verifier_version": VERIFIER_VERSION,
-                },
-                indent=2,
+        print(json.dumps(_verify_json(result, parsed, exit_code), indent=2))
+        return exit_code
+
+    print(_bold(_cyan(f"Sasana Verifier v{VERIFIER_VERSION}")))
+    print(_dim(f"File: {parsed.session_file}"))
+    if result.session_id:
+        print(_dim(f"Session: {result.session_id}"))
+    print(f"Events: {result.event_count}  Evidence: {result.evidence_class}")
+    pin_txt = "pinned (--trust-key)" if result.pinned else "none (seal key NOT trusted)"
+    print(_dim(f"Trusted key: {pin_txt}"))
+    print()
+    _ts_check = result.checks.get("rfc3161_timestamp", {})
+    _has_ts = _ts_check.get("status") not in (None, "SKIPPED")
+    _total = 6 if _has_ts else 5
+
+    def _st(label: str, status: str, suffix: str = "") -> str:
+        color = _green if status == "PASS" else (_yellow if status in _YELLOW_STATES else _red)
+        return f"{label} ... {color(status)}{suffix}"
+
+    for label, key in [
+        (f"[1/{_total}] Structural validity ", "structural"),
+        (f"[2/{_total}] Sequence integrity  ", "sequence"),
+        (f"[3/{_total}] Hash chain integrity", "hash_chain"),
+        (f"[4/{_total}] Session completeness", "completeness"),
+        (f"[5/{_total}] Seal signature      ", "seal_signature"),
+    ]:
+        r = result.checks.get(key)
+        st = r["status"] if r else "SKIPPED"
+        suffix = ""
+        if key == "seal_signature" and st == "PASS":
+            if not result.seal_present:
+                st, suffix = "NO SEAL", _dim("  (no CHAIN_SEAL present)")
+            elif result.seal_trusted:
+                suffix = _dim("  (signed by the pinned key)")
+            else:
+                st, suffix = "SELF-SIGNED", _dim("  (valid against its own embedded key only)")
+        print(_st(label, st, suffix))
+        if parsed.verbose and r and r.get("errors"):
+            for err in r["errors"]:
+                print(_dim(f"      {err}"))
+    if _has_ts:
+        st = _ts_check.get("status", "SKIPPED")
+        ts_utc = _ts_check.get("timestamp_utc")
+        suffix = ""
+        if st == "IMPRINT_MATCH":
+            suffix = _dim(
+                f"  (token claims {ts_utc}; TSA signature and genTime NOT verified)"
+                if ts_utc
+                else "  (TSA signature and genTime NOT verified)"
             )
-        )
-    else:
-        print(_bold(_cyan(f"Sasana Verifier v{VERIFIER_VERSION}")))
-        print(_dim(f"File: {parsed.session_file}"))
-        if result.session_id:
-            print(_dim(f"Session: {result.session_id}"))
-        print(f"Events: {result.event_count}  Evidence: {result.evidence_class}")
+        print(_st("[6/6] RFC 3161 timestamp   ", st, suffix))
+        if parsed.verbose and _ts_check.get("errors"):
+            for err in _ts_check["errors"]:
+                print(_dim(f"      {err}"))
+    print()
+    for w in result.warnings:
+        print(_yellow(f"⚠  {w}"))
+    if result.warnings:
         print()
-        _ts_check = result.checks.get("rfc3161_timestamp", {})
-        _has_ts = _ts_check.get("status") not in (None, "SKIPPED")
-        _total = 6 if _has_ts else 5
-
-        def _st(label: str, status: str, suffix: str = "") -> str:
-            color = _green if status == "PASS" else (_yellow if status == "SKIPPED" else _red)
-            return f"{label} ... {color(status)}{suffix}"
-
-        for label, key in [
-            (f"[1/{_total}] Structural validity ", "structural"),
-            (f"[2/{_total}] Sequence integrity  ", "sequence"),
-            (f"[3/{_total}] Hash chain integrity", "hash_chain"),
-            (f"[4/{_total}] Session completeness", "completeness"),
-            (f"[5/{_total}] Seal signature      ", "seal_signature"),
-        ]:
-            r = result.checks.get(key)
-            st = r["status"] if r else "SKIPPED"
-            print(_st(label, st))
-        if _has_ts:
-            st = _ts_check.get("status", "SKIPPED")
-            ts_utc = _ts_check.get("timestamp_utc")
-            suffix = f"  ({ts_utc})" if ts_utc else ""
-            print(_st("[6/6] RFC 3161 timestamp   ", st, suffix))
-        print()
-        if result.status == "INTACT":
-            print(_bold(_green("Result: INTACT ✅")))
-        elif result.status == "PARTIAL":
-            print(_bold(_yellow(f"Result: PARTIAL ⚠️  ({result.log_drop_count} LOG_DROP events)")))
-        elif result.status == "COMPROMISED":
-            print(_bold(_red("Result: COMPROMISED ❌")))
-            for err in result.errors[:10]:
-                print(_red(f"  → {err}"))
+    if result.status == "INTACT":
+        if parsed.strict and exit_code == EXIT_NOT_AUTHORITATIVE:
+            print(_bold(_yellow(f"Result: INTACT, but {result.evidence_class} (--strict: exit 4)")))
         else:
-            print(_bold(_red("Result: ERROR ❌")))
-            for err in result.errors[:10]:
-                print(_red(f"  → {err}"))
+            print(_bold(_green("Result: INTACT ✅")))
+    elif result.status == "PARTIAL":
+        print(_bold(_yellow(f"Result: PARTIAL ⚠️  ({result.log_drop_count} LOG_DROP events)")))
+    elif result.status == "COMPROMISED":
+        print(_bold(_red("Result: COMPROMISED ❌")))
+        for err in result.errors[:10]:
+            print(_red(f"  → {err}"))
+    else:
+        print(_bold(_red("Result: ERROR ❌")))
+        for err in result.errors[:10]:
+            print(_red(f"  → {err}"))
 
-    return {"INTACT": 0, "PARTIAL": 2, "COMPROMISED": 1, "ERROR": 3}.get(result.status, 3)
+    return exit_code
+
+
+_YELLOW_STATES = ("SKIPPED", "NO SEAL", "SELF-SIGNED", "IMPRINT_MATCH")
 
 
 def _cmd_seal(args: list) -> int:
@@ -299,6 +446,14 @@ def _cmd_evidence_pack(args: list) -> int:
     ap.add_argument("--system-version", dest="system_version", default="1.0.0")
     ap.add_argument("--operator-id", dest="operator_id", default=None)
     ap.add_argument("--out", dest="out_dir", default=None, metavar="DIR")
+    ap.add_argument(
+        "--trust-key",
+        dest="trust_key",
+        default=None,
+        metavar="BASE64_PUBKEY",
+        help="Pin the Archeion public key. Without it a seal is reported as self-sealed, "
+        "never AUTHORITATIVE_EVIDENCE.",
+    )
     parsed, _ = ap.parse_known_args(args)
 
     if not os.path.exists(os.path.expanduser(parsed.session_file)):
@@ -320,6 +475,7 @@ def _cmd_evidence_pack(args: list) -> int:
                 system_version=parsed.system_version,
                 operator_id=parsed.operator_id,
                 output_dir=parsed.out_dir,
+                trusted_seal_pubkey=parsed.trust_key,
             )
             status_ok = r["compliant"]
             status_label = "COMPLIANT" if status_ok else "GAPS DETECTED"
@@ -327,7 +483,11 @@ def _cmd_evidence_pack(args: list) -> int:
         elif parsed.standard == "soc2":
             from sasana.compliance.soc2 import generate_soc2_report
 
-            r = generate_soc2_report(parsed.session_file, output_dir=parsed.out_dir)
+            r = generate_soc2_report(
+                parsed.session_file,
+                output_dir=parsed.out_dir,
+                trusted_seal_pubkey=parsed.trust_key,
+            )
             status_ok = r["result"] == "PASS"
             status_label = r["result"]
             evidence_class = r["evidence_class"]
@@ -338,6 +498,7 @@ def _cmd_evidence_pack(args: list) -> int:
                 parsed.session_file,
                 system_id=parsed.system_name,
                 output_dir=parsed.out_dir,
+                trusted_seal_pubkey=parsed.trust_key,
             )
             status_ok = r["compliant_core"]
             status_label = "COMPLIANT" if status_ok else "GAPS DETECTED"
@@ -347,7 +508,7 @@ def _cmd_evidence_pack(args: list) -> int:
 
             from sasana.compliance.siem import SiemExporter
 
-            exporter = SiemExporter(parsed.session_file)
+            exporter = SiemExporter(parsed.session_file, trusted_seal_pubkey=parsed.trust_key)
             summary = exporter.summary()
             evidence_class = summary.get("evidence_class", "—")
             session_id = (

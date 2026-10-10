@@ -8,6 +8,7 @@ hash-chain integrity guarantee, and what the verifier must catch.
 
 from __future__ import annotations
 
+import copy
 import datetime
 import sys
 import unittest
@@ -27,6 +28,7 @@ from sasana.verifier import (  # noqa: E402
     NON_AUTHORITATIVE_EVIDENCE,
     PARTIAL,
     PARTIAL_EVIDENCE,
+    SELF_SEALED_EVIDENCE,
     SIGNED_NON_AUTHORITATIVE_EVIDENCE,
     compute_event_hash,
     verify,
@@ -75,8 +77,12 @@ def _make_session(session_id: str = "test-session") -> list:
     return events
 
 
-def _signed_chain_seal(seq: int, session_id: str, prev_hash: str) -> dict:
-    """Build a properly signed CHAIN_SEAL event using the module-level test keypair."""
+def _signed_chain_seal(
+    seq: int, session_id: str, prev_hash: str, private_key=None, pubkey: str = None
+) -> dict:
+    """Build a properly signed CHAIN_SEAL event (module-level test keypair unless one is given)."""
+    private_key = private_key or _TEST_PRIVATE_KEY
+    pubkey = pubkey or _TEST_PUBKEY
     seal: dict = {
         "seq": seq,
         "event_type": "CHAIN_SEAL",
@@ -85,12 +91,12 @@ def _signed_chain_seal(seq: int, session_id: str, prev_hash: str) -> dict:
         "payload": {
             "session_hash": prev_hash,
             "sealed_by": "archeion-test",
-            "server_pubkey": _TEST_PUBKEY,
+            "server_pubkey": pubkey,
         },
         "prev_hash": prev_hash,
     }
     seal["event_hash"] = compute_event_hash(seal)
-    seal["signature"] = sign_event_hash(_TEST_PRIVATE_KEY, seal["event_hash"])
+    seal["signature"] = sign_event_hash(private_key, seal["event_hash"])
     return seal
 
 
@@ -304,12 +310,63 @@ class TestFullLogReplacement(unittest.TestCase):
         assert r.status == INTACT
         assert r.evidence_class == NON_AUTHORITATIVE_EVIDENCE
 
-    def test_replacement_requires_authoritative_evidence_to_prevent(self):
-        """CHAIN_SEAL commits to the original root hash; a replacement would differ."""
-        events = _make_session()
-        events.append(_signed_chain_seal(7, events[0]["session_id"], events[-1]["event_hash"]))
-        r = verify(events)
-        assert r.evidence_class == AUTHORITATIVE_EVIDENCE
+    def test_replacement_of_pinned_sealed_log_is_rejected(self):
+        """
+        The seal is what defeats a full-log replacement — but only against a pinned key.
+
+        The original session is sealed by the trusted key. The attacker rewrites the events
+        and cannot sign under that key, so every available forgery must fail a pinned verify:
+        (1) replay the genuine seal on the rewritten chain, (2) strip the seal,
+        (3) re-seal with their own key.
+        """
+        trusted_priv, trusted_pub = generate_keypair()
+        orig = _make_session()
+        orig.append(
+            _signed_chain_seal(
+                7, orig[0]["session_id"], orig[-1]["event_hash"], trusted_priv, trusted_pub
+            )
+        )
+        assert (
+            verify(orig, trusted_seal_pubkey=trusted_pub).evidence_class == AUTHORITATIVE_EVIDENCE
+        )
+
+        forged = _make_session()
+        forged[1]["payload"]["prompt_hash"] = "f" * 64
+        forged = _rechain(forged)
+
+        # (1) genuine seal replayed onto the rewritten chain: prev_hash / session_hash no longer match
+        replay = forged + [copy.deepcopy(orig[-1])]
+        assert verify(replay, trusted_seal_pubkey=trusted_pub).status == COMPROMISED
+
+        # (2) seal stripped
+        assert verify(forged, trusted_seal_pubkey=trusted_pub).status == COMPROMISED
+
+        # (3) attacker's own seal over the rewritten chain
+        atk_priv, atk_pub = generate_keypair()
+        resealed = forged + [
+            _signed_chain_seal(
+                7, forged[0]["session_id"], forged[-1]["event_hash"], atk_priv, atk_pub
+            )
+        ]
+        assert verify(resealed, trusted_seal_pubkey=trusted_pub).status == COMPROMISED
+
+    def test_replacement_resealed_with_attacker_key_is_not_authoritative_without_pin(self):
+        """Without a pin the attacker's re-seal verifies — as SELF_SEALED, never AUTHORITATIVE."""
+        atk_priv, atk_pub = generate_keypair()
+        forged = _make_session()
+        forged[1]["payload"]["prompt_hash"] = "f" * 64
+        forged = _rechain(forged)
+        forged.append(
+            _signed_chain_seal(
+                7, forged[0]["session_id"], forged[-1]["event_hash"], atk_priv, atk_pub
+            )
+        )
+        r = verify(forged)
+        assert r.status == INTACT
+        assert r.evidence_class == SELF_SEALED_EVIDENCE
+        assert r.evidence_class != AUTHORITATIVE_EVIDENCE
+        assert r.seal_trusted is False
+        assert any("not verified against a trusted key" in w for w in r.warnings)
 
 
 # ---------------------------------------------------------------------------
@@ -361,16 +418,18 @@ class TestSessionCompleteness(unittest.TestCase):
     def test_chain_seal_alone_accepted_as_closing_marker(self):
         events = _make_session()[:-1]  # no SESSION_END
         events.append(_signed_chain_seal(6, events[0]["session_id"], events[-1]["event_hash"]))
-        r = verify(events)
+        r = verify(events, trusted_seal_pubkey=_TEST_PUBKEY)
         assert r.status == INTACT
         assert r.evidence_class == AUTHORITATIVE_EVIDENCE
+        assert verify(events).evidence_class == SELF_SEALED_EVIDENCE
 
     def test_chain_seal_after_session_end_accepted(self):
         events = _make_session()
         events.append(_signed_chain_seal(7, events[0]["session_id"], events[-1]["event_hash"]))
-        r = verify(events)
+        r = verify(events, trusted_seal_pubkey=_TEST_PUBKEY)
         assert r.status == INTACT
         assert r.evidence_class == AUTHORITATIVE_EVIDENCE
+        assert verify(events).evidence_class == SELF_SEALED_EVIDENCE
 
 
 # ---------------------------------------------------------------------------
@@ -382,10 +441,15 @@ class TestEvidenceClasses(unittest.TestCase):
     def test_non_authoritative_for_unsigned_local_session(self):
         assert verify(_make_session()).evidence_class == NON_AUTHORITATIVE_EVIDENCE
 
-    def test_authoritative_for_chain_sealed_session(self):
+    def test_chain_sealed_session_is_authoritative_only_when_key_is_pinned(self):
         events = _make_session()
         events.append(_signed_chain_seal(7, events[0]["session_id"], events[-1]["event_hash"]))
-        assert verify(events).evidence_class == AUTHORITATIVE_EVIDENCE
+        assert (
+            verify(events, trusted_seal_pubkey=_TEST_PUBKEY).evidence_class
+            == AUTHORITATIVE_EVIDENCE
+        )
+        # A seal that verifies only against its own embedded key is not evidence of who sealed it.
+        assert verify(events).evidence_class == SELF_SEALED_EVIDENCE
 
     def test_signed_non_authoritative_for_sdk_signed_session(self):
         """A session recorded with a private key → SIGNED_NON_AUTHORITATIVE_EVIDENCE."""

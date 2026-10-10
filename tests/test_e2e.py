@@ -87,7 +87,16 @@ class TestSealEndpoint(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         sealed_path = self.tmp / "sealed.jsonl"
         sealed_path.write_text(resp.text)
-        result = verify(_load_jsonl(sealed_path))
+        events = _load_jsonl(sealed_path)
+
+        # Unpinned: the seal only proves self-consistency, not who sealed it.
+        unpinned = verify(events)
+        self.assertEqual(unpinned.status, INTACT)
+        self.assertEqual(unpinned.evidence_class, "SELF_SEALED_EVIDENCE")
+
+        # Pinned to the real Archeion key: authoritative.
+        pubkey = self.client.get("/pubkey").json()["pubkey"]
+        result = verify(events, trusted_seal_pubkey=pubkey)
         self.assertEqual(result.status, INTACT)
         self.assertEqual(result.evidence_class, AUTHORITATIVE_EVIDENCE)
         self.assertEqual(result.errors, [])

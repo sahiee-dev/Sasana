@@ -29,7 +29,10 @@ logger = logging.getLogger("archeion")
 
 app = FastAPI(
     title="Archeion",
-    description="Sasana authority sealing server — upgrades sessions to AUTHORITATIVE_EVIDENCE.",
+    description=(
+        "Sasana authority sealing server — appends a signed CHAIN_SEAL. Verifiers reach "
+        "AUTHORITATIVE_EVIDENCE only when they pin this server's public key (--trust-key)."
+    ),
     version="1.0.0",
 )
 
@@ -127,10 +130,12 @@ async def seal(request: Request) -> str:
         "session_hash": last["event_hash"],
         "sealed_by": "archeion",
         "server_pubkey": _pubkey,
-        "timestamp_verified": _ts_verified,
+        # Imprint match only — Archeion does not validate the TSA signature or certificate
+        # chain, so it must not sign a claim that the timestamp is "verified".
+        "timestamp_imprint_match": _ts_verified,
     }
     if _ts_utc is not None:
-        seal_payload["timestamp_utc"] = _ts_utc
+        seal_payload["timestamp_claimed_utc"] = _ts_utc
 
     seal_event: dict = {
         "seq": last["seq"] + 1,

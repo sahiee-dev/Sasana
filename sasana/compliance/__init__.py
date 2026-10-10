@@ -36,19 +36,31 @@ def load_session(jsonl_path: str | Path) -> list:
     return sorted(events, key=lambda e: e.get("seq", 0))
 
 
-def verify_session(events: list) -> dict:
+def verify_session(
+    events: list,
+    trusted_seal_pubkey: str | None = None,
+    require_seal: bool = False,
+) -> dict:
     """
     Run hash-chain verification on a loaded session.
 
-    Returns a dict with keys: intact, error_count, errors, evidence_class,
-    log_drop_count, root_hash, session_id, event_count.
+    Returns a dict with keys: intact, status, error_count, errors, warnings, evidence_class,
+    seal_present, seal_trusted, log_drop_count, root_hash, session_id, event_count.
+
+    trusted_seal_pubkey: the Archeion public key to pin. Without it a CHAIN_SEAL yields only
+    SELF_SEALED_EVIDENCE and seal_trusted is False — reports must not call such a session
+    "server-sealed".
 
     Delegates to sasana.verifier — single source of truth for all verification.
     """
     from sasana.verifier import verify as _verify
 
-    result = _verify(events)
+    result = _verify(events, trusted_seal_pubkey=trusted_seal_pubkey, require_seal=require_seal)
     return {
+        "status": result.status,
+        "warnings": result.warnings,
+        "seal_present": result.seal_present,
+        "seal_trusted": result.seal_trusted,
         "intact": result.status in ("INTACT", "PARTIAL"),
         "error_count": len(result.errors),
         "errors": result.errors,
