@@ -234,7 +234,7 @@ that this chain head was presented to the sealing key and has not changed since.
 
 Version 1.0.0 and 1.1.0 treated any valid seal as `AUTHORITATIVE_EVIDENCE` and accepted a
 log whose seal had been removed even when a key was pinned; see the
-[changelog](CHANGELOG.md#120--2026-10-10).
+[changelog](CHANGELOG.md#200--2026-10-10).
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full deployment guide — key
 lifecycle, network isolation, and what to tell a security reviewer.
@@ -262,7 +262,8 @@ part of `sasana verify`.
 
 Each event is stored with:
 
-- **SHA-256 hash** over RFC 8785 canonical JSON — any mutation changes the hash
+- **SHA-256 hash** over canonical JSON (RFC 8785 for sessions written by 2.0.0 and later; see
+  [Canonicalization](#canonicalization)) — any mutation changes the hash
 - **`prev_hash`** — each event commits to all prior events, forming a chain
 - **Ed25519 signature** — optional per-session keypair; or Archeion's independent key
 
@@ -272,8 +273,37 @@ from a Sasana log.
 A Rust binary (`sasana-rs/`) verifies sessions without a Python dependency — for forensic
 environments where Python is not present or trusted. It follows the same trust model
 (pinned key, `--require-seal`, `--strict`, `SELF_SEALED_EVIDENCE`) as the Python verifier
-v2.0.0 and is tested against the same tamper cases. It does not check RFC 3161 tokens or
-per-event signatures, and its `--json` output has no per-check breakdown.
+v2.0.0 and is tested against the same tamper cases. It also implements both canonicalizations (below)
+and per-event signatures, and is tested against the same golden fixtures. It does not check RFC 3161
+tokens, and its `--json` output has no per-check breakdown.
+
+---
+
+## Canonicalization
+
+An event's hash is SHA-256 over its canonical JSON bytes, so the exact byte encoding is part of
+what is being protected. Sasana 2.0.0 moved to strict **RFC 8785**; logs written by 1.0.0 and
+1.1.0 used a slightly different number format. Each session therefore *declares* which one it
+uses, in the hashed `SESSION_START` payload:
+
+```json
+{"event_type": "SESSION_START", "payload": {"agent_id": "…", "canonicalization": "jcs-rfc8785"}}
+```
+
+| Declaration | Meaning |
+|---|---|
+| `"canonicalization": "jcs-rfc8785"` | RFC 8785. Written by all producers from 2.0.0 (SDK, ledger, OpenClaw bridge). Use this for any Node/JS or Rust producer too. |
+| field absent | `legacy`: the 1.0.0 / 1.1.0 format. Differs from RFC 8785 only in numbers (`100.0` vs `100`, `1e-05` vs `0.00001`, exact big integers vs rounded doubles). Existing logs keep verifying. |
+| anything else | `ERROR`, exit 3. The verifier does not guess. |
+
+The verifier reads the declaration once and uses exactly that algorithm for every event; it never
+tries both. Because the declaration is inside the hashed `SESSION_START`, it is covered by the chain
+and by any seal: removing or changing it breaks verification, so a sealed log cannot be quietly
+re-labelled. Archeion seals a session with the algorithm the session declares. `--json` and the
+CLI header report which algorithm was used.
+
+Logs written by the published 1.0.0 and 1.1.0 releases are committed under
+`tests/fixtures/legacy/` and must verify forever, in Python and Rust.
 
 ---
 

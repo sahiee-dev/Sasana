@@ -1,6 +1,6 @@
 # Sasana — Technical Architecture Document
 
-Version: 1.0.0  
+Version: 2.0.0  
 Date: June 2026
 
 ---
@@ -286,6 +286,31 @@ Any failure is `COMPROMISED` — an invalid seal is stronger evidence of tamperi
 **The pin is what makes a seal mean something.** `server_pubkey` lives inside the sealed event, so an unpinned check only proves the seal is signed by whatever key it carries. An attacker can generate a keypair, rewrite the log, recompute the chain and seal it with their own key; unpinned, that verifies. Pin the key you recorded out-of-band when deploying Archeion.
 
 Failure: `COMPROMISED`, evidence `NO_EVIDENCE`.
+
+### Canonicalization (event-hash encoding)
+
+`event_hash = SHA-256(canonical bytes of the event without event_hash/signature)`. Two named
+algorithms exist (`sasana/jcs.py`, mirrored in `sasana-rs`):
+
+- `jcs-rfc8785` — RFC 8785: keys sorted by UTF-16 code units; numbers are IEEE doubles formatted per
+  ECMAScript `Number::toString` (`100.0` → `100`, `1e-5` → `0.00001`, integers beyond ±2^53 rounded
+  through a double); `-0.0` → `0`. Declared in the `SESSION_START` payload as
+  `"canonicalization": "jcs-rfc8785"`. Written by every producer since 2.0.0.
+- `legacy` — the 1.0.0/1.1.0 encoding (floats via Python `repr()` with `e+` → `e`; integers exact).
+  Selected when the field is absent. Frozen; used only to keep old logs verifiable.
+
+`select_canonicalization(events)` reads the declaration from `SESSION_START` once; a value other than
+`jcs-rfc8785` (including an explicit `"legacy"`) is `ERROR`. The same algorithm is used for every event
+hash and for the RFC 3161 pre-token hash. There is no fallback: a log hashed one way but declared the
+other is `COMPROMISED`. The declaration is hashed, so changing it breaks the chain.
+
+Checked against: RFC 8785 Appendix B and examples, Node's `JSON.stringify` as an independent
+ECMAScript oracle, the real 1.1.0 `jcs.py` (`tests/fixtures/jcs_vectors.json`, shared by Python and
+Rust), ~88,000 random doubles hashed in Python and verified by Rust, and the golden logs in
+`tests/fixtures/legacy/`.
+
+Rust limit: a legacy log containing an integer larger than `u64` cannot be reproduced exactly
+(`serde_json` parses it as a double); the Python verifier handles it.
 
 ### Evidence class determination
 
@@ -640,19 +665,22 @@ fastapi>=0.110
 
 ## 14. Test Coverage
 
-314 Python tests and 17 Rust unit tests as of v1.2.0 (`pytest -q`, `cargo test --manifest-path sasana-rs/Cargo.toml`). Two of the Python tests compare the compiled Rust binary against Python and skip when `sasana-rs` has not been built, as in CI's Python jobs.
+359 Python tests and 26 Rust unit tests as of v2.0.0 (`pytest -q`, `cargo test --manifest-path sasana-rs/Cargo.toml`). The Python/Rust agreement tests need the compiled `sasana-rs` binary: they skip locally when it is not built, but **fail in CI** (`CI=true`), where the Python jobs build it.
 
 | Module | Tests | Coverage notes |
 |---|---|---|
 | `test_verifier.py` | 39 | Verification pipeline, evidence classes, attack surfaces (insertion, deletion, reordering, replacement) |
-| `test_verifier_hardening.py` | 53 | Pinned-key-implies-seal, `--require-seal`, single/final seal, seal `session_hash`, fail-closed malformed input (API + CLI), `--json` completeness, exit codes, `--strict`, timestamp honesty (backdated / corrupted-signature tokens are not "verified time"), compliance reports not trusting a seal's mere presence |
-| `test_tamper_matrix.py` | 13 | The audit matrix: edit, rechain, re-seal with an attacker key (pinned / unpinned), seal stripping, forged seal; run through the real CLI and cross-checked against the Rust binary |
+| `test_verifier_hardening.py` | 53 | Pinned-key-implies-seal, `--require-seal`, single/final seal, seal `session_hash`, fail-closed malformed input (API + CLI), `--json` completeness, exit codes, `--strict`, timestamp honesty, compliance reports not trusting a seal's mere presence |
+| `test_canonicalization.py` | 32 | Versioned canonicalization: shared vectors (RFC 8785 Appendix B, RFC examples, Node oracle, real 1.1.0), declaration handling, downgrade / no-fallback, and the golden logs written by the published 1.0.0 / 1.1.0 releases (Python and Rust must agree on each) |
+| `test_tamper_matrix.py` | 26 | The audit matrix: 10 attacks × 2 canonicalization formats through the real CLI, plus Rust parity on every case |
 | `test_e2e.py` | 18 | SDK → Archeion → verify full flow; tamper detection; double-seal rejection; broken chain rejection; key pinning |
 | `test_compliance.py` | 45 | EU AI Act, SOC 2, HIPAA, SIEM, evidence-pack CLI |
 | `test_integrations.py` | 25 | LangGraph, CrewAI, AutoGPT |
 | `test_rfc3161.py`, `test_rfc3161_strict.py` | 11 + 20 | Token parsing and imprint matching; strict CMS / certificate-chain verification against an offline test TSA |
-| `test_commitment.py`, `test_jcs.py` | 60 + 7 | Pre-outcome commitments; RFC 8785 canonicalisation |
+| `test_commitment.py`, `test_jcs.py` | 60 + 7 | Pre-outcome commitments; RFC 8785 number serialisation |
 | `test_openclaw_bridge.py`, `test_otel_exporter.py` | 13 + 10 | OpenClaw bridge, OTel exporter |
+
+Rust (`sasana-rs`): the tamper matrix, both canonicalizations against the shared vectors and Appendix B, declaration handling, downgrade detection, per-event signatures, and every golden fixture.
 
 `tests/conftest.py` points `ARCHEION_KEY_FILE` at a temp directory before any test imports the Archeion server, so the suite never reads or creates a real signing key.
 
@@ -662,7 +690,7 @@ CI: GitHub Actions, Python 3.10 and 3.12, ruff lint + format check.
 
 ## 15. Known Gaps and Honest Limitations
 
-**Rust verifier scope.** The Rust binary implements the same seal trust model as verifier v2.0.0 (pinned key, `--require-seal`, `--strict`, `SELF_SEALED_EVIDENCE`, single/final seal, `session_hash` check) and is run against the same tamper-matrix cases. It does not check RFC 3161 tokens or per-event signatures, and its `--json` output has no per-check breakdown. Releases before 1.2.0 of the Rust verifier did not share this model (see CHANGELOG).
+**Rust verifier scope.** The Rust binary implements the same seal trust model as verifier v2.0.0 (pinned key, `--require-seal`, `--strict`, `SELF_SEALED_EVIDENCE`, single/final seal, `session_hash` check) and is run against the same tamper-matrix cases. It also implements both canonicalizations and per-event Ed25519 signatures, and agrees with Python on every golden fixture and tamper case. It does not check RFC 3161 tokens, and its `--json` output has no per-check breakdown. Releases before 2.0.0 of the Rust verifier did not share this model (see CHANGELOG).
 
 **RFC 3161 timestamps are checked for imprint match only.** `verify()` confirms the token's MessageImprint equals the recomputed `SESSION_START` hash and reports `IMPRINT_MATCH`. It does not verify the TSA's CMS signature, the certificate chain, or that the claimed `genTime` is real; a forged or backdated token passes. `timestamp_verified` is always `False`. `sasana.rfc3161.verify_timestamp_strict` does the full check but is used only by `sasana verify-commitment`.
 

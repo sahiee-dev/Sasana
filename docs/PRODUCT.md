@@ -119,7 +119,7 @@ The core product is complete:
 - Archeion authority sealing server (FastAPI)
 - Compliance exports for EU AI Act Art. 12, SOC 2 CC7.2, HIPAA §164.312(b), SIEM
 - CLI (`sasana verify`, `sasana seal`, `sasana observe`)
-- 314 Python tests and 17 Rust unit tests (v1.2.0), run in CI on Python 3.10 and 3.12
+- 359 Python tests and 26 Rust unit tests (v2.0.0), run in CI on Python 3.10 and 3.12
 
 ### Near-term (next 3 months)
 
