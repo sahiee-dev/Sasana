@@ -11,3 +11,5 @@ build/
 *.jsonl
 sasana-rs/target/
 .DS_Store
+# golden session logs written by published releases must be tracked (see tests/fixtures/legacy/README.md)
+!tests/fixtures/**/*.jsonl
