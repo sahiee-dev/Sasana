@@ -72,7 +72,16 @@ EXIT_NOT_AUTHORITATIVE = 4
 
 
 class _StrictParser(argparse.ArgumentParser):
-    """Argparse that exits 3 (not 2, which means PARTIAL) on bad usage."""
+    """
+    Argparse that exits 3 (not 2, which means PARTIAL) on bad usage and never abbreviates a flag.
+
+    `allow_abbrev=False`: `--trust-ke` must be an error, not a guess. A prefix that is unique today
+    becomes ambiguous (or silently means a different flag) the day another option is added.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
 
     def error(self, message: str):  # type: ignore[override]
         self.print_usage(sys.stderr)
@@ -83,7 +92,7 @@ def _parse_strict(ap: argparse.ArgumentParser, args: list) -> argparse.Namespace
     """
     parse_args, not parse_known_args: an unrecognised flag must be an error. Silently
     ignoring `--trust_key` or `--require-seals` would drop a security control and report a
-    weaker verdict as if the control had been applied.
+    weaker verdict as if the control had been applied. EVERY subcommand parses through this.
     """
     return ap.parse_args(args)
 
@@ -310,11 +319,11 @@ _YELLOW_STATES = ("SKIPPED", "NO SEAL", "SELF-SIGNED", "IMPRINT_MATCH")
 
 
 def _cmd_seal(args: list) -> int:
-    ap = argparse.ArgumentParser(prog="sasana seal", add_help=False)
+    ap = _StrictParser(prog="sasana seal", add_help=False)
     ap.add_argument("session_file")
     ap.add_argument("--server", default="http://localhost:8747", metavar="URL")
     ap.add_argument("--out", default=None, metavar="FILE")
-    parsed, _ = ap.parse_known_args(args)
+    parsed = _parse_strict(ap, args)
 
     try:
         body = open(parsed.session_file, "rb").read()
@@ -363,9 +372,7 @@ def _load_cert_der(path: str) -> bytes:
 
 
 def _cmd_verify_commitment(args: list) -> int:
-    ap = argparse.ArgumentParser(
-        prog="sasana verify-commitment", add_help=False, allow_abbrev=False
-    )
+    ap = _StrictParser(prog="sasana verify-commitment", add_help=False)
     ap.add_argument("bundle_file")
     ap.add_argument(
         "--deadline",
@@ -420,9 +427,9 @@ def _cmd_verify_commitment(args: list) -> int:
     ap.add_argument("--allow-partial", dest="allow_partial", action="store_true")
     ap.add_argument("--json", dest="json_out", action="store_true")
     try:
-        parsed = ap.parse_args(args)  # strict: a mistyped policy flag must not silently vanish
-    except SystemExit:
-        return 3
+        parsed = _parse_strict(ap, args)  # a mistyped policy flag must not silently vanish
+    except SystemExit as exc:  # _StrictParser exits 3; in-process callers get the code back
+        return int(exc.code) if isinstance(exc.code, int) else EXIT_ERROR
 
     from datetime import datetime, timezone
 
@@ -492,7 +499,7 @@ _STANDARDS = {
 
 
 def _cmd_evidence_pack(args: list) -> int:
-    ap = argparse.ArgumentParser(prog="sasana evidence-pack", add_help=False)
+    ap = _StrictParser(prog="sasana evidence-pack", add_help=False)
     ap.add_argument("session_file")
     ap.add_argument(
         "--standard",
@@ -512,7 +519,7 @@ def _cmd_evidence_pack(args: list) -> int:
         help="Pin the Archeion public key. Without it a seal is reported as self-sealed, "
         "never AUTHORITATIVE_EVIDENCE.",
     )
-    parsed, _ = ap.parse_known_args(args)
+    parsed = _parse_strict(ap, args)
 
     if not os.path.exists(os.path.expanduser(parsed.session_file)):
         print(f"ERROR: file not found: {parsed.session_file}", file=sys.stderr)
@@ -607,10 +614,10 @@ def _cmd_evidence_pack(args: list) -> int:
 def _cmd_observe(args: list) -> int:
     import asyncio
 
-    ap = argparse.ArgumentParser(prog="sasana observe")
+    ap = _StrictParser(prog="sasana observe")
     ap.add_argument("--ws", dest="ws_url", default=None, metavar="URL")
     ap.add_argument("--output-dir", dest="output_dir", default=None, metavar="DIR")
-    parsed = ap.parse_args(args)
+    parsed = _parse_strict(ap, args)
 
     from sasana.observer import OpenClawObserver
 
@@ -623,10 +630,10 @@ def _cmd_observe(args: list) -> int:
 
 
 def _cmd_bridge(args: list) -> int:
-    ap = argparse.ArgumentParser(prog="sasana bridge")
+    ap = _StrictParser(prog="sasana bridge")
     ap.add_argument("--socket", dest="socket_path", default=None, metavar="PATH")
     ap.add_argument("--output-dir", dest="output_dir", default=None, metavar="DIR")
-    parsed = ap.parse_args(args)
+    parsed = _parse_strict(ap, args)
 
     from sasana.integrations.openclaw import _DEFAULT_OUTPUT_DIR, _DEFAULT_SOCKET_PATH, run
 

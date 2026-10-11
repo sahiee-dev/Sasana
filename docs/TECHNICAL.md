@@ -665,7 +665,7 @@ fastapi>=0.110
 
 ## 14. Test Coverage
 
-368 Python tests and 26 Rust unit tests as of v2.0.1 (`pytest -q`, `cargo test --manifest-path sasana-rs/Cargo.toml`). The Python/Rust agreement tests need the compiled `sasana-rs` binary: they skip locally when it is not built, but **fail in CI** (`CI=true`), where the Python jobs build it.
+379 Python tests and 26 Rust unit tests as of v2.0.2 (`pytest -q`, `cargo test --manifest-path sasana-rs/Cargo.toml`). The Python/Rust agreement tests need the compiled `sasana-rs` binary: they skip locally when it is not built, but **fail in CI** (`CI=true`), where the Python jobs build it.
 
 | Module | Tests | Coverage notes |
 |---|---|---|

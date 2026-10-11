@@ -1,7 +1,7 @@
 services:
   archeion:
     build: .
-    image: sasana-archeion:2.0.1
+    image: sasana-archeion:2.0.2
     restart: unless-stopped
 
     environment:

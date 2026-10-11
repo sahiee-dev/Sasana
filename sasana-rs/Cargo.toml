@@ -1,6 +1,6 @@
 [package]
 name = "sasana"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2021"
 description = "Tamper-evident audit trail verifier for OpenClaw and multi-agent AI sessions"
 license = "MIT"

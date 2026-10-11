@@ -188,7 +188,7 @@ docker compose up -d --build
 
 # Verify it's running
 curl http://localhost:8747/health
-# {"status":"ok","version":"2.0.1","pubkey":"<base64>"}
+# {"status":"ok","version":"2.0.2","pubkey":"<base64>"}
 ```
 
 ### Network isolation
@@ -335,7 +335,7 @@ Response:
 ```json
 {
   "status": "ok",
-    "version": "2.0.1",
+    "version": "2.0.2",
   "pubkey": "<base64 Ed25519 public key>"
 }
 ```
