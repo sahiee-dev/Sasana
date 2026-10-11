@@ -34,7 +34,7 @@ python3 -m sasana_cli verify-commitment $D/bundles/b-revision-accepted/bundle.js
   --receipts $D/bundles/b-revision-accepted/receipts.json \
   --closing-receipt $D/bundles/b-revision-accepted/closing.json \
   --receipt-key "$(python3 -c "import json;print(json.load(open('$D/trust/trust.json'))['receipt_pubkey'])")" \
-  --mapping ha-daily-v1 \
+  --mapping ha-daily-v2 \
   --trust-key "$(python3 -c "import json;print(json.load(open('$D/trust/trust.json'))['seal_pubkey'])")"
 ```
 
