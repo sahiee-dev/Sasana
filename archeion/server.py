@@ -22,6 +22,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 from archeion.keys import load_or_generate, pubkey_b64
+from sasana import __version__ as _SASANA_VERSION
 from sasana.signing import sign_event_hash
 from sasana.verifier import compute_event_hash, select_canonicalization, verify
 
@@ -33,7 +34,7 @@ app = FastAPI(
         "Sasana authority sealing server — appends a signed CHAIN_SEAL. Verifiers reach "
         "AUTHORITATIVE_EVIDENCE only when they pin this server's public key (--trust-key)."
     ),
-    version="1.0.0",
+    version=_SASANA_VERSION,  # tracks the package; was a stale hard-coded "1.0.0"
 )
 
 # Keypair is loaded once at module import so TestClient and uvicorn share the same key.
