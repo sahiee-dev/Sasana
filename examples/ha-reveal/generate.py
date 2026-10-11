@@ -49,7 +49,7 @@ from sasana.verifier import GENESIS_HASH, compute_event_hash  # noqa: E402
 UTC = dt.timezone.utc
 SUBJECT = "agent-synthetic-001"
 CONTEXT = "challenge-synthetic-daily-2026-10-14"
-MAPPING = cmap.HA_DAILY_V1
+MAPPING = cmap.HA_DAILY_V2
 DEADLINE = dt.datetime(2026, 10, 14, 12, 0, 0, tzinfo=UTC)
 T_INIT = dt.datetime(2026, 10, 14, 9, 0, 0, tzinfo=UTC)
 T_REV = dt.datetime(2026, 10, 14, 9, 30, 0, tzinfo=UTC)
@@ -62,7 +62,7 @@ SUBMISSION_0 = {
     "reasoning": "Synthetic example reasoning: the index opened firm and breadth is positive.",
     "summary": "Synthetic: up.",
     "is_revision": False,
-    # declared by the daily schema but deliberately NOT bound by the mapping:
+    # every declared field is bound by ha-daily-v2, including these:
     "prompt_hash": "a" * 64,
     "amount": 10,
     "token_usage": {"input": 123, "output": 45},
@@ -75,7 +75,10 @@ SUBMISSION_1 = {
     "summary": "Synthetic: down.",
     "is_revision": True,
     "revision_reason": "synthetic new information",
+    "trigger_event_id": "evt-synthetic-1",
     "prompt_hash": "b" * 64,
+    "amount": 10,
+    "token_usage": {"input": 140, "output": 52},
 }
 
 
@@ -113,6 +116,7 @@ class World:
         self.tsa = fx.make_authority()
         self.anchors = [self.tsa.anchor_der]
         self.receipt_key, self.receipt_pub = generate_keypair()
+        self.wrong_key, _ = generate_keypair()  # signs the closing receipt of scenario l
         self.client = TestClient(app)
         self.seal_pub = self.client.get("/pubkey").json()["pubkey"]
         self.full = make_session()  # START, LLM, TOOL, LLM, END
@@ -128,7 +132,7 @@ class World:
         def fake_tsa(hash_bytes, *, url=None, nonce=None):
             return fx.respond(self.tsa, hash_bytes, gen_time=when, nonce=nonce)
 
-        mapped = cmap.map_ha_daily_v1(submission)
+        mapped = cmap.get_mapping(MAPPING).map(submission)
         with patch("sasana.rfc3161.request_timestamp", fake_tsa):
             return cm.commit(
                 subject_id=SUBJECT,
@@ -157,12 +161,28 @@ class World:
             self.receipt_key,
         )
 
+    def closing(self, accepted_pairs, *, key=None) -> dict:
+        """The counterparty's closing receipt: how many it accepted before the deadline, and the last."""
+        last = accepted_pairs[-1][0] if accepted_pairs else None
+        return cm.sign_closing_receipt(
+            {
+                "challenge_id": CONTEXT,
+                "agent_id": SUBJECT,
+                "accepted_count": len(accepted_pairs),
+                "last_accepted_revision_index": None if last is None else last.revision_index,
+                "last_accepted_C": None if last is None else last.commitment,
+                "closed_at": iso(DEADLINE + dt.timedelta(minutes=1)),
+                "mapping_id": MAPPING,
+            },
+            key or self.receipt_key,
+        )
+
     def bundle(self, pairs, session=None) -> dict:
         return cm.reveal_bundle(pairs, session or self.sealed, capture_mode="sidecar")
 
 
 def build(world: World) -> dict:
-    """name -> (bundle, receipts). Every bundle is verified against the same pinned trust material."""
+    """name -> (bundle, receipts, closing receipt or None). All verified against the same pinned trust material."""
     w = world
     s = dt.timedelta(seconds=2)
     out: dict = {}
@@ -171,44 +191,66 @@ def build(world: World) -> dict:
     p1 = w.commit(4, SUBMISSION_1, T_REV, prev=p0[0])
     r0 = w.receipt(p0, accepted=True, at=T_INIT + s)
     r1 = w.receipt(p1, accepted=True, at=T_REV + s)
+    both = w.closing([p0, p1])
+    only0 = w.closing([p0])
 
-    out["a-initial-only"] = (w.bundle([p0]), [r0])
-    out["b-revision-accepted"] = (w.bundle([p0, p1]), [r0, r1])
+    out["a-initial-only"] = (w.bundle([p0]), [r0], only0)
+    out["b-revision-accepted"] = (w.bundle([p0, p1]), [r0, r1], both)
     out["c-revision-rejected"] = (
         w.bundle([p0, p1]),
         [r0, w.receipt(p1, accepted=False, at=T_REV + s, reason="synthetic: rejected")],
+        only0,
     )
-    out["d-initial-omitted"] = (w.bundle([p1]), [r0, r1])
+    out["d-initial-omitted"] = (w.bundle([p1]), [r0, r1], both)
 
     late1 = w.commit(4, SUBMISSION_1, T_LATE, prev=p0[0])
     out["e-revision-after-deadline-rejected"] = (
         w.bundle([p0, late1]),
         [r0, w.receipt(late1, accepted=False, at=T_LATE + s, reason="synthetic: after deadline")],
+        only0,
     )
     out["e2-revision-after-deadline-but-receipt-says-accepted"] = (
         w.bundle([p0, late1]),
         [r0, w.receipt(late1, accepted=True, at=DEADLINE - dt.timedelta(minutes=1))],
+        w.closing([p0, late1]),
     )
 
     tampered = w.bundle([p0, p1])
     tampered["revisions"][1]["payload"]["confidence"] = "0.94"
-    out["f-payload-tampered"] = (tampered, [r0, r1])
+    out["f-payload-tampered"] = (tampered, [r0, r1], both)
+
+    tampered_amount = w.bundle([p0, p1])
+    tampered_amount["revisions"][1]["payload"]["amount"] = "1000"
+    out["f2-amount-tampered"] = (tampered_amount, [r0, r1], both)
 
     wrong_mapping = w.bundle([p0, p1])
-    wrong_mapping["mapping_id"] = "ha-daily-v2"
-    out["g-wrong-mapping-version"] = (wrong_mapping, [r0, r1])
+    wrong_mapping["mapping_id"] = (
+        "ha-daily-v1"  # the superseded mapping: known, but not the required one
+    )
+    out["g-wrong-mapping-version"] = (wrong_mapping, [r0, r1], both)
 
     nothing = w.bundle([p0, p1])
     nothing["revisions"], nothing["session_events"] = [], []
-    out["h-never-revealed"] = (nothing, [r0, r1])
-    out["h2-scored-revision-not-revealed"] = (w.bundle([p0]), [r0, r1])
+    out["h-never-revealed"] = (nothing, [r0, r1], both)
+    out["h2-scored-revision-not-revealed"] = (w.bundle([p0]), [r0, r1], both)
 
     forged = copy.deepcopy(w.full)
     forged[1]["payload"]["prompt_hash"] = "f" * 64  # rewrite an event BEFORE the committed root
     sealed_forgery = w.seal(rechain(forged))
     a8 = w.bundle([p0])
     a8["session_events"] = sealed_forgery
-    out["i-operator-reseal-after-commit"] = (a8, [r0])
+    out["i-operator-reseal-after-commit"] = (a8, [r0], only0)
+
+    # The committer hands over only the initial's receipt and withholds the later accepted one.
+    out["j-later-receipt-withheld"] = (w.bundle([p0, p1]), [r0], both)
+    # No closing receipt: the verifier cannot tell whether it was given everything.
+    out["k-closing-receipt-missing"] = (w.bundle([p0, p1]), [r0, r1], None)
+    # A closing receipt signed by a key the verifier did not pin.
+    out["l-closing-receipt-wrong-key"] = (
+        w.bundle([p0, p1]),
+        [r0, r1],
+        w.closing([p0, p1], key=w.wrong_key),
+    )
     return out
 
 
@@ -226,6 +268,15 @@ EXPECTED = {
         "effective_revision": None,
         "exit": 1,
         "contains": "HISTORY_GAP",
+    },
+    "d2-initial-omitted-lenient": {
+        "dir": "d-initial-omitted",
+        "extra_args": ["--allow-unrevealed-history"],
+        "verdict": "VALID_ON_TIME",
+        "effective_revision": 1,
+        "exit": 5,
+        "contains": "HISTORY_GAP",
+        "lenient": ["unrevealed history allowed"],
     },
     "e-revision-after-deadline-rejected": {
         "verdict": "VALID_ON_TIME",
@@ -245,11 +296,17 @@ EXPECTED = {
         "exit": 1,
         "contains": "commitment does not match revealed payload/root/salt",
     },
+    "f2-amount-tampered": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "commitment does not match revealed payload/root/salt",
+    },
     "g-wrong-mapping-version": {
         "verdict": "INVALID",
         "effective_revision": None,
         "exit": 1,
-        "contains": "unknown payload mapping 'ha-daily-v2'",
+        "contains": "is not the required 'ha-daily-v2'",
     },
     "h-never-revealed": {"verdict": "UNREVEALED", "effective_revision": None, "exit": 4},
     "h2-scored-revision-not-revealed": {
@@ -262,6 +319,24 @@ EXPECTED = {
         "effective_revision": None,
         "exit": 1,
         "contains": "session_root is not an event in the revealed session",
+    },
+    "j-later-receipt-withheld": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "RECEIPT_LIST_DISAGREES_WITH_CLOSING",
+    },
+    "k-closing-receipt-missing": {
+        "verdict": "INCOMPLETE_RECEIPTS",
+        "effective_revision": None,
+        "exit": 6,
+        "contains": "CLOSING_RECEIPT_MISSING",
+    },
+    "l-closing-receipt-wrong-key": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "CLOSING_RECEIPT_INVALID",
     },
 }
 
@@ -291,11 +366,13 @@ def main() -> None:
         )
         + "\n"
     )
-    for name, (bundle, receipts) in bundles.items():
+    for name, (bundle, receipts, closing) in bundles.items():
         d = out / "bundles" / name
         d.mkdir(parents=True, exist_ok=True)
         (d / "bundle.json").write_text(json.dumps(bundle, indent=2) + "\n")
         (d / "receipts.json").write_text(json.dumps(receipts, indent=2) + "\n")
+        if closing is not None:
+            (d / "closing.json").write_text(json.dumps(closing, indent=2) + "\n")
     (out / "expected.json").write_text(json.dumps(EXPECTED, indent=2) + "\n")
     print(f"wrote {len(bundles)} bundles to {out}")
 

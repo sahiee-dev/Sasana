@@ -23,8 +23,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 
 
-def run_one(name: str, trust: dict, extra: list) -> dict:
-    d = HERE / "bundles" / name
+def run_one(name: str, trust: dict, extra: list, dirname: str = "") -> dict:
+    d = HERE / "bundles" / (dirname or name)
     cmd = [
         sys.executable,
         "-m",
@@ -46,6 +46,8 @@ def run_one(name: str, trust: dict, extra: list) -> dict:
         "--json",
         *extra,
     ]
+    if (d / "closing.json").exists():  # a missing file is itself a scenario (k)
+        cmd += ["--closing-receipt", str(d / "closing.json")]
     cwd = REPO if (REPO / "sasana_cli.py").exists() else None
     env = {**os.environ, "NO_COLOR": "1"}
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env)
@@ -68,7 +70,7 @@ def main() -> int:
     rows, all_ok = [], True
     for name in names:
         exp = expected[name]
-        got = run_one(name, trust, [])
+        got = run_one(name, trust, exp.get("extra_args", []), exp.get("dir", ""))
         data = got["data"]
         text = " | ".join(map(str, data.get("errors", []) + data.get("warnings", [])))
         ok = (
@@ -76,14 +78,20 @@ def main() -> int:
             and data.get("effective_revision") == exp["effective_revision"]
             and got["exit"] == exp["exit"]
             and exp.get("contains", "") in text
+            and data.get("lenient", []) == exp.get("lenient", [])
         )
         all_ok &= ok
-        fmt = lambda v, r, e: f"{v} rev={r} exit={e}"  # noqa: E731
+        fmt = lambda v, r, e, lenient=(): f"{v} rev={r} exit={e}" + (" LENIENT" if lenient else "")  # noqa: E731
         rows.append(
             (
                 name,
-                fmt(exp["verdict"], exp["effective_revision"], exp["exit"]),
-                fmt(data.get("verdict"), data.get("effective_revision"), got["exit"]),
+                fmt(exp["verdict"], exp["effective_revision"], exp["exit"], exp.get("lenient")),
+                fmt(
+                    data.get("verdict"),
+                    data.get("effective_revision"),
+                    got["exit"],
+                    data.get("lenient"),
+                ),
                 "yes" if ok else "NO",
                 text,
             )

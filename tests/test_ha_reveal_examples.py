@@ -29,9 +29,9 @@ except ImportError:
     _GEN = False
 
 
-def _cli(ex: Path, name: str, *extra: str, pin: bool = True) -> tuple:
+def _cli(ex: Path, name: str, *extra: str, pin: bool = True, dirname: str = "") -> tuple:
     trust = json.loads((ex / "trust" / "trust.json").read_text())
-    d = ex / "bundles" / name
+    d = ex / "bundles" / (dirname or name)
     cmd = [
         sys.executable,
         "-m",
@@ -52,6 +52,8 @@ def _cli(ex: Path, name: str, *extra: str, pin: bool = True) -> tuple:
     ]
     if pin:
         cmd += ["--trust-key", trust["seal_pubkey"]]
+    if (d / "closing.json").exists():
+        cmd += ["--closing-receipt", str(d / "closing.json")]
     r = subprocess.run(
         cmd + list(extra),
         capture_output=True,
@@ -66,16 +68,19 @@ class TestCommittedBundles(unittest.TestCase):
     def test_every_bundle_matches_expected_through_the_real_cli(self) -> None:
         expected = json.loads((EX / "expected.json").read_text())
         on_disk = sorted(p.name for p in (EX / "bundles").iterdir() if p.is_dir())
-        self.assertEqual(on_disk, sorted(expected))
-        self.assertEqual(len(expected), 11, "scenarios a, b, c, d, e, e2, f, g, h, h2, i")
+        self.assertEqual(on_disk, sorted({e.get("dir", n) for n, e in expected.items()}))
+        scenarios = {n.split("-")[0] for n in expected}
+        self.assertEqual(scenarios, set("a b c d d2 e e2 f f2 g h h2 i j k l".split()))
+        self.assertEqual(len(expected), 16, "scenarios a-l plus e2, f2, h2 and the lenient run d2")
         for name, exp in expected.items():
             with self.subTest(bundle=name):
-                code, data = _cli(EX, name)
+                code, data = _cli(EX, name, *exp.get("extra_args", []), dirname=exp.get("dir", ""))
                 self.assertEqual(
                     data["verdict"], exp["verdict"], (data["errors"], data["warnings"])
                 )
                 self.assertEqual(data["effective_revision"], exp["effective_revision"])
                 self.assertEqual(code, exp["exit"])
+                self.assertEqual(data.get("lenient", []), exp.get("lenient", []))
                 text = " | ".join(map(str, data["errors"] + data["warnings"]))
                 self.assertIn(exp.get("contains", ""), text)
 
@@ -85,7 +90,7 @@ class TestCommittedBundles(unittest.TestCase):
         )
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("bundle", r.stdout.splitlines()[0])
-        self.assertIn("11/11 bundles match expected", r.stdout)
+        self.assertIn("16/16 bundles match expected", r.stdout)
 
     def test_pinned_seal_key_makes_the_trace_authoritative_and_unpinned_does_not(self) -> None:
         _, pinned = _cli(EX, "b-revision-accepted")
@@ -142,7 +147,9 @@ class TestGeneratorStillWorks(unittest.TestCase):
             self.assertEqual(json.loads((out / "expected.json").read_text()), expected)
             for name, exp in expected.items():
                 with self.subTest(bundle=name):
-                    code, data = _cli(out, name)
+                    code, data = _cli(
+                        out, name, *exp.get("extra_args", []), dirname=exp.get("dir", "")
+                    )
                     self.assertEqual(
                         (data["verdict"], data["effective_revision"], code),
                         (exp["verdict"], exp["effective_revision"], exp["exit"]),

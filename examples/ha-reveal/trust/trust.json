@@ -1,9 +1,9 @@
 {
   "note": "SYNTHETIC trust material. Pin your own in real use.",
   "deadline": "2026-10-14T12:00:00Z",
-  "mapping_id": "ha-daily-v1",
-  "receipt_pubkey": "e3nb452R8k/YRGJqyjd4F4458lUAxinNIMaug4prEDU=",
-  "seal_pubkey": "la2QYSAJ1yokt6xltnfqUC7MbxhPzb04K00tbNsWnZE=",
+  "mapping_id": "ha-daily-v2",
+  "receipt_pubkey": "ij9iKDpHwEJBOU8mtZBjKNQlXRZQ78brFPwadclhq74=",
+  "seal_pubkey": "YwXvXg1escPTDEjZvX+q2kJI+iJt6CMRCHOf3+U8KwA=",
   "subject_id": "agent-synthetic-001",
   "context_id": "challenge-synthetic-daily-2026-10-14"
 }

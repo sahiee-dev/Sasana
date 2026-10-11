@@ -21,6 +21,19 @@
     "exit": 1,
     "contains": "HISTORY_GAP"
   },
+  "d2-initial-omitted-lenient": {
+    "dir": "d-initial-omitted",
+    "extra_args": [
+      "--allow-unrevealed-history"
+    ],
+    "verdict": "VALID_ON_TIME",
+    "effective_revision": 1,
+    "exit": 5,
+    "contains": "HISTORY_GAP",
+    "lenient": [
+      "unrevealed history allowed"
+    ]
+  },
   "e-revision-after-deadline-rejected": {
     "verdict": "VALID_ON_TIME",
     "effective_revision": 0,
@@ -39,11 +52,17 @@
     "exit": 1,
     "contains": "commitment does not match revealed payload/root/salt"
   },
+  "f2-amount-tampered": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "commitment does not match revealed payload/root/salt"
+  },
   "g-wrong-mapping-version": {
     "verdict": "INVALID",
     "effective_revision": null,
     "exit": 1,
-    "contains": "unknown payload mapping 'ha-daily-v2'"
+    "contains": "is not the required 'ha-daily-v2'"
   },
   "h-never-revealed": {
     "verdict": "UNREVEALED",
@@ -60,5 +79,23 @@
     "effective_revision": null,
     "exit": 1,
     "contains": "session_root is not an event in the revealed session"
+  },
+  "j-later-receipt-withheld": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "RECEIPT_LIST_DISAGREES_WITH_CLOSING"
+  },
+  "k-closing-receipt-missing": {
+    "verdict": "INCOMPLETE_RECEIPTS",
+    "effective_revision": null,
+    "exit": 6,
+    "contains": "CLOSING_RECEIPT_MISSING"
+  },
+  "l-closing-receipt-wrong-key": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "CLOSING_RECEIPT_INVALID"
   }
 }
