@@ -1,0 +1,105 @@
+{
+  "bundle_version": "2",
+  "domain_tag": "sasana/commit/v2",
+  "subject_id": "agent-synthetic-001",
+  "context_id": "challenge-synthetic-daily-2026-10-14",
+  "capture_mode": "sidecar",
+  "revisions": [
+    {
+      "revision_index": 0,
+      "prev_commitment": null,
+      "commitment": "0fc1f5dd9cd5745bf4f1799f30b4daf3360d1a4ef84669984375d15417275119",
+      "payload": {
+        "direction": "up",
+        "confidence": "0.72",
+        "probabilities": {
+          "up": "0.72",
+          "down": "0.2",
+          "flat": "0.08"
+        },
+        "reasoning": "Synthetic example reasoning: the index opened firm and breadth is positive.",
+        "summary": "Synthetic: up.",
+        "is_revision": false
+      },
+      "session_root": "1248e27c9d0e171453337e86f14f21e6fde1ef3f28c3808f1a3d098b85e806bd",
+      "salt": "5eea43eb1fa14802545ab202b4db7468db2ad7f82e24309e09a85667fa91db0f",
+      "tsa_token": "MIIFWTADAgEAMIIFUAYJKoZIhvcNAQcCoIIFQTCCBT0CAQMxDzANBglghkgBZQMEAgEFADBzBgsqhkiG9w0BCRABBKBkBGIwYAIBAQYEKgMEBTAxMA0GCWCGSAFlAwQCAQUABCAPwfXdnNV0W/TxeZ8wtNrzNg0aTvhGaZhDddFUFydRGQICEjQYDzIwMjYxMDE0MDkwMDAwWjADAgEBAggSbtixz+ZfFaCCAwMwggL/MIIB56ADAgECAhRsupy2CtIH+cRsrPuitLoQE8w6KDANBgkqhkiG9w0BAQsFADAXMRUwEwYDVQQDDAxUZXN0IFJvb3QgQ0EwHhcNMjAwMTAxMDAwMDAwWhcNNDAwMTAxMDAwMDAwWjATMREwDwYDVQQDDAhUZXN0IFRTQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMvIyejnc29LI+gMbbR8FQ4Y22045gQjBqVLvhhSXm+a3XINPx8O+ti/641uFDulU3Sv6ub3vlyI7ZBMthQtjXtc4f3+Xbb+Fh9sa1hJ8ayxkZRVuCPE9UqmETCntKMymRmivt1LEDdJvknHVvBLWo0KmttlspWuMg6bhPNgV6jTQ0UdS8Cj2vyzjJC+lX3Hq9IzIm4L/PTtI+WAIiu3yd26MLL7fE6LfTQdVQORNy/QtO3JE5dy5J2zk5Y/u0FK04+nugJ1j+wAqNaDmvwZ8SQtLxI+jLeMNh9TcbxKBPPKzTnF+05tFGjUuwCBMhHJSbKCXLSYF2Y5sm0Yt3BOFE8CAwEAAaNHMEUwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUV0OEP2PG1tY/9MlL5pdAGDNxJNAwFgYDVR0lAQH/BAwwCgYIKwYBBQUHAwgwDQYJKoZIhvcNAQELBQADggEBAJsG0QaE9raCRIFLc7056haZ1hwXhknwuLmnz5Z1mg0WxMmz3Y2e+dH+W0PeQUqvutq1zB8Jp1ly6VkcxoH3iz/Wt3sI1ozgh+x38duCsR/7rbkj/R2l9fUDkoYCR8t3HJ0jxl2anGZjMihPIMyfNu8BNr8UMSReIgjgAgp2nkoMHvdp1gxr8G9UwgXk8APIrA/Wi/T/w6G3L9HfF7wPHaqJwgWVLmLYQy8wKAhpa7Du3hm+ylnui503w/jXfbaMhipAzA8Pp9/+fbpqPuHybrJNkvwd3vya7c18hxz+v/klwk4VU0unkxqXQZBt5ohgr+SFe0jNtF3KESvkYKapm/8xggGpMIIBpQIBATAvMBcxFTATBgNVBAMMDFRlc3QgUm9vdCBDQQIUbLqctgrSB/nEbKz7orS6EBPMOigwDQYJYIZIAWUDBAIBBQCgTTAaBgkqhkiG9w0BCQMxDQYLKoZIhvcNAQkQAQQwLwYJKoZIhvcNAQkEMSIEIGbfaHsv0Vu03ANzRxJfENHZzVOqLsfl7SRyDfyPDpPIMA0GCSqGSIb3DQEBAQUABIIBACjamu5v6yMjzsb6EAsiqhLsqYoL4oDAq/AF0zDggFbowiAlWk/FWKIZvyTiT2feAWzNAToHAvgbP+F6tUP7buTo0ipJDRJWzU6u3i/hLoh3imqTQdek1mSmw8EUMteITrYajaq2GJI5V4D7OUOyrCX+9bZP7ulZ497t6aFfbVR689KLBo2IPZdtw693rIJiAgUl4TdeOCovsy6PWVIdv1AA0fVssKN+4JB6cZtqmuFTg8aufzhwvEilLrr1rN064VJRu2NfqiQieC1cJN2bUjGcT3PhvxfievEEOQXpa7oRuQArIZrLm1jEjrMAzYIGpKPEE0O+nWvZTRycikrxE9o="
+    }
+  ],
+  "session_events": [
+    {
+      "seq": 1,
+      "event_type": "SESSION_START",
+      "session_id": "sess-ha-synthetic",
+      "timestamp": "2026-10-11T14:57:25.667669Z",
+      "payload": {
+        "agent_id": "agent-synthetic-001",
+        "canonicalization": "jcs-rfc8785"
+      },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "event_hash": "dc8883f4baf92340c8116c54c5648fca3413e7bcd194f5551eb3b03ff9151692"
+    },
+    {
+      "seq": 2,
+      "event_type": "LLM_CALL",
+      "session_id": "sess-ha-synthetic",
+      "timestamp": "2026-10-11T14:57:25.668461Z",
+      "payload": {
+        "prompt_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "prev_hash": "dc8883f4baf92340c8116c54c5648fca3413e7bcd194f5551eb3b03ff9151692",
+      "event_hash": "8aa19704c9ccd9e0fde0318f18760a8ac5bc65bf959007e1234634dd78875665"
+    },
+    {
+      "seq": 3,
+      "event_type": "TOOL_CALL",
+      "session_id": "sess-ha-synthetic",
+      "timestamp": "2026-10-11T14:57:25.668645Z",
+      "payload": {
+        "tool_name": "search",
+        "args_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "prev_hash": "8aa19704c9ccd9e0fde0318f18760a8ac5bc65bf959007e1234634dd78875665",
+      "event_hash": "da454f86b1033d6f26dfbf322475748521ef8177cf8a2834fd2e733966bce0d8"
+    },
+    {
+      "seq": 4,
+      "event_type": "LLM_CALL",
+      "session_id": "sess-ha-synthetic",
+      "timestamp": "2026-10-11T14:57:25.668826Z",
+      "payload": {
+        "prompt_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "prev_hash": "da454f86b1033d6f26dfbf322475748521ef8177cf8a2834fd2e733966bce0d8",
+      "event_hash": "2bc85d99b3affd3f065ecfe6afcf2b7e3be00b8d2494bf31ec6eb65aaeb506dc"
+    },
+    {
+      "seq": 5,
+      "event_type": "SESSION_END",
+      "session_id": "sess-ha-synthetic",
+      "timestamp": "2026-10-11T14:57:25.668971Z",
+      "payload": {
+        "status": "success"
+      },
+      "prev_hash": "2bc85d99b3affd3f065ecfe6afcf2b7e3be00b8d2494bf31ec6eb65aaeb506dc",
+      "event_hash": "8bb05a4cfa05040946f371132655c6621390316f9744b3baf165371ac7d71d58"
+    },
+    {
+      "seq": 6,
+      "event_type": "CHAIN_SEAL",
+      "session_id": "sess-ha-synthetic",
+      "timestamp": "2026-10-11T14:57:25.684155Z",
+      "payload": {
+        "session_hash": "8bb05a4cfa05040946f371132655c6621390316f9744b3baf165371ac7d71d58",
+        "sealed_by": "archeion",
+        "server_pubkey": "la2QYSAJ1yokt6xltnfqUC7MbxhPzb04K00tbNsWnZE=",
+        "timestamp_imprint_match": false
+      },
+      "prev_hash": "8bb05a4cfa05040946f371132655c6621390316f9744b3baf165371ac7d71d58",
+      "event_hash": "d4b4d774cab44d9acce8b4145466485b3451329efa62d9a4d6989b08d74d2bd0",
+      "signature": "hIyXQfIGm/Q+wiqIEJWHGJ1OHl1G/7pUWjW2xqXYRU1ku9uM3B5rQc3KbuPqMMN12JGrj7K2BDL+g0znqC30AA=="
+    }
+  ],
+  "disclosures": [],
+  "mapping_id": "ha-daily-v1"
+}
