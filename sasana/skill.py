@@ -33,7 +33,7 @@ class SasanaSkill:
     """
 
     name = "sasana"
-    version = "2.0.1"
+    version = "2.0.2"
 
     def __init__(self, config: dict | None = None) -> None:
         cfg = config or {}
