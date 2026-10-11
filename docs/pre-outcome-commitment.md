@@ -9,7 +9,7 @@ Decisions taken: commitment formula **exactly as originally specified** (no `pre
 
 | Area | Change | Where |
 |---|---|---|
-| JCS floats | Now RFC 8785-conformant (ECMAScript number formatting); ints beyond ±2^53 round through a double. All 24 RFC 8785 Appendix B vectors pass. **Behaviour change:** a stored event containing an exotic float (e.g. `1e-05`) will now hash differently. | `sasana/jcs.py`, `tests/test_jcs.py` |
+| JCS floats | Now RFC 8785-conformant (ECMAScript number formatting); ints beyond ±2^53 round through a double. All 24 RFC 8785 Appendix B vectors pass. **Behaviour change, since handled:** this alone would have re-hashed events in logs written by 1.0.0/1.1.0 (whole-number floats such as `100.0`, exponent floats). It was resolved in 2.0.0 by *versioned canonicalization* (see "Reconciled with Sasana 2.x" below), not by accepting both encodings. | `sasana/jcs.py`, `tests/test_jcs.py` |
 | RFC 3161 | New `verify_timestamp_strict()`: CMS signature (RSA PKCS#1 v1.5 / ECDSA / Ed25519), chain to caller-pinned anchors, timeStamping EKU, validity at genTime, SHA-256 imprint, nonce, optional policy allow-list, sub-second genTime, accuracy. Request builder accepts a nonce; `request_timestamp` accepts `url`/`nonce`. The old imprint-only `verify_timestamp` is unchanged (existing verifier behaviour and tests intact). **Not done:** revocation (CRL/OCSP), RSA-PSS. | `sasana/rfc3161.py`, `tests/test_rfc3161_strict.py`, `tests/tsa_fixture.py` |
 | Verifier | New public `verify_chain_integrity()` (structural + sequence + hash chain only) so `commit()` can work on open sessions. No existing function changed. | `sasana/verifier.py` |
 | Commitment | `commit()`, `reveal_bundle()`, `verify_commitment()`, `compute_commitment()`, payload profile, disclosures. | `sasana/commitment.py`, `tests/test_commitment.py` |
@@ -17,7 +17,60 @@ Decisions taken: commitment formula **exactly as originally specified** (no `pre
 
 Validation: 247 tests pass on Python 3.11 (160 pre-existing + 87 new), 229 pass + 18 pre-existing skips on 3.10 (cryptography 41); `ruff check` and `ruff format --check` clean. Nine deliberate mutations of `commitment.py` were each caught by a test. The strict verifier was also checked against a **live FreeTSA token** (nonce echoed, chain to FreeTSA's published root), and a full `commit()` → `reveal_bundle()` → `sasana verify-commitment` run against FreeTSA gave `VALID_ON_TIME`, and `LATE` for an earlier deadline. FreeTSA omits `accuracy` and issues whole-second `genTime`; the verifier assumes 1 s by default (`default_accuracy_s`) and warns.
 
-**Known gaps in the implementation:** no revocation checking; single-TSA per commitment (`tsa_urls` is tried in order, not n-of-m); the Rust verifier and its number formatting were not touched, so Rust `canonical_json` may still differ from Python/JS for exotic floats (it did before this change too); `commit()` has no default TSA trust anchor (callers pin it); session-open commitment (§5.2) is not implemented; no counterparty-receipt protocol exists, `registry` is just an input.
+**Known gaps in the implementation:** no revocation checking; single-TSA per commitment (`tsa_urls` is tried in order, not n-of-m); *(superseded in 2.0.0: the Rust verifier now implements both canonicalizations and is tested against the same vectors and golden logs as Python; ~88,000 random doubles hash identically)*; `commit()` has no default TSA trust anchor (callers pin it); session-open commitment (§5.2) is not implemented; no counterparty-receipt protocol exists, `registry` is just an input.
+
+
+### Reconciled with Sasana 2.x (as of 2.0.1)
+
+This note was written before 2.0.0. The statements below replace anything above that disagrees with them. Each
+is pinned by a test (`tests/test_commitment_sasana2.py`, `tests/test_canonicalization.py`,
+`tests/test_threat_model.py`) unless marked otherwise.
+
+**1. Canonicalization is versioned and declared.** A session written by Sasana ≥ 2.0.0 declares
+`"canonicalization": "jcs-rfc8785"` inside its (hashed) `SESSION_START` payload; a missing field means `legacy`
+(the 1.0.0/1.1.0 float behaviour); any other value is `ERROR`. The verifier reads the declaration once and uses
+exactly that algorithm for every event; it never tries both. Two separate things use JCS, and they are
+independent:
+
+| What | Algorithm |
+|---|---|
+| The **trace** (`session_events`): each `event_hash`, the chain, the `session_root` | the session's own declared algorithm (`jcs-rfc8785` or `legacy`) |
+| The **commitment** (`H(JCS(payload))`, the `jcs` disclosure form, the bytes that go into `C`) | always RFC 8785 (`sasana.jcs.canonicalize`), whatever the session declares |
+
+The payload profile (strings, booleans, null, arrays, objects, integers within ±2^53; real numbers as decimal
+*strings*) predates the float break and is now backed by it: a whole-number float changed bytes between `100.0`
+and `100` and silently invalidated every old log that contained one.
+
+**2. Evidence classes, and what a pinned key does here.** `verify()` (called by `verify_commitment`) now reports
+`SELF_SEALED_EVIDENCE` for a seal that verifies only against its own embedded key, and
+`AUTHORITATIVE_EVIDENCE` only when the seal verifies against a key the caller pinned
+(`trusted_seal_pubkey` / `--trust-key`). Since 2.0.0 a pinned key **requires a seal**: an unsealed trace with a
+pinned key is `COMPROMISED`, so `verify_commitment` returns `INVALID`; a seal from a different key is also
+`INVALID`. The evidence class is recorded in the verdict but **never changes the commitment verdict or the
+time**. (Tested: pinned+sealed, unpinned+sealed, pinned+unsealed, pinned+wrong key.)
+
+**3. Threat A8, and why the commitment, not the seal, is the defence.** An operator who can reach Archeion's
+`POST /seal` can have a rewritten session sealed with the genuine key, which verifies as
+`AUTHORITATIVE_EVIDENCE` under the pin ([`THREAT_MODEL.md`](THREAT_MODEL.md), A8; reproduced by
+`tests/test_threat_model.py`). **Against the operator the seal therefore adds little** (it shows a chain head was
+presented to Archeion at the seal's time, not that it is the original). What does bind the session is a
+commitment `C` that a **counterparty records before the deadline**: `C` contains `session_root`, so any rewrite of
+an event at or before the root removes the root from the chain and the verifier returns `INVALID`
+(tested against a genuinely resealed rewrite). That is the *counterparty* witness option in
+[`design/witness-anchoring.md`](design/witness-anchoring.md) (Option 2) in practice. Limits, also tested: `C` binds the
+trace only **up to `session_root`**; events after it can differ and are reported as `POST_COMMITMENT_EVENTS`; and
+it only helps if a counterparty actually holds `C` from before the deadline, which is a property of the
+counterparty's process, not of this code.
+
+**4. Which timestamp path a bundle uses.** The time of a commitment comes **only** from
+`rfc3161.verify_timestamp_strict()` applied to the revision's `tsa_token` over `C` (CMS signature, chain to the
+verifier's pinned anchors, timeStamping EKU, validity at `genTime`, SHA-256 imprint, optional policy OIDs); the nonce
+is checked at `commit()`, not at reveal. **`sasana verify` is different and remains imprint-only:** for the
+`SESSION_START` RFC 3161 token inside the *trace* it reports `IMPRINT_MATCH` and does not verify the TSA signature or
+`genTime`. That token is **not used for any commitment decision.** (Tested: a `SESSION_START` token with a corrupted
+CMS signature gets `IMPRINT_MATCH` from `verify()` and is rejected by `verify_timestamp_strict`; a commitment token
+from an unpinned TSA makes the bundle `INVALID`; `commit()` is fail-closed on a bad token.) Revocation is still not
+checked.
 
 ---
 
@@ -40,7 +93,7 @@ Every claim below cites the file and function it comes from. Claims about *what 
 |---|---|---|
 | 1 | Event envelope fields: `seq, event_type, session_id, timestamp, payload, prev_hash, event_hash` (+ optional `signature`). `timestamp` is the *writer's* local UTC clock. | `sasana/envelope.py::build_event`, `_utc_timestamp`; required set in `sasana/verifier.py::REQUIRED_FIELDS` |
 | 2 | `event_hash = SHA-256(JCS(event minus event_hash, signature))`; `prev_hash` of `seq=1` is 64 zeros. | `envelope.py::_compute_event_hash`, `GENESIS_HASH`; `verifier.py::compute_event_hash`, `_check_hash_chain` |
-| 3 | Canonicalization is a hand-written JCS (`sasana/jcs.py::canonicalize`). **It is not fully RFC 8785 conformant for floats** (see §1.1). | `sasana/jcs.py::_float_to_string`, `canonicalize` |
+| 3 | Canonicalization is a hand-written JCS (`sasana/jcs.py::canonicalize`). **It was not fully RFC 8785 conformant for floats at the time of writing** (see §1.1); 2.0.0 made `jcs.canonicalize` conformant and froze the old behaviour as `canonicalize_legacy`, selected per session by a declaration (below). | `sasana/jcs.py::_float_to_string`, `canonicalize` |
 | 4 | Content is never stored; only SHA-256 digests of prompts/responses/args/results enter events. `content_hash` hashes dict/list via JCS, str via UTF-8, bytes raw, **anything else via `str(value)`**. | `sasana/event_mapper.py` (module docstring, `map_llm_call`, `map_tool_invoke`…); `sasana/_utils.py::content_hash` |
 | 5 | **"Session root" is the chain tip.** There is no Merkle tree in this repo **(absent)**. `VerifyResult.root_hash` is the last event's `event_hash`; `CHAIN_SEAL.payload.session_hash` is the same value. | `verifier.py::verify` (`root_hash = sorted_events[-1]["event_hash"]`); `archeion/server.py::seal` (`"session_hash": last["event_hash"]`) |
 | 6 | Ledger is a per-session SQLite file (WAL, `synchronous=FULL`), events committed one at a time, exported to JSONL at session close. | `sasana/sqlite_ledger.py::SqliteLedger.connect`, `__write_event`, `export_jsonl` |
@@ -227,7 +280,7 @@ Differences from the first draft: step 7 (session-open) is omitted because §5.2
 Inputs: `bundle`, `deadline`, `trusted_tsa_anchors`, optional `trusted_seal_pubkey`, optional `registry` (list of `C` and open-bindings the counterparty received), `policy` flags.
 
 1. **Parse and version-check.** Unknown `bundle_version`/`domain_tag` ⇒ `INVALID`.
-2. **Trace integrity.** Run the existing `sasana.verifier.verify(session_events, trusted_seal_pubkey=…)`. `COMPROMISED`/`ERROR` ⇒ `INVALID`. `PARTIAL` ⇒ `INVALID` unless `policy.allow_partial`. Record `evidence_class`.
+2. **Trace integrity.** Run the existing `sasana.verifier.verify(session_events, trusted_seal_pubkey=…)` (since 2.0.0: under the session's declared canonicalization; a pinned key requires a seal; an unpinned seal is `SELF_SEALED_EVIDENCE`, not authoritative). `COMPROMISED`/`ERROR` ⇒ `INVALID`. `PARTIAL` ⇒ `INVALID` unless `policy.allow_partial`. Record `evidence_class`.
 3. For **each revision** `r`:
    1. Check payload profile (§3.2). Compute `ph = SHA-256(JCS(r.payload))`.
    2. Check each hex/length rule; build `input` per §3.3; compute `C'`. `C' != r.commitment` ⇒ revision `INVALID`.
@@ -251,6 +304,7 @@ Inputs: `bundle`, `deadline`, `trusted_tsa_anchors`, optional `trusted_seal_pubk
 * **Time is as good as the TSA.** Without the full CMS verification described in §4, the "timestamp" is just a blob. A single TSA is a single trust point.
 * **Uniqueness requires a counterparty.** A timestamp proves "existed by", never "the only one".
 * **Non-reveal is itself a signal, not a proof.** A committed `C` that is never revealed tells a counterparty something (the committer chose not to be scored) but proves nothing about the hidden contents. Platforms should define the consequence in their rules; the core only reports it.
+* **A seal does not protect against the operator (A8).** An operator with access to `/seal` can obtain an authoritative seal on a rewritten session. Against the operator Sasana 2.x provides no rewrite protection unless `/seal` access is controlled by a party independent of the operator; the commitment `C` held by a counterparty before the deadline is what binds the session up to `session_root`.
 * **Lost salt = unrevealable commitment.** The salt must be persisted with the same care as a signing key.
 
 ---
