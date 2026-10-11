@@ -598,5 +598,61 @@ class TestComplianceDoesNotTrustPresenceOfSeal(unittest.TestCase):
         assert "Evidence : AUTHORITATIVE_EVIDENCE" in out
 
 
+# --------------------------------------------------------------------------------------
+# Seal-row label on a COMPROMISED verify (2.0.0 printed "SELF-SIGNED" even when pinned)
+# --------------------------------------------------------------------------------------
+def _tampered_sealed() -> list:
+    events = _sealed()
+    events[2]["payload"]["injected"] = "x"  # breaks the hash chain; the seal itself is untouched
+    return events
+
+
+class TestSealRowLabelOnCompromised(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.path = _write(_tampered_sealed(), Path(self._tmp.name) / "t.jsonl")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _seal_row(self, out: str) -> str:
+        return next(ln for ln in out.splitlines() if ln.startswith("[5/5]"))
+
+    def test_pinned_and_compromised_says_signed_by_the_pinned_key(self):
+        rc, out, _ = _cli(self.path, "--trust-key", _TEST_PUBKEY)
+        assert rc == 1 and "Result: COMPROMISED" in out
+        row = self._seal_row(out)
+        assert "signed by the pinned key" in row and "SELF-SIGNED" not in row, row
+
+    def test_unpinned_and_compromised_still_says_self_signed(self):
+        rc, out, _ = _cli(self.path)
+        assert rc == 1
+        assert "SELF-SIGNED" in self._seal_row(out)
+
+    def test_pinned_with_the_wrong_key_fails_the_seal_row(self):
+        _, other_pub = generate_keypair()
+        rc, out, _ = _cli(self.path, "--trust-key", other_pub)
+        row = self._seal_row(out)
+        assert rc == 1 and "FAIL" in row and "signed by the pinned key" not in row, row
+
+    def test_rust_binary_has_the_same_labels(self):
+        from rust_bin import require_rust_binary
+
+        binary = str(require_rust_binary())
+        env = {**os.environ, "NO_COLOR": "1"}
+
+        def run(*flags):
+            r = subprocess.run(
+                [binary, "verify", str(self.path), *flags], capture_output=True, text=True, env=env
+            )
+            return r.returncode, r.stdout
+
+        rc, out = run("--trust-key", _TEST_PUBKEY)
+        row = self._seal_row(out)
+        assert rc == 1 and "signed by the pinned key" in row and "SELF-SIGNED" not in row, row
+        rc, out = run()
+        assert "SELF-SIGNED" in self._seal_row(out)
+
+
 if __name__ == "__main__":
     unittest.main()

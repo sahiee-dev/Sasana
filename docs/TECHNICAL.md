@@ -665,14 +665,16 @@ fastapi>=0.110
 
 ## 14. Test Coverage
 
-359 Python tests and 26 Rust unit tests as of v2.0.0 (`pytest -q`, `cargo test --manifest-path sasana-rs/Cargo.toml`). The Python/Rust agreement tests need the compiled `sasana-rs` binary: they skip locally when it is not built, but **fail in CI** (`CI=true`), where the Python jobs build it.
+368 Python tests and 26 Rust unit tests as of v2.0.1 (`pytest -q`, `cargo test --manifest-path sasana-rs/Cargo.toml`). The Python/Rust agreement tests need the compiled `sasana-rs` binary: they skip locally when it is not built, but **fail in CI** (`CI=true`), where the Python jobs build it.
 
 | Module | Tests | Coverage notes |
 |---|---|---|
 | `test_verifier.py` | 39 | Verification pipeline, evidence classes, attack surfaces (insertion, deletion, reordering, replacement) |
-| `test_verifier_hardening.py` | 53 | Pinned-key-implies-seal, `--require-seal`, single/final seal, seal `session_hash`, fail-closed malformed input (API + CLI), `--json` completeness, exit codes, `--strict`, timestamp honesty, compliance reports not trusting a seal's mere presence |
+| `test_verifier_hardening.py` | 57 | Pinned-key-implies-seal, `--require-seal`, single/final seal, seal `session_hash`, fail-closed malformed input (API + CLI), `--json` completeness, exit codes, `--strict`, timestamp honesty, compliance reports not trusting a seal's mere presence, seal-row label on a COMPROMISED pinned verify (Python and Rust) |
 | `test_canonicalization.py` | 32 | Versioned canonicalization: shared vectors (RFC 8785 Appendix B, RFC examples, Node oracle, real 1.1.0), declaration handling, downgrade / no-fallback, and the golden logs written by the published 1.0.0 / 1.1.0 releases (Python and Rust must agree on each) |
 | `test_tamper_matrix.py` | 26 | The audit matrix: 10 attacks × 2 canonicalization formats through the real CLI, plus Rust parity on every case |
+| `test_threat_model.py` | 2 | A2 and A8, asserted as documented limitations against the real Archeion app (see THREAT_MODEL.md) |
+| `test_versions.py` | 3 | Every release version string agrees with the package; Archeion reports it; CHANGELOG has the entry |
 | `test_e2e.py` | 18 | SDK → Archeion → verify full flow; tamper detection; double-seal rejection; broken chain rejection; key pinning |
 | `test_compliance.py` | 45 | EU AI Act, SOC 2, HIPAA, SIEM, evidence-pack CLI |
 | `test_integrations.py` | 25 | LangGraph, CrewAI, AutoGPT |
@@ -689,6 +691,8 @@ CI: GitHub Actions, Python 3.10 and 3.12, ruff lint + format check.
 ---
 
 ## 15. Known Gaps and Honest Limitations
+
+**A seal does not protect against the operator (A8).** Archeion authenticates no callers and keeps no record of what it has sealed, so anyone who can reach `POST /seal` can get a rewritten copy of a session sealed with the genuine key; with the key pinned it verifies as `INTACT` / `AUTHORITATIVE_EVIDENCE`. A seal shows that a chain head was presented to Archeion at the seal's time, not that it is the original. **Against the operator, Sasana 2.x provides no rewrite protection unless access to `/seal` is controlled by a party independent of the operator.** Full threat list: [THREAT_MODEL.md](THREAT_MODEL.md). Direction for a real fix (an external witness): [design/witness-anchoring.md](design/witness-anchoring.md).
 
 **Rust verifier scope.** The Rust binary implements the same seal trust model as verifier v2.0.0 (pinned key, `--require-seal`, `--strict`, `SELF_SEALED_EVIDENCE`, single/final seal, `session_hash` check) and is run against the same tamper-matrix cases. It also implements both canonicalizations and per-event Ed25519 signatures, and agrees with Python on every golden fixture and tamper case. It does not check RFC 3161 tokens, and its `--json` output has no per-check breakdown. Releases before 2.0.0 of the Rust verifier did not share this model (see CHANGELOG).
 

@@ -188,7 +188,7 @@ docker compose up -d --build
 
 # Verify it's running
 curl http://localhost:8747/health
-# {"status":"ok","version":"1.0.0","pubkey":"<base64>"}
+# {"status":"ok","version":"2.0.1","pubkey":"<base64>"}
 ```
 
 ### Network isolation
@@ -259,6 +259,30 @@ can seal" are:
 > scope / VPN segment]. The threat model assumes an attacker who has breached the network
 > perimeter already has greater access than the ability to submit sessions for sealing."
 
+> **Correction (2.0.1).** The reviewer answer above assumes the attacker is outside the perimeter. For
+> the case Sasana exists for, the **operator is the adversary**, and the operator's own hosts are usually
+> inside the perimeter. See the next section.
+
+### Consequence: an operator who can reach `/seal` can get a rewrite sealed (A8)
+
+Because Archeion authenticates no callers and keeps no record of what it has sealed, any host that can
+reach `POST /seal` can submit a session, including a **rewritten copy of a session Archeion already
+sealed**. Archeion verifies the rewrite is internally consistent and seals it with the genuine key; with
+that key pinned, `sasana verify` reports `AUTHORITATIVE_EVIDENCE` for the rewrite. This was reproduced
+against the real server.
+
+**Against the operator, Sasana 2.x provides no rewrite protection unless access to `/seal` is controlled
+by a party independent of the operator.** If you need protection against the operator:
+
+- Run Archeion under a team/account the operator's staff cannot administer, and firewall `/seal` so only
+  the agent hosts can call it at session end, not the hosts or people who can edit stored logs.
+- Seal at session end, not later, and keep a copy of the sealed log somewhere the operator cannot edit.
+- Do not describe an `AUTHORITATIVE_EVIDENCE` result as proof that the operator did not rewrite the record.
+
+Adding authentication does not close this by itself: the operator can hold the credential. Detection needs
+an external witness the operator does not control (`design/witness-anchoring.md`). Threat list:
+`THREAT_MODEL.md`.
+
 If your security policy requires credential-based authentication regardless of network
 controls, put an authenticating reverse proxy (nginx with `auth_request`, or an API
 gateway) in front of Archeion. Archeion itself will not add this layer.
@@ -311,7 +335,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "version": "1.0.0",
+    "version": "2.0.1",
   "pubkey": "<base64 Ed25519 public key>"
 }
 ```
@@ -401,7 +425,7 @@ to include are:
 - Sessions sealed by Archeion verify as `AUTHORITATIVE_EVIDENCE` when checked with
   `--trust-key <archeion-pubkey>`; without the pin they are `SELF_SEALED_EVIDENCE`
 - The seal is a cryptographic signature by an authority server that the agent process
-  has no access to — the agent cannot produce a seal that verifies against Archeion's key
+  has no access to — the agent cannot produce a seal that verifies against Archeion's key (but anyone who can reach `/seal` can get a rewrite sealed: see A8 above)
 - Sealed sessions can be verified offline, without Archeion running, given the public key
   you recorded at deployment (the key embedded in the seal must not be the only source)
 

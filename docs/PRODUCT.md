@@ -41,7 +41,7 @@ Raw content — prompts, responses, tool arguments, tool results — is **never 
 
 When the session ends, the ledger is exported to a portable JSONL file. That file can be verified by anyone — offline, without contacting any server — using the `sasana verify` command or the Rust binary.
 
-Optionally, a completed session can be submitted to **Archeion**, a self-hosted authority sealing server. Archeion appends a signed `CHAIN_SEAL` event to the log using its own Ed25519 keypair. Because Archeion holds the sealing key — and the agent process never does — a compromised agent cannot produce a seal that verifies against Archeion's public key. Verifiers get `AUTHORITATIVE_EVIDENCE` only when they pin that public key with `--trust-key`; without the pin the seal is reported as `SELF_SEALED_EVIDENCE`, because the seal carries its own key and anyone can seal a rewritten log with a key of their own.
+Optionally, a completed session can be submitted to **Archeion**, a self-hosted authority sealing server. Archeion appends a signed `CHAIN_SEAL` event to the log using its own Ed25519 keypair. Because Archeion holds the sealing key — and the agent process never does — a compromised agent cannot produce a seal that verifies against Archeion's public key. Verifiers get `AUTHORITATIVE_EVIDENCE` only when they pin that public key with `--trust-key`; without the pin the seal is reported as `SELF_SEALED_EVIDENCE`, because the seal carries its own key and anyone can seal a rewritten log with a key of their own. A seal also does not stop someone who can reach Archeion from having a rewrite sealed (threat A8): against the operator, Sasana 2.x provides no rewrite protection unless access to `/seal` is controlled by a party independent of the operator. See `docs/THREAT_MODEL.md`.
 
 ---
 
@@ -119,7 +119,7 @@ The core product is complete:
 - Archeion authority sealing server (FastAPI)
 - Compliance exports for EU AI Act Art. 12, SOC 2 CC7.2, HIPAA §164.312(b), SIEM
 - CLI (`sasana verify`, `sasana seal`, `sasana observe`)
-- 359 Python tests and 26 Rust unit tests (v2.0.0), run in CI on Python 3.10 and 3.12
+- 368 Python tests and 26 Rust unit tests (v2.0.1), run in CI on Python 3.10 and 3.12
 
 ### Near-term (next 3 months)
 
