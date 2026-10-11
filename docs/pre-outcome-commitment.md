@@ -1,6 +1,6 @@
 # Pre-Outcome Commitment — Design Proposal
 
-**Status:** IMPLEMENTED on branch `design/ha-reveal-bundle` (not merged, not pushed). Sections 1–2 describe the code *as it was before* this work; see **Implementation status** and the reconciliation block below for what changed. **Commitment v2 (§3.5) supersedes v1.**
+**Status:** IMPLEMENTED on branch `design/ha-reveal-bundle` (not merged, not pushed). Sections 1–2 describe the code *as it was before* this work; see **Implementation status** and the reconciliation block below for what changed. **Commitment v2 (§3.5) supersedes v1, and payload mapping `ha-daily-v2` (Appendix A.2) supersedes `ha-daily-v1`.**
 **Scope:** a generic primitive. Platform-specific mappings live only in Appendix A and in `examples/ha-reveal/` (synthetic bundles). A statement about a named platform is either cited to that platform's public interface (as that platform described it to us) or marked **PROPOSED EXTENSION — not an HA interface**. Nothing here is an interface, commitment or endorsement of any platform.
 
 ### Implementation status
@@ -13,16 +13,16 @@ Decisions taken: commitment formula first **as originally specified** (v1: no `p
 | RFC 3161 | New `verify_timestamp_strict()`: CMS signature (RSA PKCS#1 v1.5 / ECDSA / Ed25519), chain to caller-pinned anchors, timeStamping EKU, validity at genTime, SHA-256 imprint, nonce, optional policy allow-list, sub-second genTime, accuracy. Request builder accepts a nonce; `request_timestamp` accepts `url`/`nonce`. The old imprint-only `verify_timestamp` is unchanged (existing verifier behaviour and tests intact). **Not done:** revocation (CRL/OCSP), RSA-PSS. | `sasana/rfc3161.py`, `tests/test_rfc3161_strict.py`, `tests/tsa_fixture.py` |
 | Verifier | New public `verify_chain_integrity()` (structural + sequence + hash chain only) so `commit()` can work on open sessions. No existing function changed. | `sasana/verifier.py` |
 | Commitment | `commit()`, `reveal_bundle()`, `verify_commitment()`, `compute_commitment()`, payload profile, disclosures. | `sasana/commitment.py`, `tests/test_commitment.py` |
-| CLI | `sasana verify-commitment` (exit 0 valid, 1 invalid, 2 late, 3 input error or unknown flag, 4 unrevealed). Policy flags: `--receipts`, `--receipt-key`, `--mapping`, `--clock-skew`, `--require-receipts`, `--allow-unrevealed-history`. Unknown or abbreviated flags are refused (they were silently ignored before). | `sasana_cli.py` |
-| Payload mapping | `ha-daily-v1`: an explicit, versioned map from a submission to the canonical payload (decimal strings; absent ≠ empty ≠ null); its id is bound inside `C`. | `sasana/commitment_mapping.py`, `tests/test_commitment_mapping.py`, `tests/fixtures/mapping/ha-daily-v1.json` |
-| C_v2, receipts, policy | `compute_commitment_v2`; `sign_receipt` / `verify_receipt` (a **PROPOSED EXTENSION**, §5.3); the scored-revision rule; verdict `UNREVEALED`; `HISTORY_GAP`; the time and trust policy of §10. | `sasana/commitment.py`, `tests/test_commitment_v2.py` |
-| Examples | 11 synthetic bundles and a runner that prints `bundle \| expected \| actual \| match`. | `examples/ha-reveal/`, `tests/test_ha_reveal_examples.py` |
+| CLI | `sasana verify-commitment` (exit 0 valid, 1 invalid, 2 late, 3 input error or unknown flag, 4 unrevealed, 5 valid **only under a lenient option**, 6 incomplete receipts). Policy flags: `--receipts`, `--closing-receipt`, `--receipt-key`, `--mapping`, `--clock-skew`, `--require-receipts`, `--allow-unrevealed-history`. Unknown or abbreviated flags are refused, in every subcommand (released as 2.0.2; before that they were silently ignored). | `sasana_cli.py` |
+| Payload mapping | `ha-daily-v2` (current, **default-deny**: binds all eleven declared daily fields, one shape for `probabilities`) and `ha-daily-v1` (**superseded**: bound seven, accepted two shapes; still verifies, with a warning). An explicit, versioned map from a submission to the canonical payload (decimal strings; absent ≠ empty ≠ null); its id is bound inside `C`. | `sasana/commitment_mapping.py`, `tests/test_commitment_mapping.py`, `tests/fixtures/mapping/ha-daily-v1.json` |
+| C_v2, receipts, policy | `compute_commitment_v2`; `sign_receipt` / `verify_receipt` (a **PROPOSED EXTENSION**, §5.3); the scored-revision rule; verdicts `UNREVEALED` and `INCOMPLETE_RECEIPTS`; the closing receipt; `HISTORY_GAP` and the lenient flag; the time and trust policy of §10. | `sasana/commitment.py`, `tests/test_commitment_v2.py` |
+| Examples | 16 synthetic scenarios (15 bundles) and a runner that prints `bundle \| expected \| actual \| match`. | `examples/ha-reveal/`, `tests/test_ha_reveal_examples.py` |
 
 Validation: 247 tests pass on Python 3.11 (160 pre-existing + 87 new), 229 pass + 18 pre-existing skips on 3.10 (cryptography 41); `ruff check` and `ruff format --check` clean. Nine deliberate mutations of `commitment.py` were each caught by a test. The strict verifier was also checked against a **live FreeTSA token** (nonce echoed, chain to FreeTSA's published root), and a full `commit()` → `reveal_bundle()` → `sasana verify-commitment` run against FreeTSA gave `VALID_ON_TIME`, and `LATE` for an earlier deadline. FreeTSA omits `accuracy` and issues whole-second `genTime`; the verifier assumes 1 s by default (`default_accuracy_s`) and warns.
 
-Branch `design/ha-reveal-bundle` (C_v2, mapping, receipts, policy, examples): **476 Python tests pass on 3.10, 3.11 and 3.12** (368 at the 2.0.1 release, +9 Sasana-2.x reconciliation tests, +99 new), 26 Rust tests, `ruff check` and `ruff format --check` clean (ruff 0.15.x, the CI pin is `<0.16`). Twenty deliberate mutations of the security-relevant lines (mapping id or `prev_commitment` dropped from `C`, scored revision ignoring `accepted`, `<` weakened to `<=`, clock skew or assumed accuracy ignored, empty anchors allowed, receipt key not required, the canonical-form check skipped, strict flag parsing reverted, and others) were each caught by a test. Eleven synthetic bundles in `examples/ha-reveal/` verify as `expected.json` says. Not run: anything against a real counterparty or a real TSA.
+Branch `design/ha-reveal-bundle` (C_v2, default-deny mapping, receipts and closing receipt, policy, examples): **529 Python tests pass on 3.10, 3.11 and 3.12** (379 on `main` at 2.0.2, +150 on this branch), 26 Rust tests, `ruff check` and `ruff format --check` clean (ruff 0.15.x; the CI pin is `<0.16`). Thirty-five deliberate mutations of the security-relevant lines (mapping id or `prev_commitment` dropped from `C`, `amount` or `trigger_event_id` unbound, arrays accepted for `probabilities`, the closing receipt's count/last comparison, scope, deadline, mapping or signature check removed, a missing closing receipt treated as fine, a lenient pass not marked or not given its own exit code, `<` weakened to `<=`, clock skew or assumed accuracy ignored, empty anchors allowed, the canonical-form check skipped, strict flag parsing reverted, and others) were each caught by a test; two of the first run's results were errors in the mutation harness itself and one exposed a weak test (duplicate `lenient` entries), which was strengthened. Sixteen synthetic scenarios in `examples/ha-reveal/` verify as `expected.json` says. Not run: anything against a real counterparty or a real TSA.
 
-**Known gaps in the implementation:** no revocation checking; single-TSA per commitment (`tsa_urls` is tried in order, not n-of-m); *(superseded in 2.0.0: the Rust verifier now implements both canonicalizations and is tested against the same vectors and golden logs as Python; ~88,000 random doubles hash identically)*; `commit()` has no default TSA trust anchor (callers pin it); session-open commitment (§5.2) is not implemented; no real counterparty issues receipts: they are a **PROPOSED EXTENSION** (§5.3) implemented only as a verifier input, and `registry` is an unsigned input list.
+**Known gaps in the implementation:** no revocation checking; single-TSA per commitment (`tsa_urls` is tried in order, not n-of-m); *(superseded in 2.0.0: the Rust verifier now implements both canonicalizations and is tested against the same vectors and golden logs as Python; ~88,000 random doubles hash identically)*; `commit()` has no default TSA trust anchor (callers pin it); session-open commitment (§5.2) is not implemented; no real counterparty issues receipts or a closing receipt: both are **PROPOSED EXTENSIONS** (§5.3) implemented only as verifier inputs, and `registry` is an unsigned input list.
 
 
 ### Reconciled with Sasana 2.x (as of 2.0.1)
@@ -81,7 +81,8 @@ checked.
 timestamp did not authenticate the revision chain, and the payload had no declared meaning. v2 puts the payload
 mapping id and `prev_commitment` *inside* `C` (§3.5), adds an optional signed counterparty receipt so the scored
 revision is the one the counterparty accepted rather than "the highest on-time revision in the bundle" (§5.3), adds
-the verdict `UNREVEALED`, and makes the time and trust policy explicit and tested (§10). v1 bundles still verify.
+the verdicts `UNREVEALED` and `INCOMPLETE_RECEIPTS`, adds a signed **closing receipt** so a withheld receipt is detectable,
+and makes the time and trust policy explicit and tested (§10). v1 bundles still verify.
 
 ---
 
@@ -266,11 +267,11 @@ make an unrevealed predecessor revealable.
 * `prev_commitment` = `C` of revision `i-1` (`null` for `i = 0`). **Inside `C` in v2** (authenticated by the timestamp); beside it in v1.
 * **A retry after a counterparty rejection continues the chain from the rejected commitment** (`prev` = the rejected `C`, index +1). Revision indices along a chain are therefore never reused, and the rejected attempt stays part of the verifiable history.
 * **Scored (effective) revision.**
-  * *With signed receipts* (§5.3): the receipt with the highest `revision_index` among those with `accepted == true` and `accepted_at < deadline`. It is scored only if its own commitment also passes the time rule; if not, the verdict is `LATE`, with **no fall-back** to an earlier revision the counterparty did not score. If its secrets are not in the bundle the verdict is `UNREVEALED`.
+  * *With signed receipts and the counterparty's closing receipt* (§5.3): the revision the closing receipt names as last accepted, which must agree with the receipt with the highest `revision_index` among those with `accepted == true` and `accepted_at < deadline`. **Receipts without a closing receipt give `INCOMPLETE_RECEIPTS`, not a verdict.** It is scored only if its own commitment also passes the time rule; if not, the verdict is `LATE`, with **no fall-back** to an earlier revision the counterparty did not score. If its secrets are not in the bundle the verdict is `UNREVEALED`.
   * *Without receipts*: the highest `revision_index` among those whose `t_hi < deadline` (the v1 rule). In v2 this carries the warning `NO_RECEIPTS`, because that revision **may differ from the one the counterparty accepted** (a rejected revision, or an omitted earlier commitment, is invisible to a bundle alone).
 * **Ordering check:** `t_hi` must be non-decreasing in `revision_index`, and receipt `accepted_at` must be non-decreasing in `revision_index`; a violation is an error.
 * **Superseded revisions remain verifiable:** the bundle may and, by policy, should include them; each verifies exactly like the effective one.
-* **Gaps.** v2: a revealed revision whose predecessor is absent, or present but failing verification, is `HISTORY_GAP`, an error unless `allow_unrevealed_history` (a broken reveal hides a revision as surely as omitting it). v1: `UNREVEALED_REVISION` warning.
+* **Gaps.** v2: a revealed revision whose predecessor is absent, or present but failing verification, is `HISTORY_GAP`, an error unless `allow_unrevealed_history` (a broken reveal hides a revision as surely as omitting it). When that option is what let the bundle pass, the verdict says so: `lenient: ["unrevealed history allowed"]` in the verdict and `--json`, a `(LENIENT: …)` banner in text mode, and **exit code 5** instead of 0, so a lenient pass is never mistaken for a strict one. v1: `UNREVEALED_REVISION` warning.
 
 ### 5.2 Optional session-open commitment — DEFERRED (not implemented)
 
@@ -284,11 +285,13 @@ Registering the session root (or a hash of it) with the counterparty at `SESSION
 
 Caveats stated plainly: this only works with a counterparty-held registry; it cannot detect sessions that were never instrumented; and the existing session-start anchoring is fail-open (`sqlite_ledger.py::_try_anchor_rfc3161`) so session-open mode needs its own fail-closed path.
 
-### 5.3 Counterparty acceptance receipts — PROPOSED EXTENSION (verifier input only)
+### 5.3 Counterparty acceptance receipts and the closing receipt — PROPOSED EXTENSIONS (verifier inputs only)
 
-Which revision a counterparty *accepted before its cutoff* cannot be read off a bundle: the highest on-time revision in a bundle may differ from the last accepted submission, a rejected revision still carries a valid timestamp, and an omitted earlier commitment leaves no trace. What closes this is a record **made by the counterparty at acceptance time**. The verifier accepts one as a signed receipt.
+Which revision a counterparty *accepted before its cutoff* cannot be read off a bundle: the highest on-time revision in a bundle may differ from the last accepted submission, a rejected revision still carries a valid timestamp, and an omitted earlier commitment leaves no trace. What closes this is a record **made by the counterparty at acceptance time**, and a second record **made at the deadline** that says the first set is complete. The verifier accepts both as signed messages.
 
-> **PROPOSED EXTENSION — not an HA interface** (and not an interface of any other platform). No counterparty we know of issues this. It is implemented here only as something `verify_commitment` can consume, and exercised with synthetic keys.
+> **PROPOSED EXTENSION — not an HA interface** (and not an interface of any other platform). No counterparty we know of issues either. Both are implemented here only as something `verify_commitment` can consume, and are exercised with synthetic keys.
+
+**(a) Per-submission acceptance receipt**, one for every submission attempt:
 
 ```jsonc
 { "body": { "challenge_id": "…",        // = context_id
@@ -299,19 +302,36 @@ Which revision a counterparty *accepted before its cutoff* cannot be read off a 
             "accepted": true,           // false = the submission carrying this C was rejected
             "reason": null,             // free text, signed but never interpreted
             // optional, lets the counterparty vouch for WHAT it accepted (Appendix A.3):
-            "mapping_id": "ha-daily-v1",
+            "mapping_id": "ha-daily-v2",
             "payload_hash": "<hex SHA-256 of JCS(canonical payload)>" },
   "signature": "<hex Ed25519 signature over the bytes  'sasana/receipt/v1' + LF  followed by  JCS(body)>" }
 ```
 
-Rules (all in code, `sasana/commitment.py::verify_receipt` and `_process_receipts`; tested in `tests/test_commitment_v2.py`):
+**(b) Closing receipt**, one per `(agent_id, challenge_id)`, signed at the deadline:
 
-* The signature is checked against **one pinned key** the verifier supplies (`trusted_receipt_pubkey`, base64 raw Ed25519). Receipts supplied without a pinned key make the verdict `INVALID`. A key travelling inside a receipt is never read.
+```jsonc
+{ "body": { "challenge_id": "…", "agent_id": "…",
+            "accepted_count": 2,                       // submissions accepted before the deadline
+            "last_accepted_revision_index": 1,         // null when accepted_count is 0
+            "last_accepted_C": "<hex C>",              // null when accepted_count is 0
+            "closed_at": "2026-10-14T12:00:30Z",       // counterparty clock; must not precede the deadline
+            "mapping_id": "ha-daily-v2" },
+  "signature": "<hex Ed25519 signature over  'sasana/closing-receipt/v1' + LF  followed by  JCS(body)>" }
+```
+
+Without (b) a verifier cannot tell a complete list of (a) from one with a receipt withheld: a committer who supplies the list could simply leave out a later accepted receipt. With (b), any list that disagrees with the counterparty's own count and last commitment is rejected. The two use different domain tags, so neither can be replayed as the other.
+
+Rules (all in code, `sasana/commitment.py::verify_receipt`, `verify_closing_receipt`, `_process_receipts`, `_apply_closing`; tested in `tests/test_commitment_v2.py`):
+
+* Both are checked against **one pinned key** the verifier supplies (`trusted_receipt_pubkey`, base64 raw Ed25519). Either kind supplied without a pinned key makes the verdict `INVALID`. A key travelling inside a receipt is never read.
+* **A receipt list with no closing receipt is `INCOMPLETE_RECEIPTS`** (CLI exit 6): not valid, and deliberately not `INVALID` either (nothing is wrong, something is missing). Other errors still take precedence.
+* **The list must agree with the closing receipt:** the number of `accepted` receipts before the deadline must equal `accepted_count`, and the one with the highest `revision_index` must be `(last_accepted_revision_index, last_accepted_C)`, or the verdict is `INVALID` (`RECEIPT_LIST_DISAGREES_WITH_CLOSING`; this is how a withheld or an added receipt is caught). A closing receipt for another agent or challenge, signed before the deadline, or naming a different mapping is `INVALID`.
+* The closing receipt alone is enough to name the scored revision (warning `NO_PER_SUBMISSION_RECEIPTS`: `accepted_count` could not then be cross-checked).
 * Receipts for another `agent_id` / `challenge_id` are ignored (counted). A bad signature, two accepted commitments for one `revision_index` (`EQUIVOCATION`), or contradictory receipts for one commitment make the verdict `INVALID`.
 * If a receipt carries `payload_hash` or `mapping_id`, they must match the revealed revision (`RECEIPT_PAYLOAD_MISMATCH`, `RECEIPT_MAPPING_MISMATCH`).
 * `TSA_TIME_AFTER_ACCEPTANCE` (warning): a commitment cannot be submitted before it exists, so the TSA's time for `C` must not be later than `accepted_at` beyond accuracy and the assumed skew.
 
-What a receipt does **not** establish: that the receipt list is *complete* (a committer who supplies the list can withhold a later accepted receipt, so receipts must come from the counterparty, and a terminal "closed at the deadline, last accepted = k" receipt would let a verifier detect withholding; **not implemented**, see §10 and §11), that the counterparty's clock is honest, or that its signing key is genuine (that is the pin).
+What they do **not** establish: that the counterparty's signing key is genuine (that is the pin), that its clock is honest, or that it counted honestly: a counterparty that signs a false `accepted_count` is believed. They move the question from "was I handed everything?" to "do I trust this counterparty's key?", which is a smaller and more explicit assumption.
 
 ---
 
@@ -375,13 +395,14 @@ Inputs: `bundle`, `deadline`, `trusted_tsa_anchors`, optional `trusted_seal_pubk
 
 Differences from the steps above, all in `verify_commitment`:
 
-* **Preconditions fail closed (`INVALID`):** no pinned TSA anchors; negative, non-finite or non-numeric `clock_skew_s`; receipts without a pinned receipt key; `require_receipts` without receipts; a naive (timezone-less) deadline.
+* **Preconditions fail closed (`INVALID`):** no pinned TSA anchors; negative, non-finite or non-numeric `clock_skew_s`; receipts or a closing receipt without a pinned receipt key; `require_receipts` with neither; a naive (timezone-less) deadline.
 * **Step 1** accepts `(bundle_version, domain_tag)` of `("1", "sasana/commit/v1")` or `("2", "sasana/commit/v2")`. For v2 the `mapping_id` must be a registered mapping, and equal to `expected_mapping_id` if the verifier requires one. A v1 bundle cannot satisfy a required mapping.
 * **Step 3.2** for v2 recomputes `C_v2` and then requires the payload to be in its mapping's canonical form.
 * **Step 4** for v2: a missing or unverified predecessor is `HISTORY_GAP` (error, or warning with `allow_unrevealed_history`).
-* **Step 5** with receipts: the scored revision comes from the receipts (§5.1), not from the bundle.
-* **Verdicts:** `VALID_ON_TIME`, `LATE`, `INVALID`, and **`UNREVEALED`**: the counterparty accepted a revision whose secrets the bundle does not reveal. That is neither a pass nor a failure; it is the absence of evidence, reported as such (CLI exit 4). Without receipts a bundle with no revisions is still `INVALID`, because nothing is known.
-* **Warnings added:** `NO_RECEIPTS`, `NOT_ACCEPTED_BY_COUNTERPARTY:i`, `UNREVEALED_COMMITMENT:i`, `RECEIPT_AFTER_DEADLINE:i`, `NO_ACCEPTED_RECEIPT_BEFORE_DEADLINE`, `SCORED_REVISION_NOT_ON_TIME:i`, `TSA_TIME_AFTER_ACCEPTANCE:i`, and the mapping's payload warnings (`PROBABILITY_SUM:x`, `PROBABILITY_NEGATIVE`).
+* **Step 5** with receipts: the scored revision comes from the closing receipt, cross-checked against the receipt list (§5.1, §5.3), not from the bundle.
+* **Verdicts:** `VALID_ON_TIME`, `LATE`, `INVALID`, **`UNREVEALED`** (the counterparty accepted a revision whose secrets the bundle does not reveal: neither a pass nor a failure, but the absence of evidence; exit 4) and **`INCOMPLETE_RECEIPTS`** (a receipt list was supplied without the counterparty's closing receipt, so completeness cannot be judged; exit 6). Without receipts a bundle with no revisions is still `INVALID`, because nothing is known.
+* **Lenient passes are marked.** `CommitmentVerdict.lenient` is non-empty only when a lenient option (`allow_unrevealed_history`) changed the outcome; the CLI then prints `(LENIENT: …)` and exits **5**, not 0. Setting the option when it was not needed does not mark a pass lenient (the setting is still echoed in `checks["policy"]`).
+* **Warnings added:** `MAPPING_SUPERSEDED:old->new`, `CLOSING_RECEIPT_MISSING`, `NO_PER_SUBMISSION_RECEIPTS`, `NO_RECEIPTS`, `NOT_ACCEPTED_BY_COUNTERPARTY:i`, `UNREVEALED_COMMITMENT:i`, `RECEIPT_AFTER_DEADLINE:i`, `NO_ACCEPTED_RECEIPT_BEFORE_DEADLINE`, `SCORED_REVISION_NOT_ON_TIME:i`, `TSA_TIME_AFTER_ACCEPTANCE:i`, and the mapping's payload warnings (`PROBABILITY_SUM:x`, `PROBABILITY_NEGATIVE`).
 * `checks["policy"]` in the verdict records the policy actually applied (anchors pinned, time rule, assumed accuracy and skew, revocation not checked, seal key pinned, receipt key pinned).
 
 ---
@@ -422,13 +443,14 @@ def verify_commitment(bundle: Mapping[str, Any], *, deadline: datetime,
                       allow_partial: bool = False, default_accuracy_s: float = 1.0,
                       allowed_policies: Optional[Sequence[str]] = None,
                       receipts: Optional[Sequence[Mapping[str, Any]]] = None,   # PROPOSED EXTENSION input
+                      closing_receipt: Optional[Mapping[str, Any]] = None,      # PROPOSED EXTENSION input
                       trusted_receipt_pubkey: Optional[str] = None,
                       expected_mapping_id: Optional[str] = None,
                       require_receipts: bool = False, allow_unrevealed_history: bool = False,
                       clock_skew_s: float = 0.0) -> CommitmentVerdict: ...  # never raises
 ```
 
-Also public: `compute_commitment` / `encode_commitment_input` (v1), `compute_commitment_v2` / `encode_commitment_input_v2`, `payload_hash`, `validate_payload_profile`, `disclosure_hash`, `sign_receipt`, `verify_receipt`; dataclasses `PublicCommitment` (now with `mapping_id`), `CommitmentSecrets` (both with `to_dict`/`from_dict`), `CommitmentVerdict` (verdict now also `UNREVEALED`); and, in `sasana/commitment_mapping.py`, `map_ha_daily_v1`, `canonical_decimal`, `check_canonical_ha_daily_v1`, `probability_warnings`, `cross_check_published`, `MAPPINGS`. Differences from the first sketch: `commit()` takes `trusted_tsa_anchors` (it self-verifies the token before returning) and `allowed_policies`; `reveal_bundle` has no `session_open`; the verdict also carries `effective_payload` and `errors`.
+Also public: `compute_commitment` / `encode_commitment_input` (v1), `compute_commitment_v2` / `encode_commitment_input_v2`, `payload_hash`, `validate_payload_profile`, `disclosure_hash`, `sign_receipt`, `verify_receipt`, `sign_closing_receipt`, `verify_closing_receipt`; dataclasses `PublicCommitment` (now with `mapping_id`), `CommitmentSecrets` (both with `to_dict`/`from_dict`), `CommitmentVerdict` (verdict now also `UNREVEALED` and `INCOMPLETE_RECEIPTS`, and a `lenient` field); and, in `sasana/commitment_mapping.py`, `map_ha_daily_v2` (and the superseded `map_ha_daily_v1`), `canonical_decimal`, `check_canonical_ha_daily_v2`, `probability_warnings`, `cross_check_published`, `MAPPINGS`, `DECLARED_FIELDS_V2`, `EXCLUDED_FIELDS_V2`. Differences from the first sketch: `commit()` takes `trusted_tsa_anchors` (it self-verifies the token before returning) and `allowed_policies`; `reveal_bundle` has no `session_open`; the verdict also carries `effective_payload` and `errors`.
 
 **Operational note:** `CommitmentSecrets.salt` must be persisted with the same care as a signing key; without it the commitment can never be revealed.
 
@@ -445,17 +467,22 @@ Every row is either pinned by a test or marked **NOT ENFORCED** (and, where usef
 | 3 | **TSA certificates were valid at `genTime`** | Every certificate on the path must be valid at `genTime`. | Enforced (`rfc3161.verify_timestamp_strict`). `test_a_token_whose_signing_cert_was_not_valid_at_gentime_is_refused_at_commit`; `tests/test_rfc3161_strict.py` |
 | 4 | **Time rule** | On time iff `genTime + accuracy + clock_skew_s < deadline`, **strictly** (equality is late). The deadline is a verifier input, never read from the bundle; a timezone-less deadline is `INVALID`. | Enforced. `test_time_rule_is_strict_gentime_plus_accuracy_before_deadline`, `test_declared_accuracy_widens_the_window`, `test_the_deadline_comes_from_the_verifier_never_from_the_bundle` |
 | 5 | **Accuracy absent** | The verifier assumes `default_accuracy_s` (1 s unless set), flags the revision `accuracy_assumed`, and warns `TSA_ACCURACY_ASSUMED`. A stricter assumption can turn the same token late. FreeTSA omits accuracy and issues whole-second `genTime`. | Enforced. `test_absent_accuracy_is_assumed_and_reported` |
-| 6 | **Clock-skew assumptions** | Three clocks exist. The **TSA's** is trusted within its stated accuracy. The **counterparty's** defines the deadline and `accepted_at` (compared with each other directly). The **committer's** is never used (event timestamps are writer-asserted). Disagreement between the TSA's and the counterparty's clock is *not measured*: the default assumption is none, `clock_skew_s` lets the verifier assume some, and an impossible ordering (TSA time for `C` later than the counterparty's `accepted_at`) is flagged `TSA_TIME_AFTER_ACCEPTANCE`. | Enforced as described. `test_clock_skew_allowance_is_part_of_the_time_rule`, `test_bad_skew_values_fail_closed`, `TestScenarios::test_e2_…`. **NOT ENFORCED:** any bound on TSA-versus-counterparty drift beyond that warning |
+| 6 | **Clock-skew assumptions** | Three clocks exist. The **TSA's** is trusted within its stated accuracy. The **counterparty's** defines the deadline, `accepted_at` and `closed_at` (compared with each other directly). The **committer's** is never used (event timestamps are writer-asserted). Disagreement between the TSA's and the counterparty's clock is *not measured*: the default assumption is none, `clock_skew_s` lets the verifier assume some, and an impossible ordering (TSA time for `C` later than the counterparty's `accepted_at`) is flagged `TSA_TIME_AFTER_ACCEPTANCE`. | Enforced as described. `test_clock_skew_allowance_is_part_of_the_time_rule`, `test_bad_skew_values_fail_closed`, `TestScenarios::test_e2_…`. **NOT ENFORCED:** any bound on TSA-versus-counterparty drift beyond that warning |
 | 7 | **Revocation is not checked** | CRL/OCSP are not consulted and no revocation date is compared with `genTime`. The verdict records `revocation_checked: false`. | **NOT ENFORCED.** Limitation tests: `test_revocation_is_not_checked_NOT_ENFORCED`, `test_what_missing_revocation_costs_a_stolen_tsa_key_can_backdate_NOT_ENFORCED` |
 | 8 | **One TSA per commitment** | `tsa_urls` are tried in order; one token is kept. | **NOT ENFORCED:** no n-of-m |
 | 9 | **The seal is optional and is verified only against a pinned key** | `trusted_seal_pubkey` (`--trust-key`) pins it. With a pin a seal is required and must verify (`INVALID` otherwise); without one a seal that verifies only against its own key is `SELF_SEALED_EVIDENCE`. The evidence class is reported and **never changes the verdict or the time**. | Enforced. `TestSealIsOptionalAndNotRelied`; `test_commitment_sasana2.py::TestSealPolicyForCommitments`; examples `b` with and without `--trust-key` |
 | 10 | **The seal is not relied on against the operator (A8)** | A rewritten session resealed by the genuine key verifies `AUTHORITATIVE_EVIDENCE` under the pin; the commitment is what fails (`session_root` no longer in the session). | Enforced by the commitment, not the seal. `test_commitment_sasana2.py::TestA8AgainstACommitment`; `TestScenarios::test_i_…`; `examples/ha-reveal/bundles/i-…` |
-| 11 | **The receipt key is pinned** | `trusted_receipt_pubkey` (`--receipt-key`, base64 raw Ed25519) is the only key trusted. Receipts without a pin are `INVALID`; a key inside a receipt is ignored; a different key makes the receipt invalid; the signature covers a domain tag, so it cannot be replayed as another message type. | Enforced. `TestReceiptSignatures`, `TestReceiptPolicy::test_receipts_need_a_pinned_key`, `…signed_by_another_key_are_invalid` |
+| 11 | **The receipt key is pinned (both receipt kinds)** | `trusted_receipt_pubkey` (`--receipt-key`, base64 raw Ed25519) is the only key trusted. Receipts or a closing receipt without a pin are `INVALID`; a key inside a receipt is ignored; a different key makes the message invalid; each kind signs under its own domain tag, so neither replays as the other. | Enforced. `TestReceiptSignatures`, `TestReceiptPolicy::test_receipts_need_a_pinned_key`, `TestClosingReceipt::test_closing_needs_the_pinned_key_too`, `…test_the_two_receipt_kinds_cannot_stand_in_for_each_other` |
 | 12 | **How the receipt key is published, rotated or scoped** | There is one key, no key id, no validity period; a rotation is a new out-of-band pin. How a counterparty would publish the key is unspecified. | **NOT ENFORCED / NOT SPECIFIED** |
-| 13 | **Receipt-list completeness** | The verifier uses the receipts it is given. It cannot tell whether a later accepted receipt was withheld, so the list must come from the counterparty, not the committer. | **NOT ENFORCED.** A terminal "closed at the deadline, last accepted = k" receipt would let the verifier detect withholding; not implemented (§11) |
-| 14 | **The payload mapping is pinned** | `expected_mapping_id` (`--mapping`) is required to equal the bundle's. A verifier that does not pass one accepts the bundle's own registered mapping. | Enforced when supplied. `test_g3_a_required_mapping_is_enforced`, `test_a_c_v1_bundle_still_verifies_but_cannot_satisfy_a_required_mapping` |
-| 15 | **A broken or missing earlier revision is not silently accepted** | `HISTORY_GAP` is an error unless `allow_unrevealed_history`. | Enforced. `test_d_bundle_omits_the_initial_commitment`, `test_f2_…` |
-| 16 | **A mistyped policy flag is not ignored** | Unknown or abbreviated flags of `verify-commitment` exit 3 (they were silently dropped before, so a mistyped `--trust-key` removed the pin). | Enforced. `TestCli::test_unknown_or_abbreviated_flags_are_refused_not_ignored` |
+| 13 | **A receipt list needs the closing receipt** | Receipts supplied without the counterparty's closing receipt give `INCOMPLETE_RECEIPTS` (exit 6): not valid, because completeness cannot be judged. Other errors still win over it. | Enforced. Scenario `k`; `TestClosingReceipt::test_k_closing_receipt_missing_is_incomplete_not_valid`, `…test_k2_…`, `…test_k3_…` |
+| 14 | **The receipt list must agree with the closing receipt** | The count of `accepted` receipts before the deadline must equal `accepted_count`, and the highest-index one must be `(last_accepted_revision_index, last_accepted_C)`; otherwise `INVALID` (`RECEIPT_LIST_DISAGREES_WITH_CLOSING`). This is what catches a committer who withholds a later accepted receipt, or adds one. | Enforced. Scenario `j`; `TestClosingReceipt::test_j_…`, `…test_j2_…`, `…test_j3_…` |
+| 15 | **The closing receipt is authentic and in scope** | A wrong key (scenario `l`), a tampered body, another agent or challenge, a `closed_at` before the deadline, or a different mapping id is `INVALID`; `closed_at` equal to the deadline is accepted. | Enforced. `TestClosingReceipt::test_l_…`, `…test_closing_body_tampering_invalidates_the_signature`, `…test_closing_must_not_predate_the_deadline`, `…test_closing_for_another_agent_or_challenge_is_an_error_not_ignored`, `…test_closing_must_name_the_bundles_mapping` |
+| 16 | **The counterparty's count is believed** | A counterparty that signs a false `accepted_count` or `last_accepted_C` is believed; the pin only says who signed. Without any receipts the verifier warns `NO_RECEIPTS` and falls back to the highest on-time revision in the bundle. | **NOT ENFORCED** (a trust assumption). `TestScenarios::test_c_…` shows the fallback differs from the accepted revision |
+| 17 | **The payload mapping is pinned** | `expected_mapping_id` (`--mapping`) is required to equal the bundle's. A verifier that does not pass one accepts the bundle's own registered mapping. | Enforced when supplied. `test_g3_a_required_mapping_is_enforced`, `test_a_c_v1_bundle_still_verifies_but_cannot_satisfy_a_required_mapping` |
+| 18 | **The mapping is default-deny** | `ha-daily-v2` binds every declared daily field and rejects an undeclared one; a field can be excluded only by an entry with a written reason (there are none); `probabilities` has one shape; the commitment does not validate the forecast. | Enforced. `test_commitment_mapping.py::TestHaDailyV2DefaultDeny`, `TestSharedVectorsV2`; `TestLenientAndSuperseded::test_a_v2_mapping_bundle_binds_all_fields_end_to_end` |
+| 19 | **A superseded mapping is flagged** | A bundle under `ha-daily-v1` still verifies, with `MAPPING_SUPERSEDED:ha-daily-v1->ha-daily-v2`; a verifier that requires `ha-daily-v2` refuses it. | Enforced. `TestLenientAndSuperseded::test_a_superseded_mapping_still_verifies_with_a_warning` |
+| 20 | **A broken or missing earlier revision is not silently accepted, and leniency is visible** | `HISTORY_GAP` is an error unless `allow_unrevealed_history`; when that option let the bundle pass, the verdict carries `lenient`, the text output a `LENIENT` banner, and the exit code is **5**, not 0. | Enforced. `test_d_bundle_omits_the_initial_commitment`, `test_f2_…`, `TestLenientAndSuperseded`, `TestCli::test_exit_codes_including_unrevealed`, `…test_the_lenient_banner_is_printed_in_text_mode` |
+| 21 | **A mistyped policy flag is not ignored** | Unknown or abbreviated flags exit 3 in **every** subcommand (before 2.0.2, `evidence-pack`, `verify-commitment` and `seal` silently dropped them, so a mistyped `--trust-key` removed the pin). | Enforced (on `main`, 2.0.2). `tests/test_cli_strict_flags.py`; `TestCli::test_unknown_or_abbreviated_flags_are_refused_not_ignored` |
 
 **What the missing revocation check costs an attacker nothing.** Someone who holds a TSA signing key can mint a token with any `genTime`, and a token signed by a key that was compromised and later revoked verifies exactly like a genuine one, because we neither consult revocation nor compare a revocation time with `genTime`. The attacker's gain is a *backdated* commitment: one made after the deadline that appears to predate it. Two things bound the damage. With receipts (§5.3) the scored revision is whatever the counterparty accepted before its cutoff, so a backdated token does not change *which* revision is scored; it only weakens the independence of the "existed before the deadline" claim from the counterparty's own clock. And the attacker needs the TSA's key, not the committer's, which is why n-of-m TSAs (row 8) would be the real fix.
 
@@ -465,12 +492,12 @@ Every row is either pinned by a test or marked **NOT ENFORCED** (and, where usef
 
 * **Session-open commitments are still deferred (§5.2).** Registering the session root, or a hash of it, with the counterparty at `SESSION_START` would make the counterparty the first checkpoint witness of [`design/witness-anchoring.md`](design/witness-anchoring.md). Until then nothing external has seen the chain before the first commitment: an operator can rewrite events recorded *before* the first `C` and no one can tell, and sessions that were never committed are invisible (T4).
 * **A matching trace does not prove completeness, truthfulness, or the absence of human influence outside the instrumentation (§8, T3).** It shows those bytes existed by `genTime` and were not altered since; nothing more.
-* **No counterparty issues receipts.** Receipts (§5.3) are a proposal, and every statement here about which revision was accepted holds only if a counterparty produced such receipts. The completeness of the receipt list and the publication and rotation of its key are not enforced or specified (§10 rows 12–13).
-* **The mapping binds seven fields and not the rest.** `prompt_hash`, `amount`, `token_usage` and `trigger_event_id` are declared by the daily schema but are **not** in the payload, so a change to them is not detected. Whether any of them should be bound is undecided (Open question 20).
-* **Probability shape and range rules are not known.** The mapping is shape-agnostic and treats the sum as a warning, not a rejection, so that anything a counterparty accepted can be committed.
+* **No counterparty issues receipts or a closing receipt.** Both (§5.3) are proposals, and every statement here about which revision was accepted holds only if a counterparty produced them. With them, a withheld receipt is detected; what remains is trust in the counterparty's key, clock and count (§10 rows 12 and 16). Without them the verifier can only fall back to the highest on-time revision in the bundle, and says so.
+* **The mapping binds everything the schema declares, and several types are assumptions.** `ha-daily-v2` binds all eleven declared daily fields, but the counterparty did not state the types of `amount`, `token_usage` or `trigger_event_id`, nor the shape of `probabilities`; the mapping commits to one concrete choice for each (Appendix A.2) and rejects the rest. If the counterparty's real type differs, a submission cannot be committed until a new mapping version exists. These are open questions for the counterparty (A.6).
+* **The commitment does not validate forecasts.** It does not check ranges, label sets, that probabilities sum to 1, or that `direction` matches them; a bad sum only warns.
 * **Single TSA, no revocation (§10 rows 7–8).**
 * **Verification depends on later availability** of the counterparty's receipts and results; a counterparty's current anonymous access is not a retention guarantee.
-* **There is only a Python implementation of `verify_commitment`.** The mapping has shared vectors (`tests/fixtures/mapping/ha-daily-v1.json`) so another implementation can be held to the same table; none exists.
+* **There is only a Python implementation of `verify_commitment`.** The mappings have shared vectors (`tests/fixtures/mapping/`) so another implementation can be held to the same table; none exists.
 
 ---
 
@@ -500,29 +527,40 @@ Every row is either pinned by a test or marked **NOT ENFORCED** (and, where usef
 | Access | Availability is endpoint-specific; today's anonymous access is not a permanent-access or retention guarantee. | HA-1 §4 |
 | Scope HA considers sensible | Hash-only, with no trace or data exchange at this stage. | HA-1 §4 |
 
-### A.2 The versioned payload mapping `ha-daily-v1` (HA-2 question 1)
+### A.2 The versioned payload mapping `ha-daily-v2` (HA-2 question 1)
 
-A successful hash check must not be able to conceal a change in meaning, so the commitment binds an explicit, **versioned** mapping from the submission to the payload hashed inside `C`. The mapping id is itself inside `C` (§3.5). Implementation: `sasana/commitment_mapping.py::map_ha_daily_v1`.
+A successful hash check must not be able to conceal a change in meaning, so the commitment binds an explicit, **versioned** mapping from the submission to the payload hashed inside `C`. The mapping id is itself inside `C` (§3.5). Implementation: `sasana/commitment_mapping.py::map_ha_daily_v2`.
 
-| Sasana field | From HA (as declared) | Canonical form inside `H(JCS(payload))` | Source |
-|---|---|---|---|
-| `subject_id` | the agent: identified by authentication on submission, `agent_id` in resolved predictions | the exact string, no normalisation | HA-1 §1, §4 |
-| `context_id` | the challenge: in the endpoint on submission, `challenge_id` in the resolved response | the exact string, no normalisation | HA-1 §1, §4 |
-| `mapping_id` | — | `"ha-daily-v1"`, **inside `C`** | ours |
-| `revision_index` | HA documents `is_revision` (a boolean) and no index | assigned by the committer: 0 for the initial forecast, +1 per revision | ours |
-| `prev_commitment` | — | the previous revision's `C`, **inside `C`** | ours |
-| `payload.direction` | `direction` | string, byte-exact | HA-1 §1 |
-| `payload.confidence` | `confidence` | decimal string (rules below) | HA-1 §1 |
-| `payload.probabilities` | `probabilities` | the shape HA uses is not stated, so an object or an array is preserved; each entry is a decimal string; 1–1000 entries | HA-1 §1 |
-| `payload.reasoning` | `reasoning` | string, byte-exact: not trimmed, no Unicode normalisation (NFC and NFD differ) | HA-1 §1 |
-| `payload.summary` | `summary` | string or null; **omitted** if not supplied | HA-1 §1 |
-| `payload.is_revision` | `is_revision` | boolean only | HA-1 §1 |
-| `payload.revision_reason` | `revision_reason` | string or null; **omitted** if not supplied | HA-1 §1 |
-| *not bound* | `prompt_hash`, `amount`, `token_usage`, `trigger_event_id` | not in the payload. A change to them is **not detected** by the commitment. The mapping reports which were present (`unbound_present`). | HA-1 §1 |
-| `session_root` | not an HA field (see A.1) | chain tip of the Sasana session, hex | ours |
-| `deadline` | HA's cutoff for the challenge (value not in what we were given) | verifier input; never read from the bundle | HA-1 §3 |
+**The mapping is default-deny.** Every field HA's daily schema declares is bound. A declared field may be left out only by an entry in `EXCLUDED_FIELDS_V2` that carries a written reason, and **there are none**: a test fails if any declared field is neither bound nor excluded with a reason, and a field outside the declared list is rejected, not ignored. In particular `amount` (the stake) and `trigger_event_id` are bound; a change to either changes `C` (vectors and tests below).
 
-**Absence is meaningful.** A field not supplied is omitted, a field supplied as `null` is `null`, and a field supplied as `""` is `""`; these three hash differently. The mapping never invents a default and does not decide which fields HA requires. Unknown fields (including `agent_id` or `challenge_id` in the body) are rejected, not ignored.
+*Why `token_usage` is not excluded.* It would qualify only if it were not known when the commitment is made. But the committer composes the whole submission body before computing `C`, so any value it will send is known at that moment; and a value HA adds server-side is not in the submission and so is not a field to bind. (HA's statement that `token_usage` is not a general-purpose commitment field is about using it as a *carrier* for a session root, which this design does not do.)
+
+| Sasana field | From HA (as declared) | Type the mapping accepts | Canonical form inside `H(JCS(payload))` | Source |
+|---|---|---|---|---|
+| `subject_id` | the agent: identified by authentication on submission, `agent_id` in resolved predictions | — | the exact string, no normalisation | HA-1 §1, §4 |
+| `context_id` | the challenge: in the endpoint on submission, `challenge_id` in the resolved response | — | the exact string, no normalisation | HA-1 §1, §4 |
+| `mapping_id` | — | — | `"ha-daily-v2"`, **inside `C`** | ours |
+| `revision_index` | HA documents `is_revision` (a boolean) and no index | — | assigned by the committer: 0 for the initial forecast, +1 per revision | ours |
+| `prev_commitment` | — | — | the previous revision's `C`, **inside `C`** | ours |
+| `payload.direction` | `direction` | string; null rejected | byte-exact | HA-1 §1 |
+| `payload.confidence` | `confidence` | number or decimal string; null rejected | decimal string (rules below) | HA-1 §1 |
+| `payload.probabilities` | `probabilities` | **object only**: outcome label to number, 1–1000 entries | each value a decimal string; labels byte-exact | HA-1 §1; shape **assumed** |
+| `payload.prompt_hash` | `prompt_hash` | 64 hexadecimal characters, or null | byte-exact, case preserved | HA-1 §1 |
+| `payload.amount` | `amount` | number or decimal string, or null | decimal string | HA-1 §1; type **assumed** |
+| `payload.reasoning` | `reasoning` | string; null rejected | byte-exact: not trimmed, no Unicode normalisation (NFC and NFD differ). HA's 20–8,000 character rule is HA's and is not checked here | HA-1 §1 |
+| `payload.summary` | `summary` | string or null | byte-exact | HA-1 §1 |
+| `payload.token_usage` | `token_usage` | object of string keys to non-negative integers, or null | integers as integers, keys byte-exact | HA-1 §1; shape **assumed** |
+| `payload.is_revision` | `is_revision` | boolean only | boolean | HA-1 §1 |
+| `payload.trigger_event_id` | `trigger_event_id` | string or null | byte-exact | HA-1 §1; type **assumed** |
+| `payload.revision_reason` | `revision_reason` | string or null | byte-exact | HA-1 §1 |
+| `session_root` | not an HA field (see A.1) | — | chain tip of the Sasana session, hex | ours |
+| `deadline` | HA's cutoff for the challenge (value not in what we were given) | — | verifier input; never read from the bundle | HA-1 §3 |
+
+"**Assumed**" means HA did not state the type; the mapping commits to one concrete choice and rejects the others, and the question is listed for HA in A.6.
+
+**One canonical shape for `probabilities`: an object from outcome label to probability** (`{"up": 0.6, "down": 0.4}`), and an array is **rejected** with an error. Reasoning: `direction` is a categorical label, so a per-label table is self-describing and consistent with it. An array would make the meaning of each entry depend on an index-to-label order that HA's interface does not state, which is exactly a change of meaning a hash match could conceal; and a mapping that accepts two shapes reintroduces the ambiguity the mapping exists to remove. If HA's real shape differs, that is a new mapping version.
+
+**Absence is meaningful.** A field not supplied is omitted, a field supplied as `null` is `null`, and a field supplied as `""` is `""`; these three hash differently. The mapping never invents a default and does not decide which fields HA requires.
 
 **Numbers become decimal strings, never JSON numbers:**
 
@@ -532,32 +570,34 @@ A successful hash check must not be able to conceal a change in meaning, so the 
 | Zeros | no trailing zeros and no trailing `.`; `0.6`, `0.60`, `"6e-1"` all become `"0.6"`; `100` and `100.0` both become `"100"` |
 | Zero | `0`, `-0`, `-0.0` and `"0.000"` all become `"0"` |
 | Precision | at most 18 integer and 12 fractional digits; more is **rejected, never rounded** (`0.1 + 0.2` is refused; round it first) |
-| Not a number | `NaN`, `±Infinity`, booleans, `null` and non-decimal text are rejected |
+| Not a number | `NaN`, `±Infinity`, booleans and non-decimal text are rejected |
 | Floats | enter through their shortest round-trip repr, so `0.6` is `"0.6"` on every IEEE-754 platform |
 
 The `100` / `100.0` case is not hypothetical: it is the whole-number-float break found on 2026-10-10 (CHANGELOG 2.0.0, "Canonicalization"), where one number had two byte strings.
 
-**Probability policy.** `probabilities` is **not** rejected for summing to something other than 1, because the mapping must be total over whatever HA accepted or a forecast it scored could not be committed. It warns instead: `PROBABILITY_SUM:<sum>` when `|sum − 1| > 1e-6`, and `PROBABILITY_NEGATIVE`.
+**The commitment does not validate forecasts.** `probabilities` is not rejected for summing to something other than 1, nor `confidence` for being out of range, nor `direction` for not being a key of `probabilities`: the mapping must be total over whatever HA accepted, or a forecast it scored could not be committed. It warns instead: `PROBABILITY_SUM:<sum>` when `|sum − 1| > 1e-6`, and `PROBABILITY_NEGATIVE`. A verifier that trusts a clean commitment verdict to mean "a sensible forecast" is wrong.
 
-**Test vectors** (`tests/fixtures/mapping/ha-daily-v1.json`, run by `tests/test_commitment_mapping.py`; another implementation should reproduce all of them): 6 equivalence groups hash the same (`0.6` spelled five ways; `100`/`100.0`; `0`/`-0.0`; probability key order; declared-but-unbound fields differing); 15 pairs hash differently (`0.6` vs `0.06`; `up` vs `down`; `summary` missing vs `""` vs `null`; `is_revision` missing vs `false`; `revision_reason` missing vs `""`; probabilities swapped; object vs array; NFC vs NFD; a trailing space); 23 inputs are rejected.
+**Test vectors** (`tests/fixtures/mapping/ha-daily-v2.json`, run by `tests/test_commitment_mapping.py`; another implementation should reproduce all of them): 6 equivalence groups hash the same (`0.6` spelled five ways; `10` spelled five ways; `100`/`100.0`; `0`/`-0.0`; key order of `probabilities` and of `token_usage`); 21 pairs hash differently **and give different `C`**, including **`amount` 10 vs 11**, **`trigger_event_id` `evt-1` vs `evt-2`**, `amount` missing vs `null` vs `0`, `trigger_event_id` missing vs `""` vs `null`, `prompt_hash` changed or case-flipped, `token_usage` changed, `probabilities` labels swapped or renamed; 22 inputs are rejected, including arrays for `probabilities`, a bare number for `token_usage`, a negative or fractional token count, and an undeclared field.
+
+**`ha-daily-v1` is superseded.** It bound seven of the eleven fields, so a change to `amount` or `trigger_event_id` (and to `prompt_hash`, `token_usage`) was **not detected** by `C`, and it accepted both an object and an array for `probabilities`. It stays registered so archived v1 bundles verify (with `MAPPING_SUPERSEDED`), its vectors (`ha-daily-v1.json`) are kept, and a verifier that requires `ha-daily-v2` refuses a v1 bundle. New commitments should use v2; the example bundles are generated under v2.
 
 ### A.3 Which revision HA accepted: the registry (HA-2 question 2)
 
 HA's public interface exposes no acceptance record: the resolved response carries no revision history, no submission timestamps and no commitment. So the verifier cannot tell from HA's current data which revision was accepted before the cutoff, and "the highest on-time revision in a bundle" is not that. What would let it:
 
-> **PROPOSED EXTENSION — not an HA interface.** (a) An optional `commitment` field on a daily submission, carrying the hex `C` (hash only; no trace or data exchange, matching the scope HA called sensible). The TSA token stays with the committer and arrives in the reveal bundle. (b) A **signed acceptance receipt** for every submission attempt, in HA's vocabulary: `{challenge_id, agent_id, revision_index, commitment, accepted_at, accepted: true|false, reason}`, signed by an HA key the verifier pins (§5.3). Optionally `mapping_id` and `payload_hash`: HA recomputes `H(JCS(ha-daily-v1(accepted fields)))` from what it *actually accepted* and signs it, which is the only way to bind the commitment to the exact payload HA accepted for the three fields its results API does not publish (probabilities, `is_revision`, `revision_reason`).
+> **PROPOSED EXTENSION — not an HA interface.** (a) An optional `commitment` field on a daily submission, carrying the hex `C` (hash only; no trace or data exchange, matching the scope HA called sensible). The TSA token stays with the committer and arrives in the reveal bundle. (b) A **signed acceptance receipt** for every submission attempt, in HA's vocabulary: `{challenge_id, agent_id, revision_index, commitment, accepted_at, accepted: true|false, reason}`, signed by an HA key the verifier pins (§5.3). Optionally `mapping_id` and `payload_hash`: HA recomputes `H(JCS(ha-daily-v2(accepted fields)))` from what it *actually accepted* and signs it, which is the only way to bind the commitment to the exact payload HA accepted for the fields its results API does not publish. (c) A **closing receipt**, one per agent and challenge, signed at the deadline: `{challenge_id, agent_id, accepted_count, last_accepted_revision_index, last_accepted_C, closed_at, mapping_id}`. `accepted_count` counts scored-eligible acceptances only (not `counts_for_score: false` paper-trade signals).
 
-The scored revision is then the receipt with the highest `revision_index` that has `accepted: true` and `accepted_at` before the deadline (§5.1). Two cases from HA-2 are in `examples/ha-reveal/`: a **rejected revision** (`c`: the initial is scored) and an **omitted earlier commitment** (`d`: provable because `prev_commitment` is inside `C`). What this still does not give is the completeness of the receipt list (§10 row 13).
+The scored revision is then the one the closing receipt names, which must agree with the receipt list (§5.1, §5.3). Cases from HA-2 are in `examples/ha-reveal/`: a **rejected revision** (`c`: the initial is scored), an **omitted earlier commitment** (`d`: provable because `prev_commitment` is inside `C`), a **withheld later receipt** (`j`: caught by the closing receipt), and a **missing closing receipt** (`k`: `INCOMPLETE_RECEIPTS`).
 
-**What can be checked against HA's current public data alone.** `cross_check_published(payload, prediction)` compares a revealed payload with a prediction as HA's results API returns it, on the four fields it returns: `direction`, `confidence`, `reasoning`, `summary` (confidence compared as a number, not as text). It cannot check `probabilities`, `is_revision` or `revision_reason`, which the results API does not return. It proves nothing about timing and can only be run after resolution.
+**What can be checked against HA's current public data alone.** `cross_check_published(payload, prediction)` compares a revealed payload with a prediction as HA's results API returns it, on the four fields it returns: `direction`, `confidence`, `reasoning`, `summary` (confidence compared as a number, not as text). It cannot check the other seven bound fields, which the results API does not return. It proves nothing about timing and can only be run after resolution.
 
 ### A.4 Trust and time policy for this example (HA-2 question 3)
 
-The example requires: a **pinned TSA anchor**; the time rule `genTime + accuracy + clock_skew_s < deadline` with `default_accuracy_s` assumed (and reported) when the TSA omits accuracy, as FreeTSA does; an **optional seal**, verified only when `--trust-key` is given and never changing the verdict; a **pinned receipt key**; a required `ha-daily-v1` mapping; and **no revocation checking**, documented in §10 with what that costs. Each rule has a test or is marked NOT ENFORCED there.
+The example requires: a **pinned TSA anchor**; the time rule `genTime + accuracy + clock_skew_s < deadline` with `default_accuracy_s` assumed (and reported) when the TSA omits accuracy, as FreeTSA does; an **optional seal**, verified only when `--trust-key` is given and never changing the verdict; a **pinned receipt key** covering both receipt kinds; a required `ha-daily-v2` mapping; and **no revocation checking**, documented in §10 with what that costs. Each rule has a test or is marked NOT ENFORCED there.
 
 ### A.5 Synthetic reveal bundles (HA-2: an example of an initial forecast plus one revision)
 
-`examples/ha-reveal/` holds eleven synthetic bundles for an initial forecast and one revision, and a runner that prints `bundle | expected | actual | match`:
+`examples/ha-reveal/` holds fifteen synthetic bundles (sixteen scenarios) for an initial forecast and one revision, each with its receipts and closing receipt (except `k`, which has none by design), and a runner that prints `bundle | expected | actual | match`:
 
 | Bundle | Case | Verdict |
 |---|---|---|
@@ -565,20 +605,31 @@ The example requires: a **pinned TSA anchor**; the time rule `genTime + accuracy
 | `b-revision-accepted` | initial + revision, both accepted | `VALID_ON_TIME`, scored 1 |
 | `c-revision-rejected` | revision rejected by the counterparty | `VALID_ON_TIME`, scored **0** |
 | `d-initial-omitted` | bundle omits the initial commitment | `INVALID` (`HISTORY_GAP`) |
+| `d2-initial-omitted-lenient` | the same bundle with `--allow-unrevealed-history` | `VALID_ON_TIME` **LENIENT**, exit **5** |
 | `e-…-rejected`, `e2-…-receipt-says-accepted` | revision timestamped after the deadline | scored 0; and `LATE` when a receipt claims it was accepted |
-| `f-payload-tampered` | payload edited after commit | `INVALID` |
-| `g-wrong-mapping-version` | mapping id not the required one | `INVALID` |
+| `f-payload-tampered`, `f2-amount-tampered` | `confidence` / `amount` edited after commit | `INVALID` |
+| `g-wrong-mapping-version` | bundle claims the superseded `ha-daily-v1` | `INVALID` (not the required mapping) |
 | `h-never-revealed`, `h2-scored-revision-not-revealed` | accepted revision never revealed | `UNREVEALED` |
 | `i-operator-reseal-after-commit` | session rewritten and resealed after commit | `INVALID` |
+| `j-later-receipt-withheld` | committer supplies only the initial's receipt | `INVALID` (disagrees with the closing receipt) |
+| `k-closing-receipt-missing` | receipts but no closing receipt | `INCOMPLETE_RECEIPTS`, exit **6** |
+| `l-closing-receipt-wrong-key` | closing receipt signed by an unpinned key | `INVALID` |
 
 Run `python3 examples/ha-reveal/run.py`; see `examples/ha-reveal/README.md`.
 
 ### A.6 Open, HA-specific
 
-* The values HA would use for the deadline, and the TSA(s) it would accept, are HA's to state.
-* Whether HA would add a `commitment` field, issue receipts, or sign `payload_hash` is HA's decision and needs a separate agreement; the commercial question is not addressed by this note.
-* There is no HA adapter. `examples/ha-reveal/` contains synthetic bundles only; any integration would be separate work and would belong outside core.
-* Session-open commitments, and the limits in §11, apply unchanged.
+These are questions for HA, not decisions this note can make:
+
+1. **The exact shape of `probabilities`.** The mapping assumes an object from outcome label to number and rejects an array.
+2. **The types of `amount`, `token_usage` and `trigger_event_id`**, and which of the declared fields can be `null`. The mapping assumes `amount` is a number, `token_usage` an object of non-negative integer counts, `trigger_event_id` a string.
+3. Whether `prompt_hash` may be upper-case (the mapping binds it byte-exact).
+4. Whether HA could issue per-submission receipts and a **closing receipt** at the deadline, how it would publish and rotate the signing key, and whether it records per-submission acceptance times (its results API does not expose them).
+5. The deadline value for a challenge, and which TSA(s) HA would accept.
+6. Whether HA would add a `commitment` field. This, any receipts and any integration need a separate agreement; the commercial question is not addressed by this note.
+7. There is no HA adapter. `examples/ha-reveal/` contains synthetic bundles only.
+
+Session-open commitments, and the limits in §11, apply unchanged.
 
 ---
 
@@ -608,7 +659,8 @@ Still open — need your decision:
 17. **New:** revocation checking (CRL/OCSP) for TSA certificates is not implemented (NOT ENFORCED, §10 row 7).
 18. ~~**New:** Rust verifier number formatting vs the now-conformant Python `jcs.py`.~~ Resolved in 2.0.0 (shared vectors, ~88,000 doubles identical).
 19. ~~**New:** the JCS change alters hashes of any stored event with an exotic float.~~ Resolved in 2.0.0 by versioned canonicalization and golden legacy fixtures.
-20. **New:** `ha-daily-v1` does not bind `prompt_hash`, `amount`, `token_usage` or `trigger_event_id`. Should any of them be bound (for example `amount` and `trigger_event_id`)? Default: no; it changes what a hash match proves.
-21. **New:** receipt-list completeness. Add a terminal "closed at the deadline, last accepted = k" receipt so a verifier can detect withheld receipts?
+20. ~~**New:** `ha-daily-v1` does not bind `prompt_hash`, `amount`, `token_usage` or `trigger_event_id`.~~ Resolved: `ha-daily-v2` is default-deny and binds all eleven declared fields (Appendix A.2); `ha-daily-v1` is superseded.
+21. ~~**New:** receipt-list completeness.~~ Resolved as a proposal: the signed closing receipt (§5.3); a list without one is `INCOMPLETE_RECEIPTS`, a list that disagrees with it is `INVALID`.
 22. **New:** how a counterparty publishes, scopes and rotates its receipt key (key id, validity period).
 23. **New:** session-open commitments with the counterparty as first checkpoint witness (§5.2, §11), now that the witness design publishes heads during the session.
+24. **New (HA-specific):** the exact shape of `probabilities` and the types of `amount`, `token_usage` and `trigger_event_id` are assumptions the mapping commits to; HA should confirm or correct them (Appendix A.6).
