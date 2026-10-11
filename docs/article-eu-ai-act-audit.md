@@ -16,14 +16,7 @@ The regulation text is precise: "High-risk AI systems shall be designed and deve
 with capabilities enabling the automatic recording of events ('logs') throughout the
 lifetime of the AI system."
 
-One piece of context compliance consultants should have before reading further: the
-Digital Omnibus provisional agreement reached on 7 May 2026 moved the high-risk deadline
-for stand-alone systems to 2 December 2027, pending formal adoption by the European
-Parliament and Council. The original 2 August 2026 date remains in law until that process
-completes. For teams doing compliance work now, treat August 2026 as the planning deadline
-and any extension as a bonus — not because of urgency theater, but because the audit
-infrastructure work takes months. Starting in Q4 2026 against a December 2027 deadline
-is still tight.
+A note on dates, because they moved. The Digital Omnibus (Regulation (EU) 2026/1744) entered into force on 27 July 2026. It moved the start of the high-risk obligations to 2 December 2027 for stand-alone systems (Annex III) and 2 August 2028 for AI built into products already regulated under Annex I. Article 12 is a requirement for high-risk systems, so it applies from the date that applies to your system; confirm the dates against the Official Journal text. There is no August 2026 cliff. The useful reading is lead time: audit infrastructure, key custody and retention take months to stand up, and starting well before your date is cheaper than starting late.
 
 Now, to the logs themselves.
 

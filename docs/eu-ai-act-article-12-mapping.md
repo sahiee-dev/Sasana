@@ -8,7 +8,7 @@ status: reference
 
 # EU AI Act Article 12 — Requirement Mapping
 
-**Regulation (EU) 2024/1689 ("EU AI Act"). High-risk obligations, including Article 12, become enforceable 2 August 2026.** Non-compliance carries penalties of up to €15,000,000 or 3% of worldwide annual turnover, whichever is higher.
+**Regulation (EU) 2024/1689 ("EU AI Act"). High-risk obligations, including Article 12, apply from 2 December 2027 (stand-alone Annex III systems) or 2 August 2028 (AI built into products regulated under Annex I), as amended by the Digital Omnibus, Regulation (EU) 2026/1744, in force since 27 July 2026.** Confirm the dates against the Official Journal text for your system. Non-compliance carries penalties of up to €15,000,000 or 3% of worldwide annual turnover, whichever is higher.
 
 This page maps each Article 12 record-keeping obligation to the specific Sasana mechanism that satisfies it, and to the command that produces independently verifiable evidence. It is a reference for compliance, legal, and security teams evaluating whether Sasana meets their record-keeping duty.
 

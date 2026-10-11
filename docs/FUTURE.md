@@ -45,7 +45,7 @@ This is a one-time rewrite, not an ongoing investment. It should be done before 
 
 ### 2. One substantive technical article
 
-The EU AI Act Article 12 enforcement deadline is August 2, 2026. Companies in active compliance cycles are researching this right now. A technically accurate article explaining:
+The EU AI Act high-risk obligations, including Article 12, now start on 2 December 2027 (Annex III) or 2 August 2028 (Annex I) after the Digital Omnibus (Regulation (EU) 2026/1744, in force 27 July 2026). Companies planning their compliance programmes are researching this now: a lead-time story, not a countdown. A technically accurate article explaining:
 
 - What Art. 12 actually requires (automatic recording of events with tamper-evidence)
 - Why existing observability tools (LangSmith, Arize, etc.) do not satisfy this requirement
@@ -142,7 +142,7 @@ These are not committed future work. They are possibilities.
 
 ## Honest Assessment of What Could Go Wrong
 
-**The compliance market moves slowly.** Enterprise compliance buying cycles are 6–18 months. The EU AI Act enforcement deadline creates urgency, but urgency in compliance does not mean rapid procurement. It is realistic that the first revenue from Sasana comes 9–12 months after first contact with a potential customer.
+**The compliance market moves slowly.** Enterprise compliance buying cycles are 6–18 months. The EU AI Act dates (December 2027 / August 2028) give buyers lead time rather than urgency, and even real urgency in compliance does not mean rapid procurement. It is realistic that the first revenue from Sasana comes 9–12 months after first contact with a potential customer.
 
 **The IETF AAT draft may not become a standard.** The IETF draft is from March 2026 and is at an early stage. If it stalls or the working group takes a different direction, the "aligns with the emerging standard" positioning weakens. This is a risk, not a certainty.
 
