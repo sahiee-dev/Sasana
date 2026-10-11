@@ -781,7 +781,9 @@ fn print_human(result: &VerifyResult, path: &str) {
         fail
     } else if !result.seal_present {
         "NO SEAL (no CHAIN_SEAL present)"
-    } else if result.seal_trusted {
+    } else if result.pinned {
+        // seal_ok (no seal errors) plus a pin means the seal is signed by exactly that key, even
+        // when some other check failed; result.seal_trusted is cleared by any error.
         "PASS (signed by the pinned key)"
     } else {
         "SELF-SIGNED (valid against its own embedded key only)"

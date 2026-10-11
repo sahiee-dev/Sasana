@@ -255,7 +255,10 @@ def _cmd_verify(args: list) -> int:
         if key == "seal_signature" and st == "PASS":
             if not result.seal_present:
                 st, suffix = "NO SEAL", _dim("  (no CHAIN_SEAL present)")
-            elif result.seal_trusted:
+            elif result.pinned:
+                # The seal check itself passed, and with a pinned key that means the seal is signed by
+                # exactly that key. Do not derive this from result.seal_trusted: that flag is cleared
+                # when ANY other check fails, which made a COMPROMISED pinned verify say "SELF-SIGNED".
                 suffix = _dim("  (signed by the pinned key)")
             else:
                 st, suffix = "SELF-SIGNED", _dim("  (valid against its own embedded key only)")
