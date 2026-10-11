@@ -31,7 +31,7 @@ from sasana import commitment as cm  # noqa: E402
 from sasana import commitment_mapping as cmap  # noqa: E402
 from sasana.signing import generate_keypair  # noqa: E402
 
-MAP = cmap.HA_DAILY_V1
+MAP = cmap.HA_DAILY_V2
 T1 = T0 + dt.timedelta(minutes=30)
 T2 = T0 + dt.timedelta(minutes=60)
 LATE = DEADLINE + dt.timedelta(hours=1)
@@ -75,18 +75,18 @@ class V2Base(Base):
             extra=[("LLM_CALL", {"prompt_hash": "b" * 64}), ("LLM_CALL", {"prompt_hash": "c" * 64})]
         )  # START, LLM, TOOL, LLM, LLM, END
 
-    def commit2(self, prefix, submission, when, *, prev=None, auth=None, **tsa_kw):
+    def commit2(self, prefix, submission, when, *, prev=None, auth=None, mapping=MAP, **tsa_kw):
         tsa = FakeTsa(auth or self.auth, now=when, **tsa_kw)
         anchors = [(auth or self.auth).anchor_der]
         with patch("sasana.rfc3161.request_timestamp", tsa):
             return cm.commit(
                 subject_id=SUBJ,
                 context_id=CTX,
-                payload=cmap.map_ha_daily_v1(submission).payload,
+                payload=cmap.get_mapping(mapping).map(submission).payload,
                 session_events=self.full[:prefix],
                 trusted_tsa_anchors=anchors,
                 prev=prev,
-                mapping_id=MAP,
+                mapping_id=mapping,
             )
 
     def chain(self, t1=T1):
@@ -111,10 +111,37 @@ class V2Base(Base):
     def bundle2(self, pairs, session=None):
         return cm.reveal_bundle(pairs, session or self.full, capture_mode="sidecar")
 
-    def vr(self, bundle, receipts, **kw):
+    def closing(self, receipts, *, key=None, at=None, mapping_id=MAP, **over):
+        """A closing receipt that AGREES with `receipts`: what an honest counterparty would sign."""
+        eligible = sorted(
+            (
+                r["body"]
+                for r in receipts
+                if r["body"]["accepted"]
+                and (r["body"]["agent_id"], r["body"]["challenge_id"]) == (SUBJ, CTX)
+                and cm._parse_when(r["body"]["accepted_at"]) < DEADLINE
+            ),
+            key=lambda b: b["revision_index"],
+        )
+        last = eligible[-1] if eligible else None
+        body = {
+            "challenge_id": CTX,
+            "agent_id": SUBJ,
+            "accepted_count": len(eligible),
+            "last_accepted_revision_index": None if last is None else last["revision_index"],
+            "last_accepted_C": None if last is None else last["commitment"],
+            "closed_at": iso(at or DEADLINE + dt.timedelta(minutes=1)),
+            "mapping_id": mapping_id,
+        }
+        body.update(over)
+        return cm.sign_closing_receipt(body, key or self.rkey)
+
+    def vr(self, bundle, receipts, closing="auto", **kw):
+        if closing == "auto":
+            closing = None if receipts is None else self.closing(receipts)
         kw.setdefault("trusted_receipt_pubkey", self.rpub)
         kw.setdefault("expected_mapping_id", MAP)
-        return self.verify(bundle, receipts=receipts, **kw)
+        return self.verify(bundle, receipts=receipts, closing_receipt=closing, **kw)
 
 
 class TestV2CommitAndBundle(V2Base):
@@ -228,7 +255,7 @@ class TestV2CommitAndBundle(V2Base):
     def test_noncanonical_payload_is_rejected_even_when_the_hash_matches(self) -> None:
         """A hash match must not hide a change in meaning: 0.720 vs 0.72 are the same number under two
         spellings, so a committer who hashed the spelling HA would not produce is refused."""
-        sec_payload = cmap.map_ha_daily_v1(SUB0).payload
+        sec_payload = cmap.map_ha_daily_v2(SUB0).payload
         pub, sec = self.commit2(3, SUB0, T0)
         odd = {**sec_payload, "confidence": "0.720"}
         salt = sec.salt
@@ -429,7 +456,7 @@ class TestScenarios(V2Base):
     def test_g_wrong_mapping_version(self) -> None:
         p0 = self.chain()[0]
         b = self.bundle2([p0])
-        b["mapping_id"] = "ha-daily-v2"
+        b["mapping_id"] = "ha-daily-v3"
         v = self.vr(b, [self.receipt(p0)])
         self.assertEqual(v.verdict, "INVALID")
         self.assertIn("unknown payload mapping", v.errors[0])
@@ -439,8 +466,8 @@ class TestScenarios(V2Base):
         different commitment, so a hash match cannot be reinterpreted."""
         alt = cmap.PayloadMapping(
             "ha-daily-alt",
-            cmap.map_ha_daily_v1,
-            cmap.check_canonical_ha_daily_v1,
+            cmap.map_ha_daily_v2,
+            cmap.check_canonical_ha_daily_v2,
             cmap.probability_warnings,
         )
         p0 = self.chain()[0]
@@ -457,7 +484,7 @@ class TestScenarios(V2Base):
 
     def test_g3_a_required_mapping_is_enforced(self) -> None:
         p0 = self.chain()[0]
-        v = self.vr(self.bundle2([p0]), [self.receipt(p0)], expected_mapping_id="ha-daily-v2")
+        v = self.vr(self.bundle2([p0]), [self.receipt(p0)], expected_mapping_id="ha-daily-v1")
         self.assertEqual(v.verdict, "INVALID")
         self.assertIn("is not the required", v.errors[0])
 
@@ -586,7 +613,7 @@ class TestReceiptPolicy(V2Base):
 
     def test_receipt_mapping_and_index_must_match(self) -> None:
         p0, p1, b = self.two()
-        v = self.vr(b, [self.receipt(p0), self.receipt(p1, at=T1 + SEC, mapping_id="ha-daily-v2")])
+        v = self.vr(b, [self.receipt(p0), self.receipt(p1, at=T1 + SEC, mapping_id="ha-daily-v1")])
         self.assertTrue(any("RECEIPT_MAPPING_MISMATCH" in e for e in v.errors), v.errors)
         v = self.vr(b, [self.receipt(p0), self.receipt(p1, at=T1 + SEC, revision_index=7)])
         self.assertTrue(any("RECEIPT_INDEX_MISMATCH" in e for e in v.errors), v.errors)
@@ -730,7 +757,7 @@ class TestSealIsOptionalAndNotRelied(V2Base):
 
 
 class TestCli(V2Base):
-    def run_cli(self, bundle, receipts, *extra, anchor=None):
+    def run_cli(self, bundle, receipts, *extra, anchor=None, closing="auto", text=False):
         import contextlib
         import io
 
@@ -741,8 +768,13 @@ class TestCli(V2Base):
 
         with tempfile.TemporaryDirectory() as d:
             bp, rp, ap = Path(d) / "b.json", Path(d) / "r.json", Path(d) / "anchor.pem"
+            cp = Path(d) / "c.json"
             bp.write_text(json.dumps(bundle))
             rp.write_text(json.dumps(receipts))
+            if closing == "auto":
+                closing = None if receipts is None else self.closing(receipts)
+            if closing is not None:
+                cp.write_text(json.dumps(closing))
             ap.write_bytes(
                 x509.load_der_x509_certificate(anchor or self.anchors[0]).public_bytes(
                     serialization.Encoding.PEM
@@ -754,10 +786,15 @@ class TestCli(V2Base):
                 "2026-06-01T12:00:00Z",
                 "--tsa-anchor",
                 str(ap),
-                "--json",
             ]
+            if not text:
+                args.append("--json")
+            if receipts is not None or closing is not None:
+                args += ["--receipt-key", self.rpub]
             if receipts is not None:
-                args += ["--receipts", str(rp), "--receipt-key", self.rpub]
+                args += ["--receipts", str(rp)]
+            if closing is not None:
+                args += ["--closing-receipt", str(cp)]
             out = io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
                 code = sasana_cli._cmd_verify_commitment(args + list(extra))
@@ -772,10 +809,28 @@ class TestCli(V2Base):
         self.assertEqual((code, json.loads(out)["verdict"]), (4, "UNREVEALED"))
         code, _ = self.run_cli(self.bundle2([p1]), rs, "--mapping", MAP)
         self.assertEqual(code, 1)  # history gap
+        # a lenient pass is NOT a strict pass: exit 5, and the JSON says so
         code, out = self.run_cli(
             self.bundle2([p1]), rs, "--mapping", MAP, "--allow-unrevealed-history"
         )
-        self.assertEqual(code, 0, out)
+        self.assertEqual(code, 5, out)
+        j = json.loads(out)
+        self.assertEqual(
+            (j["verdict"], j["lenient"]), ("VALID_ON_TIME", ["unrevealed history allowed"])
+        )
+        # no closing receipt: not valid, and not the same as invalid either
+        code, out = self.run_cli(self.bundle2([p0, p1]), rs, "--mapping", MAP, closing=None)
+        self.assertEqual((code, json.loads(out)["verdict"]), (6, "INCOMPLETE_RECEIPTS"))
+
+    def test_the_lenient_banner_is_printed_in_text_mode(self) -> None:
+        p0, p1 = self.chain()
+        rs = [self.receipt(p0), self.receipt(p1, at=T1 + SEC)]
+        code, out = self.run_cli(self.bundle2([p1]), rs, "--allow-unrevealed-history", text=True)
+        self.assertEqual(code, 5)
+        self.assertIn("LENIENT: unrevealed history allowed", out)
+        code, out = self.run_cli(self.bundle2([p0, p1]), rs, text=True)
+        self.assertEqual(code, 0)
+        self.assertNotIn("LENIENT", out)
 
     def test_unknown_or_abbreviated_flags_are_refused_not_ignored(self) -> None:
         p0 = self.chain()[0]
@@ -810,6 +865,264 @@ class TestCli(V2Base):
                 )  # fmt: skip
         self.assertEqual(code, 1)
         self.assertIn("no receipt key pinned", out.getvalue())
+
+
+class TestClosingReceipt(V2Base):
+    """PROPOSED EXTENSION: the counterparty signs, at the deadline, how many submissions it accepted and which
+    was last. Without it a verifier cannot tell a complete receipt list from one with a receipt withheld."""
+
+    def two(self):
+        p0, p1 = self.chain()
+        return p0, p1, self.bundle2([p0, p1]), [self.receipt(p0), self.receipt(p1, at=T1 + SEC)]
+
+    def test_j_a_withheld_later_accepted_receipt_is_caught(self) -> None:
+        """The committer hands over only the initial's receipt; the counterparty's closing receipt says two
+        submissions were accepted, the last being revision 1."""
+        p0, p1, b, rs = self.two()
+        honest_closing = self.closing(rs)
+        v = self.vr(b, [rs[0]], closing=honest_closing)
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertTrue(
+            any(e.startswith("RECEIPT_LIST_DISAGREES_WITH_CLOSING") for e in v.errors), v.errors
+        )
+        # the same withholding WITHOUT a closing receipt is not even a valid verdict: it is INCOMPLETE
+        self.assertEqual(self.vr(b, [rs[0]], closing=None).verdict, "INCOMPLETE_RECEIPTS")
+
+    def test_j2_an_extra_receipt_is_caught_too(self) -> None:
+        p0, p1, b, rs = self.two()
+        v = self.vr(b, rs, closing=self.closing([rs[0]]))  # closing says one; two supplied
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertTrue(any("RECEIPT_LIST_DISAGREES_WITH_CLOSING" in e for e in v.errors), v.errors)
+
+    def test_j3_same_count_but_a_different_last_commitment(self) -> None:
+        p0, p1, b, rs = self.two()
+        other = self.commit2(4, {**SUB1, "direction": "flat"}, T1, prev=p0[0])
+        closing = self.closing(rs, last_accepted_C=other[0].commitment)
+        v = self.vr(b, rs, closing=closing)
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertTrue(any("RECEIPT_LIST_DISAGREES_WITH_CLOSING" in e for e in v.errors), v.errors)
+
+    def test_k_closing_receipt_missing_is_incomplete_not_valid(self) -> None:
+        p0, p1, b, rs = self.two()
+        v = self.vr(b, rs, closing=None)
+        self.assertEqual(v.verdict, "INCOMPLETE_RECEIPTS")
+        self.assertIsNone(v.effective_revision)
+        self.assertTrue(any(w.startswith("CLOSING_RECEIPT_MISSING") for w in v.warnings))
+        self.assertEqual(v.checks["receipts"]["closing_receipt"], "missing")
+        self.assertNotIn(v.verdict, ("VALID_ON_TIME", "LATE", "UNREVEALED"))
+
+    def test_k2_incomplete_even_when_the_scored_revision_is_unrevealed_or_late(self) -> None:
+        p0, p1, b, rs = self.two()
+        self.assertEqual(
+            self.vr(self.bundle2([p0]), rs, closing=None).verdict, "INCOMPLETE_RECEIPTS"
+        )
+        self.assertEqual(self.vr(b, [], closing=None).verdict, "INCOMPLETE_RECEIPTS")
+
+    def test_k3_other_errors_still_win_over_incomplete(self) -> None:
+        p0, p1, b, rs = self.two()
+        b["revisions"][1]["salt"] = "00" * 32
+        self.assertEqual(self.vr(b, rs, closing=None).verdict, "INVALID")
+
+    def test_l_closing_receipt_signed_by_the_wrong_key(self) -> None:
+        p0, p1, b, rs = self.two()
+        other_key, _ = generate_keypair()
+        v = self.vr(b, rs, closing=self.closing(rs, key=other_key))
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertTrue(any(e.startswith("CLOSING_RECEIPT_INVALID") for e in v.errors), v.errors)
+
+    def test_closing_body_tampering_invalidates_the_signature(self) -> None:
+        p0, p1, b, rs = self.two()
+        c = self.closing(rs)
+        c["body"]["accepted_count"] = 1
+        self.assertEqual(self.vr(b, rs, closing=c).verdict, "INVALID")
+
+    def test_a_consistent_closing_receipt_gives_the_normal_verdicts(self) -> None:
+        p0, p1, b, rs = self.two()
+        v = self.vr(b, rs)
+        self.assertEqual((v.verdict, v.effective_revision), ("VALID_ON_TIME", 1))
+        self.assertEqual(v.checks["receipts"]["closing_receipt"], "ok")
+        self.assertEqual(self.vr(self.bundle2([p0]), rs).verdict, "UNREVEALED")
+
+    def test_closing_must_not_predate_the_deadline(self) -> None:
+        p0, p1, b, rs = self.two()
+        early = self.closing(rs, at=DEADLINE - dt.timedelta(seconds=1))
+        v = self.vr(b, rs, closing=early)
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertTrue(any(e.startswith("CLOSING_BEFORE_DEADLINE") for e in v.errors), v.errors)
+        self.assertEqual(
+            self.vr(b, rs, closing=self.closing(rs, at=DEADLINE)).verdict, "VALID_ON_TIME"
+        )
+
+    def test_closing_for_another_agent_or_challenge_is_an_error_not_ignored(self) -> None:
+        p0, p1, b, rs = self.two()
+        for over in ({"agent_id": "someone-else"}, {"challenge_id": "other"}):
+            v = self.vr(b, rs, closing=self.closing(rs, **over))
+            self.assertEqual(v.verdict, "INVALID", over)
+            self.assertTrue(any("CLOSING_RECEIPT_OUT_OF_SCOPE" in e for e in v.errors), v.errors)
+
+    def test_closing_must_name_the_bundles_mapping(self) -> None:
+        p0, p1, b, rs = self.two()
+        v = self.vr(b, rs, closing=self.closing(rs, mapping_id="ha-daily-v1"))
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertTrue(any("CLOSING_MAPPING_MISMATCH" in e for e in v.errors), v.errors)
+
+    def test_nothing_accepted_is_a_late_verdict_and_the_list_must_be_empty_of_accepted(
+        self,
+    ) -> None:
+        p0, p1, b, rs = self.two()
+        rejected = [self.receipt(p0, accepted=False), self.receipt(p1, accepted=False, at=T1 + SEC)]
+        v = self.vr(b, rejected)
+        self.assertEqual(v.verdict, "LATE")
+        self.assertEqual(v.checks["receipts"]["scored_revision"], None)
+        # a closing receipt that says "none accepted" contradicts a list that holds an accepted receipt
+        v = self.vr(b, rs, closing=self.closing(rejected))
+        self.assertEqual(v.verdict, "INVALID")
+
+    def test_acceptances_after_the_deadline_are_not_counted(self) -> None:
+        p0, p1, b, rs = self.two()
+        late = [rs[0], self.receipt(p1, at=DEADLINE + SEC)]
+        v = self.vr(b, late)  # auto closing: one eligible acceptance
+        self.assertEqual((v.verdict, v.effective_revision), ("VALID_ON_TIME", 0))
+        self.assertIn("RECEIPT_AFTER_DEADLINE:1", v.warnings)
+
+    def test_closing_alone_names_the_scored_revision(self) -> None:
+        p0, p1, b, rs = self.two()
+        v = self.verify(
+            b, receipts=None, closing_receipt=self.closing(rs), trusted_receipt_pubkey=self.rpub,
+            expected_mapping_id=MAP,
+        )  # fmt: skip
+        self.assertEqual((v.verdict, v.effective_revision), ("VALID_ON_TIME", 1))
+        self.assertTrue(any(w.startswith("NO_PER_SUBMISSION_RECEIPTS") for w in v.warnings))
+        v = self.verify(
+            self.bundle2([p0]), receipts=None, closing_receipt=self.closing(rs),
+            trusted_receipt_pubkey=self.rpub, expected_mapping_id=MAP,
+        )  # fmt: skip
+        self.assertEqual(v.verdict, "UNREVEALED")
+
+    def test_closing_needs_the_pinned_key_too(self) -> None:
+        p0, p1, b, rs = self.two()
+        v = self.verify(b, receipts=None, closing_receipt=self.closing(rs))
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertIn("no receipt key pinned", v.errors[0])
+
+    def test_the_two_receipt_kinds_cannot_stand_in_for_each_other(self) -> None:
+        p0, p1, b, rs = self.two()
+        closing = self.closing(rs)
+        self.assertIsNotNone(
+            cm.verify_receipt(closing, self.rpub)[1]
+        )  # a closing receipt is not a receipt
+        self.assertIsNotNone(cm.verify_closing_receipt(rs[0], self.rpub)[1])
+        # same bytes, different domain tag: re-signing the closing body under the receipt domain still fails
+        forged = {
+            "body": closing["body"],
+            "signature": self.rkey.sign(
+                cm.RECEIPT_DOMAIN + cm.jcs_canonicalize(closing["body"])
+            ).hex(),
+        }
+        self.assertIsNotNone(cm.verify_closing_receipt(forged, self.rpub)[1])
+
+    def test_closing_body_shape_rules(self) -> None:
+        p0, p1, b, rs = self.two()
+        good = self.closing(rs)["body"]
+        for over in (
+            {"accepted_count": -1},
+            {"accepted_count": True},
+            {"accepted_count": 0},  # count 0 with a non-null last
+            {"last_accepted_C": "ab"},
+            {"last_accepted_revision_index": "1"},
+            {"closed_at": "2026-06-01T12:01:00"},  # naive
+            {"mapping_id": "Bad Id"},
+        ):
+            with self.assertRaises(ValueError, msg=str(over)):
+                cm.sign_closing_receipt({**good, **over}, self.rkey)
+        with self.assertRaises(ValueError):
+            cm.sign_closing_receipt({k: v for k, v in good.items() if k != "closed_at"}, self.rkey)
+        with self.assertRaises(ValueError):
+            cm.sign_closing_receipt({**good, "extra": 1}, self.rkey)
+
+
+class TestLenientAndSuperseded(V2Base):
+    def test_a_lenient_pass_says_so_in_the_verdict_and_json(self) -> None:
+        p0, p1 = self.chain()
+        rs = [self.receipt(p0), self.receipt(p1, at=T1 + SEC)]
+        b = self.bundle2([p1])
+        strict = self.vr(b, rs)
+        self.assertEqual(strict.verdict, "INVALID")
+        lenient = self.vr(b, rs, allow_unrevealed_history=True)
+        self.assertEqual(lenient.verdict, "VALID_ON_TIME")
+        self.assertEqual(list(lenient.lenient), ["unrevealed history allowed"])
+        self.assertEqual(lenient.as_dict()["lenient"], ("unrevealed history allowed",))
+        self.assertTrue(lenient.checks["policy"]["history_gaps_allowed"])
+        self.assertTrue(any(w.startswith("HISTORY_GAP") for w in lenient.warnings))
+
+    def test_a_strict_pass_is_not_marked_lenient_even_if_the_flag_was_set(self) -> None:
+        p0, p1 = self.chain()
+        rs = [self.receipt(p0), self.receipt(p1, at=T1 + SEC)]
+        full = self.bundle2([p0, p1])
+        self.assertEqual(self.vr(full, rs).lenient, ())
+        v = self.vr(full, rs, allow_unrevealed_history=True)  # flag set but never needed
+        self.assertEqual((v.verdict, tuple(v.lenient)), ("VALID_ON_TIME", ()))
+        self.assertTrue(v.checks["policy"]["history_gaps_allowed"])  # the setting is still recorded
+
+    def test_lenient_is_recorded_once_however_many_gaps_were_forgiven(self) -> None:
+        p0 = self.commit2(3, SUB0, T0)
+        p1 = self.commit2(4, SUB1, T1, prev=p0[0])
+        p2 = self.commit2(5, SUB2, T2, prev=p1[0])
+        rs = [self.receipt(p0), self.receipt(p1, at=T1 + SEC), self.receipt(p2, at=T2 + SEC)]
+        b = self.bundle2(
+            [p1, p2]
+        )  # revision 0 omitted; revision 1's reveal broken: two forgiven gaps
+        b["revisions"][0]["payload"]["direction"] = "flat"
+        v = self.vr(b, rs, allow_unrevealed_history=True)
+        self.assertEqual(sum(w.startswith("HISTORY_GAP") for w in v.warnings), 2)
+        self.assertEqual(
+            (v.verdict, list(v.lenient)), ("VALID_ON_TIME", ["unrevealed history allowed"])
+        )
+
+    def test_a_broken_reveal_allowed_leniently_is_also_marked(self) -> None:
+        p0, p1 = self.chain()
+        b = self.bundle2([p0, p1])
+        b["revisions"][0]["payload"]["direction"] = "flat"
+        v = self.vr(
+            b, [self.receipt(p0), self.receipt(p1, at=T1 + SEC)], allow_unrevealed_history=True
+        )
+        self.assertEqual(
+            (v.verdict, list(v.lenient)), ("VALID_ON_TIME", ["unrevealed history allowed"])
+        )
+
+    def test_a_superseded_mapping_still_verifies_with_a_warning(self) -> None:
+        p0 = self.commit2(3, {"direction": "up", "confidence": 0.7}, T0, mapping=cmap.HA_DAILY_V1)
+        b = self.bundle2([p0])
+        v = self.verify(b)
+        self.assertEqual(v.verdict, "VALID_ON_TIME", (v.errors, v.warnings))
+        self.assertIn("MAPPING_SUPERSEDED:ha-daily-v1->ha-daily-v2", v.warnings)
+        # a verifier that requires the current mapping refuses it
+        self.assertEqual(self.verify(b, expected_mapping_id=cmap.HA_DAILY_V2).verdict, "INVALID")
+        # and the current mapping carries no such warning
+        p = self.chain()[0]
+        self.assertFalse([w for w in self.verify(self.bundle2([p])).warnings if "SUPERSEDED" in w])
+
+    def test_a_v2_mapping_bundle_binds_all_fields_end_to_end(self) -> None:
+        """Tampering with `amount` or `trigger_event_id` after commit is caught by C (v1 missed both)."""
+        full = {
+            **SUB1,
+            "prompt_hash": "c" * 64,
+            "amount": 25,
+            "token_usage": {"input": 10, "output": 5},
+            "trigger_event_id": "evt-1",
+        }
+        p0 = self.commit2(3, SUB0, T0)
+        p1 = self.commit2(4, full, T1, prev=p0[0])
+        rs = [self.receipt(p0), self.receipt(p1, at=T1 + SEC)]
+        self.assertEqual(self.vr(self.bundle2([p0, p1]), rs).verdict, "VALID_ON_TIME")
+        for field, value in (("amount", "26"), ("trigger_event_id", "evt-2")):
+            b = self.bundle2([p0, p1])
+            b["revisions"][1]["payload"][field] = value
+            v = self.vr(b, rs)
+            self.assertEqual(v.verdict, "INVALID", field)
+            self.assertTrue(
+                any("commitment does not match" in e for e in v.errors), (field, v.errors)
+            )
 
 
 if __name__ == "__main__":

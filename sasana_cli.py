@@ -7,7 +7,9 @@ Usage:
   sasana evidence-pack <session.jsonl> [--standard eu_ai_act|soc2|hipaa|siem]
   sasana verify-commitment <bundle.json> --deadline ISO8601 --tsa-anchor CERT [--json]
       [--receipts FILE --receipt-key B64] [--mapping ID] [--clock-skew S] [--trust-key B64]
-      exit: 0 VALID_ON_TIME, 1 INVALID, 2 LATE, 3 bad input/flag, 4 UNREVEALED
+      [--closing-receipt FILE] [--allow-unrevealed-history]
+      exit: 0 VALID_ON_TIME, 1 INVALID, 2 LATE, 3 bad input/flag, 4 UNREVEALED,
+            5 VALID_ON_TIME only under a lenient option, 6 INCOMPLETE_RECEIPTS
   sasana observe [--ws URL] [--output-dir DIR]
   sasana bridge  [--socket PATH] [--output-dir DIR]
   sasana version
@@ -400,6 +402,14 @@ def _cmd_verify_commitment(args: list) -> int:
         "Requires --receipt-key.",
     )
     ap.add_argument(
+        "--closing-receipt",
+        dest="closing_receipt",
+        default=None,
+        metavar="FILE",
+        help="The counterparty's signed closing receipt (JSON object; a PROPOSED EXTENSION). Required "
+        "whenever --receipts is given: without it the verdict is INCOMPLETE_RECEIPTS.",
+    )
+    ap.add_argument(
         "--receipt-key",
         dest="receipt_key",
         default=None,
@@ -444,6 +454,10 @@ def _cmd_verify_commitment(args: list) -> int:
         if parsed.receipts:
             with open(parsed.receipts) as f:
                 receipts = json.load(f)
+        closing = None
+        if parsed.closing_receipt:
+            with open(parsed.closing_receipt) as f:
+                closing = json.load(f)
         anchors = [_load_cert_der(p) for p in parsed.tsa_anchors]
         deadline = datetime.fromisoformat(parsed.deadline.replace("Z", "+00:00"))
         if deadline.tzinfo is None:
@@ -462,6 +476,7 @@ def _cmd_verify_commitment(args: list) -> int:
         registry=registry,
         allow_partial=parsed.allow_partial,
         receipts=receipts,
+        closing_receipt=closing,
         trusted_receipt_pubkey=parsed.receipt_key,
         expected_mapping_id=parsed.mapping,
         require_receipts=parsed.require_receipts,
@@ -477,17 +492,27 @@ def _cmd_verify_commitment(args: list) -> int:
         print(f"Evidence : {v.evidence_class or '—'}")
         if v.effective_revision is not None:
             print(f"Effective revision: {v.effective_revision}")
+        lenient = bool(v.lenient) and v.verdict == "VALID_ON_TIME"
         color = (
-            _green
-            if v.verdict == "VALID_ON_TIME"
-            else (_yellow if v.verdict in ("LATE", "UNREVEALED") else _red)
+            _yellow
+            if lenient or v.verdict in ("LATE", "UNREVEALED", "INCOMPLETE_RECEIPTS")
+            else (_green if v.verdict == "VALID_ON_TIME" else _red)
         )
-        print(f"Verdict  : {_bold(color(v.verdict))}")
+        label = v.verdict + (f"  (LENIENT: {'; '.join(v.lenient)})" if lenient else "")
+        print(f"Verdict  : {_bold(color(label))}")
         for err in v.errors:
             print(_red(f"  ✗ {err}"))
         for w in v.warnings:
             print(_yellow(f"  ! {w}"))
-    return {"VALID_ON_TIME": 0, "INVALID": 1, "LATE": 2, "UNREVEALED": 4}.get(v.verdict, 3)
+    if v.verdict == "VALID_ON_TIME" and v.lenient:
+        return 5  # valid, but only because a lenient option was needed: never the same as a strict pass
+    return {
+        "VALID_ON_TIME": 0,
+        "INVALID": 1,
+        "LATE": 2,
+        "UNREVEALED": 4,
+        "INCOMPLETE_RECEIPTS": 6,
+    }.get(v.verdict, 3)
 
 
 _STANDARDS = {

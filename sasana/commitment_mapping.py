@@ -7,6 +7,13 @@ the submission a counterparty accepts to the canonical payload that goes inside 
 match cannot hide a change in meaning. The mapping id is bound INSIDE C (commitment v2), so the same
 payload hashed under a different mapping is a different commitment.
 
+Mapping `ha-daily-v2` (current) covers the daily-market directional family only and is DEFAULT-DENY: it
+binds every field the counterparty's daily schema declares, and a field may be left out only by an entry in
+EXCLUDED_FIELDS_V2 that carries a written reason (currently there are none). `ha-daily-v1` is SUPERSEDED: it
+bound seven of the eleven fields (so a change to `amount` or `trigger_event_id` was not detected) and accepted
+two shapes for `probabilities`. It stays registered so archived v1 bundles verify, with a warning.
+The text below describes the shared number rules; the v1 specifics follow in its own section.
+
 Mapping `ha-daily-v1` covers the daily-market directional family only. The field names come from the
 public interface the counterparty described to us (see docs/pre-outcome-commitment.md, Appendix A);
 the TYPES of those fields are not stated there, so the mapping accepts the plausible types and rejects
@@ -33,7 +40,8 @@ import re
 from decimal import Decimal
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-HA_DAILY_V1 = "ha-daily-v1"
+HA_DAILY_V1 = "ha-daily-v1"  # SUPERSEDED by ha-daily-v2
+HA_DAILY_V2 = "ha-daily-v2"
 
 # Fields of a daily-market submission that the mapping binds into C.
 BOUND_FIELDS = (
@@ -243,8 +251,166 @@ def cross_check_published(payload: Mapping[str, Any], published: Mapping[str, An
             pub = object()
         if name not in payload or payload[name] != pub:
             mismatches.append(name)
-    not_published = [n for n in BOUND_FIELDS if n not in PUBLISHED_COMPARABLE]
+    not_published = [n for n in BOUND_FIELDS_V2 if n not in PUBLISHED_COMPARABLE]
     return {"compared": compared, "mismatches": mismatches, "not_published": not_published}
+
+
+# --------------------------------------------------------------------------- #
+# ha-daily-v2: default-deny                                                    #
+# --------------------------------------------------------------------------- #
+
+# Every field the daily-market schema declares, in the order the counterparty listed them (HA-1 §1 in
+# docs/pre-outcome-commitment.md, Appendix A.1). The test suite pins this tuple to that list.
+DECLARED_FIELDS_V2 = (
+    "direction",
+    "confidence",
+    "probabilities",
+    "prompt_hash",
+    "amount",
+    "reasoning",
+    "summary",
+    "token_usage",
+    "is_revision",
+    "trigger_event_id",
+    "revision_reason",
+)
+# A declared field may be excluded from the commitment ONLY with a written reason here. Empty on purpose:
+# a field the committer sends is a field the committer knows when it commits (the submission body is fixed
+# before C is computed), so "not known at commit time" does not apply to any of them. A field the
+# counterparty adds server-side is not in the submission and so is not a field to bind.
+EXCLUDED_FIELDS_V2: Mapping[str, str] = {}
+BOUND_FIELDS_V2 = tuple(f for f in DECLARED_FIELDS_V2 if f not in EXCLUDED_FIELDS_V2)
+
+_HEX64_RE = re.compile(r"[0-9a-fA-F]{64}\Z")
+_MAX_TOKEN_KEYS = 1000
+_CORE_FIELDS_V2 = (
+    "direction",
+    "confidence",
+    "probabilities",
+    "reasoning",
+)  # null is rejected for these
+
+
+def _probabilities_v2(value: Any) -> dict:
+    """
+    ONE shape: an object mapping an outcome label to its probability, e.g. {"up": 0.6, "down": 0.4}.
+
+    Why this one: `direction` is a categorical label, so a per-label table is self-describing. An array would
+    make the meaning of each entry depend on an index-to-label order the interface does not state, which is a
+    change of meaning a hash match could hide. An array is therefore REJECTED, not tolerated. The counterparty's
+    exact shape is an open question for them (Appendix A.6); if it differs, that is a new mapping version.
+    """
+    if not isinstance(value, Mapping):
+        raise MappingError(
+            "probabilities: expected an object mapping an outcome label to a number "
+            "(an array is rejected: its entries would have no stated labels)"
+        )
+    if not value or len(value) > _MAX_PROBABILITIES:
+        raise MappingError("probabilities: must hold between 1 and 1000 entries")
+    out = {}
+    for k, v in value.items():
+        if not isinstance(k, str) or k == "":
+            raise MappingError("probabilities: keys must be non-empty strings")
+        out[_text("probabilities key", k, nullable=False)] = canonical_decimal(
+            v, field=f"probabilities[{k!r}]"
+        )
+    return out
+
+
+def _token_usage_v2(value: Any) -> Any:
+    """An object of string keys to non-negative integers (an assumed shape; open question for the counterparty)."""
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise MappingError("token_usage: expected an object of counts (or null)")
+    if len(value) > _MAX_TOKEN_KEYS:
+        raise MappingError("token_usage: too many entries")
+    out = {}
+    for k, v in value.items():
+        if not isinstance(k, str):
+            raise MappingError("token_usage: keys must be strings")
+        if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 2**53:
+            raise MappingError(f"token_usage[{k!r}]: expected a non-negative integer")
+        out[_text("token_usage key", k, nullable=False)] = v
+    return out
+
+
+def _prompt_hash_v2(value: Any) -> Any:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _HEX64_RE.match(value):
+        raise MappingError(
+            "prompt_hash: expected a 64-character hexadecimal SHA-256 digest (or null)"
+        )
+    return value  # bound byte-exact: no case folding
+
+
+def map_ha_daily_v2(submission: Mapping[str, Any]) -> MappedPayload:
+    """
+    Map a daily-market submission to the canonical payload committed under `ha-daily-v2` (DEFAULT-DENY).
+
+    Every declared field that is present is bound; a field is absent from the payload only if the submission
+    did not carry it (absent, null and "" hash differently). A field outside DECLARED_FIELDS_V2 is rejected,
+    because its meaning is unknown. The mapping never invents a default, never rounds, and does not validate
+    the forecast (no range, no sum, no label checks: see `probability_warnings`, which only warns).
+    """
+    if not isinstance(submission, Mapping):
+        raise MappingError("submission must be an object")
+    unknown = sorted(set(submission) - set(DECLARED_FIELDS_V2))
+    if unknown:
+        raise MappingError(f"unknown field(s) not covered by {HA_DAILY_V2}: {unknown}")
+    out: dict = {}
+    for name in DECLARED_FIELDS_V2:
+        if name not in submission:
+            continue
+        v = submission[name]
+        if v is None and name in _CORE_FIELDS_V2:
+            raise MappingError(f"{name}: null is not accepted")
+        if name in EXCLUDED_FIELDS_V2:
+            continue
+        if name in ("direction", "reasoning"):
+            out[name] = _text(name, v, nullable=False)
+        elif name in ("summary", "revision_reason", "trigger_event_id"):
+            out[name] = _text(name, v, nullable=True)
+        elif name == "confidence":
+            out[name] = canonical_decimal(v, field=name)
+        elif name == "amount":
+            out[name] = None if v is None else canonical_decimal(v, field=name)
+        elif name == "probabilities":
+            out[name] = _probabilities_v2(v)
+        elif name == "prompt_hash":
+            out[name] = _prompt_hash_v2(v)
+        elif name == "token_usage":
+            out[name] = _token_usage_v2(v)
+        elif name == "is_revision":
+            if not isinstance(v, bool):
+                raise MappingError("is_revision: expected a boolean")
+            out[name] = v
+    return MappedPayload(out, tuple(n for n in EXCLUDED_FIELDS_V2 if n in submission))
+
+
+def check_canonical_ha_daily_v2(payload: Mapping[str, Any]) -> None:
+    """Raise MappingError unless `payload` is exactly what map_ha_daily_v2 would emit for itself."""
+    if not isinstance(payload, Mapping):
+        raise MappingError("payload must be an object")
+    extra = sorted(set(payload) - set(BOUND_FIELDS_V2))
+    if extra:
+        raise MappingError(f"payload carries field(s) {HA_DAILY_V2} does not bind: {extra}")
+    mapped = map_ha_daily_v2(payload).payload
+    if _typed(mapped) != _typed(dict(payload)):
+        for name in payload:
+            if _typed(mapped.get(name)) != _typed(payload[name]):
+                raise MappingError(f"payload is not in canonical {HA_DAILY_V2} form at {name!r}")
+        raise MappingError(f"payload is not in canonical {HA_DAILY_V2} form")
+
+
+def _typed(v: Any) -> Any:
+    """A structure that also distinguishes True from 1 and "0" from 0, for exact equality."""
+    if isinstance(v, Mapping):
+        return ("d", tuple(sorted((k, _typed(x)) for k, x in v.items())))
+    if isinstance(v, (list, tuple)):
+        return ("l", tuple(_typed(x) for x in v))
+    return (type(v).__name__, v)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -253,11 +419,21 @@ class PayloadMapping:
     map: Callable[[Mapping[str, Any]], MappedPayload]
     check_canonical: Callable[[Mapping[str, Any]], None]
     payload_warnings: Callable[[Mapping[str, Any]], list]
+    superseded_by: Optional[str] = (
+        None  # set => verifiable, but new commitments should use the successor
+    )
 
 
 MAPPINGS: Mapping[str, PayloadMapping] = {
     HA_DAILY_V1: PayloadMapping(
-        HA_DAILY_V1, map_ha_daily_v1, check_canonical_ha_daily_v1, probability_warnings
+        HA_DAILY_V1,
+        map_ha_daily_v1,
+        check_canonical_ha_daily_v1,
+        probability_warnings,
+        superseded_by=HA_DAILY_V2,
+    ),
+    HA_DAILY_V2: PayloadMapping(
+        HA_DAILY_V2, map_ha_daily_v2, check_canonical_ha_daily_v2, probability_warnings
     ),
 }
 

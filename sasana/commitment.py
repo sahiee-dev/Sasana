@@ -50,6 +50,9 @@ BUNDLE_VERSION = "1"
 DOMAIN_TAG_V2 = "sasana/commit/v2"
 BUNDLE_VERSION_V2 = "2"
 RECEIPT_DOMAIN = b"sasana/receipt/v1\n"
+CLOSING_DOMAIN = (
+    b"sasana/closing-receipt/v1\n"  # a different tag: neither receipt replays as the other
+)
 _MAX_SAFE_INT = 2**53
 _U32_MAX = 2**32 - 1
 _CAPTURE_MODES = ("in_process", "sidecar", "gateway")
@@ -312,13 +315,16 @@ class CommitmentSecrets:
 
 @dataclasses.dataclass(frozen=True)
 class CommitmentVerdict:
-    verdict: Literal["VALID_ON_TIME", "LATE", "INVALID", "UNREVEALED"]
+    verdict: Literal["VALID_ON_TIME", "LATE", "INVALID", "UNREVEALED", "INCOMPLETE_RECEIPTS"]
     effective_revision: Optional[int]
     effective_payload: Optional[Mapping[str, Any]]
     checks: Mapping[str, Any]
     warnings: Sequence[str]
     errors: Sequence[str]
     evidence_class: Optional[str]
+    # Non-empty when a lenient option CHANGED the outcome (it turned an error into a warning). A lenient
+    # pass is not a strict pass: the CLI prints it and uses a different exit code.
+    lenient: Sequence[str] = ()
 
     def as_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -624,28 +630,138 @@ def sign_receipt(body: Mapping[str, Any], private_key: Any) -> dict:
     return {"body": dict(body), "signature": private_key.sign(_receipt_message(body)).hex()}
 
 
-def verify_receipt(receipt: Any, trusted_pubkey_b64: str) -> tuple:
-    """
-    Verify a receipt against the PINNED counterparty key (base64 raw Ed25519). Returns (body, None) or
-    (None, error). No key is ever read from the receipt itself.
-    """
+def _verify_signed(receipt: Any, trusted_pubkey_b64: str, domain: bytes, check: Any) -> tuple:
+    """Shared by both receipt kinds: shape-check the body, then verify the PINNED key's signature over it."""
     try:
         from cryptography.exceptions import InvalidSignature
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
         body = receipt["body"]
-        _check_receipt_body(body)
+        check(body)
         sig = bytes.fromhex(receipt["signature"])
         raw = base64.b64decode(trusted_pubkey_b64, validate=True)
         if len(raw) != 32 or len(sig) != 64:
             raise ValueError("bad key or signature length")
         try:
-            Ed25519PublicKey.from_public_bytes(raw).verify(sig, _receipt_message(body))
+            Ed25519PublicKey.from_public_bytes(raw).verify(
+                sig, domain + jcs_canonicalize(dict(body))
+            )
         except InvalidSignature:
             return None, "signature does not verify under the pinned receipt key"
         return dict(body), None
     except Exception as exc:  # malformed receipts must not crash a verifier
         return None, f"malformed receipt: {type(exc).__name__}: {exc}"
+
+
+def verify_receipt(receipt: Any, trusted_pubkey_b64: str) -> tuple:
+    """
+    Verify a receipt against the PINNED counterparty key (base64 raw Ed25519). Returns (body, None) or
+    (None, error). No key is ever read from the receipt itself.
+    """
+    return _verify_signed(receipt, trusted_pubkey_b64, RECEIPT_DOMAIN, _check_receipt_body)
+
+
+# --- closing receipt (PROPOSED EXTENSION) -----------------------------------------------------------------
+#
+# One per (agent_id, challenge_id), signed by the counterparty at the deadline. It states how many
+# submissions it accepted and which was last, so a verifier can tell a complete receipt list from one with a
+# receipt withheld. Without it the verifier cannot know whether it was handed everything.
+
+_CLOSING_REQUIRED = (
+    "challenge_id",
+    "agent_id",
+    "accepted_count",
+    "last_accepted_revision_index",
+    "last_accepted_C",
+    "closed_at",
+    "mapping_id",
+)
+
+
+def _check_closing_body(body: Any) -> None:
+    if not isinstance(body, Mapping):
+        raise ValueError("closing receipt body must be an object")
+    missing = [k for k in _CLOSING_REQUIRED if k not in body]
+    extra = [k for k in body if k not in _CLOSING_REQUIRED]
+    if missing or extra:
+        raise ValueError(f"closing receipt fields: missing={missing} unexpected={extra}")
+    for k in ("challenge_id", "agent_id"):
+        _utf8(k, body[k])
+    n = body["accepted_count"]
+    if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n <= _U32_MAX:
+        raise ValueError("accepted_count must be a u32 integer")
+    idx, c = body["last_accepted_revision_index"], body["last_accepted_C"]
+    if n == 0:
+        if idx is not None or c is not None:
+            raise ValueError("with accepted_count 0, last_accepted_* must be null")
+    else:
+        if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx <= _U32_MAX:
+            raise ValueError("last_accepted_revision_index must be a u32 integer")
+        _hex32("last_accepted_C", c)
+    _parse_when(body["closed_at"])
+    if body["mapping_id"] is not None:
+        cmap.validate_mapping_id(body["mapping_id"])
+
+
+def sign_closing_receipt(body: Mapping[str, Any], private_key: Any) -> dict:
+    """Reference signer for the PROPOSED closing receipt (tests and examples)."""
+    _check_closing_body(body)
+    return {
+        "body": dict(body),
+        "signature": private_key.sign(CLOSING_DOMAIN + jcs_canonicalize(dict(body))).hex(),
+    }
+
+
+def verify_closing_receipt(receipt: Any, trusted_pubkey_b64: str) -> tuple:
+    """Verify a closing receipt against the PINNED key. Returns (body, None) or (None, error)."""
+    return _verify_signed(receipt, trusted_pubkey_b64, CLOSING_DOMAIN, _check_closing_body)
+
+
+def _apply_closing(
+    body: Mapping[str, Any],
+    *,
+    subject_id: str,
+    context_id: str,
+    deadline: datetime,
+    mapping_id: Optional[str],
+    eligible: Optional[list],
+    errors: list,
+) -> Optional[dict]:
+    """
+    Cross-check a verified closing receipt and return the scored revision it names ({revision_index,
+    commitment}) or None when it says nothing was accepted. `eligible` is the supplied per-submission
+    receipt list's accepted-before-deadline entries, ordered by revision_index, or None if no list was given.
+    """
+    if body["agent_id"] != subject_id or body["challenge_id"] != context_id:
+        errors.append("CLOSING_RECEIPT_OUT_OF_SCOPE: it is for another agent or challenge")
+        return None
+    if _parse_when(body["closed_at"]) < deadline:
+        errors.append(
+            "CLOSING_BEFORE_DEADLINE: it was signed before the deadline, so later acceptances may exist"
+        )
+        return None
+    if body["mapping_id"] != mapping_id:
+        errors.append(
+            f"CLOSING_MAPPING_MISMATCH: it names {body['mapping_id']!r}, the bundle uses {mapping_id!r}"
+        )
+    if eligible is not None:
+        last = eligible[-1] if eligible else None
+        got = (len(eligible), None if last is None else last["revision_index"])
+        got_c = None if last is None else last["commitment"]
+        want = (body["accepted_count"], body["last_accepted_revision_index"])
+        if got != want or got_c != body["last_accepted_C"]:
+            errors.append(
+                "RECEIPT_LIST_DISAGREES_WITH_CLOSING: the counterparty closed with "
+                f"{body['accepted_count']} accepted submission(s), last revision "
+                f"{body['last_accepted_revision_index']}, but the receipts supplied show "
+                f"{got[0]}, last revision {got[1]} (a receipt was withheld or added)"
+            )
+    if body["accepted_count"] == 0:
+        return None
+    return {
+        "revision_index": body["last_accepted_revision_index"],
+        "commitment": body["last_accepted_C"],
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -678,6 +794,7 @@ def verify_commitment(
     default_accuracy_s: float = 1.0,
     allowed_policies: Optional[Sequence[str]] = None,
     receipts: Optional[Sequence[Mapping[str, Any]]] = None,
+    closing_receipt: Optional[Mapping[str, Any]] = None,
     trusted_receipt_pubkey: Optional[str] = None,
     expected_mapping_id: Optional[str] = None,
     require_receipts: bool = False,
@@ -700,6 +817,7 @@ def verify_commitment(
             default_accuracy_s=default_accuracy_s,
             allowed_policies=allowed_policies,
             receipts=receipts,
+            closing_receipt=closing_receipt,
             trusted_receipt_pubkey=trusted_receipt_pubkey,
             expected_mapping_id=expected_mapping_id,
             require_receipts=require_receipts,
@@ -809,6 +927,7 @@ def _process_receipts(
         "in_scope": len(verified),
         "out_of_scope": out_of_scope,
         "eligible": len(eligible),
+        "eligible_list": ordered,
         "scored": scored,
     }
 
@@ -824,6 +943,7 @@ def _verify_commitment(
     default_accuracy_s: float = 1.0,
     allowed_policies: Optional[Sequence[str]] = None,
     receipts: Optional[Sequence[Mapping[str, Any]]] = None,
+    closing_receipt: Optional[Mapping[str, Any]] = None,
     trusted_receipt_pubkey: Optional[str] = None,
     expected_mapping_id: Optional[str] = None,
     require_receipts: bool = False,
@@ -881,7 +1001,7 @@ def _verify_commitment(
             raise ValueError
     except (TypeError, ValueError):
         return _invalid(["clock_skew_s must be a finite number >= 0"], checks, warnings)
-    if receipts is not None and not trusted_receipt_pubkey:
+    if (receipts is not None or closing_receipt is not None) and not trusted_receipt_pubkey:
         return _invalid(
             [
                 "receipts supplied but no receipt key pinned (keys inside receipts are never trusted)"
@@ -889,10 +1009,11 @@ def _verify_commitment(
             checks,
             warnings,
         )
-    if require_receipts and receipts is None:
+    if require_receipts and receipts is None and closing_receipt is None:
         return _invalid(
             ["receipts are required by policy but none were supplied"], checks, warnings
         )
+    lenient: list = []
 
     try:
         version, tag = bundle.get("bundle_version"), bundle.get("domain_tag")
@@ -926,6 +1047,8 @@ def _verify_commitment(
                     checks,
                     warnings,
                 )
+            if mapping.superseded_by:
+                warnings.append(f"MAPPING_SUPERSEDED:{mapping_id}->{mapping.superseded_by}")
         elif expected_mapping_id is not None:
             return _invalid(
                 [f"a payload mapping ({expected_mapping_id!r}) is required but the bundle is C_v1"],
@@ -1115,10 +1238,16 @@ def _verify_commitment(
                 why = f"whose reveal in the bundle failed verification (revision {idx - 1})"
             else:
                 continue
-            (warnings if allow_unrevealed_history else errors).append(
+            gap = (
                 f"HISTORY_GAP: revision {idx} commits (inside C) to an earlier commitment "
                 f"{str(prev)[:16]}... {why}"
             )
+            if allow_unrevealed_history:
+                warnings.append(gap)
+                if "unrevealed history allowed" not in lenient:
+                    lenient.append("unrevealed history allowed")
+            else:
+                errors.append(gap)
     else:
         # C_v1: prev_commitment is NOT covered by C; self-consistency only.
         for i, raw in enumerate(raw_sorted):
@@ -1165,28 +1294,55 @@ def _verify_commitment(
             seen.setdefault(key, entry["commitment"])
         checks["registry"] = {"entries_in_scope": len(reg_scope), "unrevealed": len(missing)}
 
-    # 4b. Signed receipts: which revision did the counterparty accept?
+    # 4b. Signed receipts and the closing receipt: which revision did the counterparty accept?
     scored = None
-    if receipts is not None:
+    receipt_mode = receipts is not None or closing_receipt is not None
+    closing_missing = receipts is not None and closing_receipt is None
+    if receipt_mode:
         raw_by_commit = {r.get("commitment"): r for r in raw_sorted}
-        rc = _process_receipts(
-            receipts,
-            trusted_receipt_pubkey,  # type: ignore[arg-type]
-            subject_id=subject_id,
-            context_id=context_id,
-            deadline=deadline,
-            mapping_id=mapping_id,
-            skew=skew,
-            rev_results=rev_results,
-            raw_by_commit=raw_by_commit,
-            errors=errors,
-            warnings=warnings,
-        )
-        scored = rc["scored"]
+        rc = None
+        if receipts is not None:
+            rc = _process_receipts(
+                receipts,
+                trusted_receipt_pubkey,  # type: ignore[arg-type]
+                subject_id=subject_id,
+                context_id=context_id,
+                deadline=deadline,
+                mapping_id=mapping_id,
+                skew=skew,
+                rev_results=rev_results,
+                raw_by_commit=raw_by_commit,
+                errors=errors,
+                warnings=warnings,
+            )
+            scored = rc["scored"]
+        closing_state = "missing"
+        if closing_receipt is not None:
+            cbody, cerr = verify_closing_receipt(closing_receipt, trusted_receipt_pubkey)  # type: ignore[arg-type]
+            if cerr is not None:
+                errors.append(f"CLOSING_RECEIPT_INVALID: {cerr}")
+                closing_state = "invalid"
+            else:
+                closing_state = "ok"
+                scored = _apply_closing(
+                    cbody,  # type: ignore[arg-type]
+                    subject_id=subject_id,
+                    context_id=context_id,
+                    deadline=deadline,
+                    mapping_id=mapping_id,
+                    eligible=None if rc is None else rc["eligible_list"],
+                    errors=errors,
+                )
+                if rc is None:
+                    warnings.append(
+                        "NO_PER_SUBMISSION_RECEIPTS: the closing receipt names the scored revision, "
+                        "but accepted_count could not be cross-checked against a receipt list"
+                    )
         checks["receipts"] = {
-            "in_scope": rc["in_scope"],
-            "out_of_scope": rc["out_of_scope"],
-            "eligible": rc["eligible"],
+            "in_scope": None if rc is None else rc["in_scope"],
+            "out_of_scope": None if rc is None else rc["out_of_scope"],
+            "eligible": None if rc is None else rc["eligible"],
+            "closing_receipt": closing_state,
             "scored_revision": None if scored is None else scored["revision_index"],
             "scored_commitment": None if scored is None else scored["commitment"],
         }
@@ -1202,7 +1358,7 @@ def _verify_commitment(
         warnings.append(f"REVISION_INVALID:{r['revision_index']}: " + "; ".join(r["errors"]))
     effective = None
     unrevealed = False
-    if receipts is not None:
+    if receipt_mode:
         if scored is None:
             warnings.append("NO_ACCEPTED_RECEIPT_BEFORE_DEADLINE")
         else:
@@ -1253,13 +1409,25 @@ def _verify_commitment(
     checks["disclosures"] = disc_results
 
     evidence = trace.evidence_class if trace is not None else None
+
+    def _fin(verdict, rev=None, payload=None):
+        return CommitmentVerdict(
+            verdict, rev, payload, checks, warnings, [], evidence, tuple(lenient)
+        )
+
     if errors:
         return _invalid(errors, checks, warnings, evidence)
+    if closing_missing:
+        warnings.append(
+            "CLOSING_RECEIPT_MISSING: without the counterparty's signed closing receipt the verifier "
+            "cannot tell a complete receipt list from one with a receipt withheld"
+        )
+        return _fin("INCOMPLETE_RECEIPTS")
     if unrevealed:
-        return CommitmentVerdict("UNREVEALED", None, None, checks, warnings, [], evidence)
+        return _fin("UNREVEALED")
     if effective is None:
-        if receipts is not None or valid_revs:
-            return CommitmentVerdict("LATE", None, None, checks, warnings, [], evidence)
+        if receipt_mode or valid_revs:
+            return _fin("LATE")
         return _invalid(["no revision passed verification"], checks, warnings, evidence)
 
     if effective["post_commitment_events"]:
@@ -1267,12 +1435,4 @@ def _verify_commitment(
     eff_raw = next(r for r in raw_revisions if r["revision_index"] == effective["revision_index"])
     if mapping is not None:
         warnings.extend(mapping.payload_warnings(eff_raw["payload"]))
-    return CommitmentVerdict(
-        "VALID_ON_TIME",
-        effective["revision_index"],
-        eff_raw["payload"],
-        checks,
-        warnings,
-        [],
-        evidence,
-    )
+    return _fin("VALID_ON_TIME", effective["revision_index"], eff_raw["payload"])

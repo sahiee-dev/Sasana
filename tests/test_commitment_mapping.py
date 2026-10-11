@@ -181,8 +181,10 @@ class TestMappingBehaviour(unittest.TestCase):
                 cmap.check_canonical_ha_daily_v1(bad)
 
     def test_registry(self) -> None:
-        self.assertEqual(cmap.known_mapping_ids(), (cmap.HA_DAILY_V1,))
-        self.assertIsNone(cmap.get_mapping("ha-daily-v2"))
+        self.assertEqual(cmap.known_mapping_ids(), (cmap.HA_DAILY_V1, cmap.HA_DAILY_V2))
+        self.assertIsNone(cmap.get_mapping("ha-daily-v3"))
+        self.assertEqual(cmap.get_mapping(cmap.HA_DAILY_V1).superseded_by, cmap.HA_DAILY_V2)
+        self.assertIsNone(cmap.get_mapping(cmap.HA_DAILY_V2).superseded_by)
         for bad in ("", "HA", "a b", "x" * 65, None, 3):
             with self.assertRaises(ValueError):
                 cmap.validate_mapping_id(bad)
@@ -232,7 +234,16 @@ class TestCrossCheckAgainstPublishedPrediction(unittest.TestCase):
         self.assertEqual(out["mismatches"], [])
         self.assertEqual(set(out["compared"]), set(cmap.PUBLISHED_COMPARABLE))
         self.assertEqual(
-            set(out["not_published"]), {"probabilities", "is_revision", "revision_reason"}
+            set(out["not_published"]),
+            {
+                "probabilities",
+                "prompt_hash",
+                "amount",
+                "token_usage",
+                "is_revision",
+                "trigger_event_id",
+                "revision_reason",
+            },
         )
 
     def test_mismatch_is_reported_per_field(self) -> None:
@@ -246,6 +257,217 @@ class TestCrossCheckAgainstPublishedPrediction(unittest.TestCase):
         self.assertEqual(
             cmap.cross_check_published(self.PAYLOAD, pub)["mismatches"], ["confidence"]
         )
+
+
+VECTORS_V2 = json.loads((_ROOT / "tests/fixtures/mapping/ha-daily-v2.json").read_text())
+
+# The fields the counterparty's daily-market schema declares (its description of the public interface,
+# Appendix A.1 of docs/pre-outcome-commitment.md). This literal is the source of truth the mapping is pinned to.
+HA_DECLARED_DAILY_FIELDS = (
+    "direction",
+    "confidence",
+    "probabilities",
+    "prompt_hash",
+    "amount",
+    "reasoning",
+    "summary",
+    "token_usage",
+    "is_revision",
+    "trigger_event_id",
+    "revision_reason",
+)
+
+
+def h2(submission: dict) -> str:
+    return cm.payload_hash(cmap.map_ha_daily_v2(submission).payload).hex()
+
+
+def commit_v2(payload: dict, *, rev: int = 0, prev=None) -> str:
+    return cm.compute_commitment_v2(
+        mapping_id=cmap.HA_DAILY_V2,
+        subject_id="agent-1",
+        context_id="challenge-1",
+        revision_index=rev,
+        prev_commitment=prev,
+        payload=payload,
+        session_root="ab" * 32,
+        salt=bytes(range(32)),
+    )
+
+
+class TestHaDailyV2DefaultDeny(unittest.TestCase):
+    """ha-daily-v2 binds EVERY declared field. A field may be left out only with a written reason."""
+
+    SUB = {
+        "direction": "up",
+        "confidence": 0.72,
+        "probabilities": {"up": 0.72, "down": 0.28},
+        "prompt_hash": "a" * 64,
+        "amount": 25,
+        "reasoning": "x" * 30,
+        "summary": "s",
+        "token_usage": {"input": 100, "output": 40},
+        "is_revision": True,
+        "trigger_event_id": "evt-9",
+        "revision_reason": "synthetic",
+    }
+
+    def test_the_declared_list_is_pinned_to_the_counterpartys_schema(self) -> None:
+        self.assertEqual(cmap.DECLARED_FIELDS_V2, HA_DECLARED_DAILY_FIELDS)
+        self.assertEqual(VECTORS_V2["declared_fields"], list(HA_DECLARED_DAILY_FIELDS))
+
+    def test_every_declared_field_is_bound_or_excluded_with_a_written_reason(self) -> None:
+        for name in HA_DECLARED_DAILY_FIELDS:
+            bound = name in cmap.BOUND_FIELDS_V2
+            excluded = name in cmap.EXCLUDED_FIELDS_V2
+            self.assertTrue(bound != excluded, f"{name}: must be exactly one of bound / excluded")
+            if excluded:
+                self.assertGreater(
+                    len(cmap.EXCLUDED_FIELDS_V2[name].strip()), 20, f"{name}: reason too thin"
+                )
+        # nothing bound that is not declared
+        self.assertTrue(set(cmap.BOUND_FIELDS_V2) <= set(HA_DECLARED_DAILY_FIELDS))
+
+    def test_currently_nothing_is_excluded(self) -> None:
+        self.assertEqual(dict(cmap.EXCLUDED_FIELDS_V2), {})
+        self.assertEqual(cmap.BOUND_FIELDS_V2, HA_DECLARED_DAILY_FIELDS)
+
+    def test_all_eleven_fields_land_in_the_payload(self) -> None:
+        m = cmap.map_ha_daily_v2(self.SUB)
+        self.assertEqual(set(m.payload), set(HA_DECLARED_DAILY_FIELDS))
+        self.assertEqual(m.unbound_present, ())
+        cm.validate_payload_profile(m.payload)
+
+    def test_changing_any_single_field_changes_the_payload_hash_and_C(self) -> None:
+        base_hash, base_c = h2(self.SUB), commit_v2(cmap.map_ha_daily_v2(self.SUB).payload)
+        changes = {
+            "direction": "down",
+            "confidence": 0.73,
+            "probabilities": {"up": 0.73, "down": 0.27},
+            "prompt_hash": "b" * 64,
+            "amount": 26,
+            "reasoning": "y" * 30,
+            "summary": "t",
+            "token_usage": {"input": 101, "output": 40},
+            "is_revision": False,
+            "trigger_event_id": "evt-10",
+            "revision_reason": "other",
+        }
+        self.assertEqual(set(changes), set(HA_DECLARED_DAILY_FIELDS))
+        for name, value in changes.items():
+            with self.subTest(field=name):
+                changed = {**self.SUB, name: value}
+                self.assertNotEqual(h2(changed), base_hash)
+                self.assertNotEqual(commit_v2(cmap.map_ha_daily_v2(changed).payload), base_c)
+
+    def test_an_amount_change_and_a_trigger_event_id_change_both_break_C(self) -> None:
+        """The two fields v1 left unbound. `amount` is the stake: it is meaning."""
+        base = commit_v2(cmap.map_ha_daily_v2(self.SUB).payload)
+        for field, value in (("amount", 26), ("trigger_event_id", "evt-10")):
+            changed = commit_v2(cmap.map_ha_daily_v2({**self.SUB, field: value}).payload)
+            self.assertNotEqual(changed, base, field)
+        # ...and v1 did NOT notice either (the reason v1 is superseded)
+        v1_sub = {k: v for k, v in self.SUB.items() if k in cmap.BOUND_FIELDS}
+        v1 = cmap.map_ha_daily_v1({**v1_sub, "amount": 25, "trigger_event_id": "a"}).payload
+        v1b = cmap.map_ha_daily_v1({**v1_sub, "amount": 99, "trigger_event_id": "b"}).payload
+        self.assertEqual(v1, v1b)
+
+    def test_unknown_and_undeclared_fields_are_denied(self) -> None:
+        for extra in (
+            {"agent_id": "x"},
+            {"challenge_id": "x"},
+            {"counts_for_score": False},
+            {"foo": 1},
+        ):
+            with self.assertRaises(cmap.MappingError, msg=str(extra)):
+                cmap.map_ha_daily_v2({**self.SUB, **extra})
+
+    def test_probabilities_has_one_shape_an_object(self) -> None:
+        for arr in ([0.6, 0.4], (0.6, 0.4), []):
+            with self.assertRaises(cmap.MappingError, msg=str(arr)) as ctx:
+                cmap.map_ha_daily_v2({**self.SUB, "probabilities": arr})
+            self.assertIn("expected an object", str(ctx.exception))
+        # v1 accepted both shapes: the ambiguity that v2 removes
+        self.assertEqual(
+            cmap.map_ha_daily_v1({"probabilities": [0.6, 0.4]}).payload["probabilities"],
+            ["0.6", "0.4"],
+        )
+
+    def test_the_bad_sum_is_a_warning_and_the_mapping_does_not_validate_forecasts(self) -> None:
+        sub = {
+            **self.SUB,
+            "probabilities": {"up": 0.9, "down": 0.9},
+            "confidence": 5,
+            "direction": "sideways",
+        }
+        payload = cmap.map_ha_daily_v2(sub).payload  # accepted: no range, sum or label check
+        self.assertEqual(payload["direction"], "sideways")
+        self.assertEqual(cmap.probability_warnings(payload), ["PROBABILITY_SUM:1.8"])
+        self.assertIn(
+            "PROBABILITY_NEGATIVE",
+            cmap.probability_warnings({"probabilities": {"a": "-0.1", "b": "1.1"}}),
+        )
+
+    def test_absence_null_and_empty_are_three_different_things(self) -> None:
+        for name in ("summary", "revision_reason", "trigger_event_id"):
+            hashes = {
+                h2({k: v for k, v in self.SUB.items() if k != name}),
+                h2({**self.SUB, name: ""}),
+                h2({**self.SUB, name: None}),
+            }
+            self.assertEqual(len(hashes), 3, name)
+
+    def test_prompt_hash_is_bound_byte_exact(self) -> None:
+        self.assertNotEqual(
+            h2({**self.SUB, "prompt_hash": "a" * 64}), h2({**self.SUB, "prompt_hash": "A" * 64})
+        )
+
+    def test_check_canonical(self) -> None:
+        good = cmap.map_ha_daily_v2(self.SUB).payload
+        cmap.check_canonical_ha_daily_v2(good)
+        for bad in (
+            {**good, "amount": "25.0"},  # not the canonical spelling
+            {**good, "amount": 25},  # a number, not a decimal string
+            {**good, "confidence": 0.72},
+            {**good, "probabilities": [0.72, 0.28]},
+            {**good, "is_revision": 1},
+            {**good, "token_usage": {"input": 100.0, "output": 40}},
+            {**good, "agent_id": "x"},
+        ):
+            with self.assertRaises(cmap.MappingError, msg=str(bad)):
+                cmap.check_canonical_ha_daily_v2(bad)
+
+    def test_v1_is_superseded_but_still_registered(self) -> None:
+        self.assertEqual(cmap.get_mapping(cmap.HA_DAILY_V1).superseded_by, cmap.HA_DAILY_V2)
+
+
+class TestSharedVectorsV2(unittest.TestCase):
+    def test_equivalent_inputs_hash_the_same(self) -> None:
+        for g in VECTORS_V2["equivalent"]:
+            hashes = {h2(i) for i in g["inputs"]}
+            self.assertEqual(len(hashes), 1, g["name"])
+            self.assertEqual(hashes.pop(), g["payload_hash"], g["name"])
+            self.assertEqual(
+                cmap.map_ha_daily_v2(g["inputs"][0]).payload, g["canonical"], g["name"]
+            )
+
+    def test_different_inputs_hash_differently_and_give_different_C(self) -> None:
+        for g in VECTORS_V2["distinct"]:
+            self.assertNotEqual(h2(g["a"]), h2(g["b"]), g["name"])
+            ca = commit_v2(cmap.map_ha_daily_v2(g["a"]).payload)
+            cb = commit_v2(cmap.map_ha_daily_v2(g["b"]).payload)
+            self.assertNotEqual(ca, cb, g["name"])
+
+    def test_the_two_named_cases_are_in_the_vectors(self) -> None:
+        names = " ".join(g["name"] for g in VECTORS_V2["distinct"])
+        self.assertIn("AMOUNT change breaks the commitment", names)
+        self.assertIn("TRIGGER_EVENT_ID change breaks the commitment", names)
+
+    def test_rejected_inputs(self) -> None:
+        for g in VECTORS_V2["rejected"]:
+            with self.assertRaises(cmap.MappingError, msg=g["name"]) as ctx:
+                cmap.map_ha_daily_v2(g["input"])
+            self.assertIn(g["error_contains"], str(ctx.exception), g["name"])
 
 
 class TestCommitmentV2Preimage(unittest.TestCase):
