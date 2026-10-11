@@ -24,8 +24,10 @@ verifier-side "seal is much later than `SESSION_END`" warning is evadable by rew
 no sound threshold across session lengths. Any fix must put the first-seen record **outside the operator's
 control**.
 
-**Non-goals.** Detecting a premeditated operator who never lets the honest head out (they can fabricate from
-the start; that is the "lying agent / compromised recorder" class, out of scope). Proving events are true.
+**Non-goals.** Detecting an operator who disables or bypasses the publication hook *before* the session and
+fabricates from the start (the "lying agent / compromised recorder" class, out of scope). Note the contrast with
+a **post-hoc** rewriter, who decides only after a dispute exists: that attacker is the target, and §2.5 explains why
+publishing only at seal time does **not** stop them. Proving events are true.
 Replacing Archeion. Hiding that a session exists from the witness.
 
 ## 2. What a witness has to provide
@@ -48,17 +50,58 @@ both entries shown), `WITNESS_ABSENT` (no claim made; **must not** be reported a
 `--require-witness` flag would make absence a failure. A conflict means *someone presented two heads*; it
 does not say which is genuine, only that an earlier independent record exists.
 
+## 2.5 Publication schedule: publish during the session, not only at the seal
+
+**The flaw in "publish at seal".** If the head is published only when the session is sealed, then "the operator
+never publishes the honest head" is not an edge case, it is the default attack. The operator simply never seals
+(or never publishes) the honest session, waits, rewrites the log after the dispute starts, then seals and
+publishes **only the rewrite**. The witness then faithfully records the forgery as the first and only entry, with
+nothing to conflict with. A seal-time-only witness protects sessions the operator chose to witness honestly,
+which is exactly the set the operator does not need to attack.
+
+**Fix: automatic, early, repeated publication.** Because every event's `event_hash` commits to the whole prefix
+(`prev_hash` chain), publishing the head at sequence `k` pins events `1..k`. So publish:
+
+1. **At session open, automatically:** the `SESSION_START` head (`seq=1`). The hook exists: `open_session()`
+   already hashes `SESSION_START` and calls the TSA at exactly this point
+   (`sqlite_ledger.py::_try_anchor_rfc3161`); the same hook would also submit to the witness. (Which hash: the
+   final `SESSION_START` `event_hash`, i.e. the one that includes the TSA token, because that is the one the
+   chain commits to. **Decision needed**.)
+2. **Checkpoints every `N` events or `T` seconds, whichever comes first:** `(session_id_hash, seq, head)`.
+3. **At close:** the final head (the seal's `session_hash`) and `seq`.
+
+**Conflict rule (proposal).** Two witnessed entries with the same `session_id_hash` and the same `seq` but
+different heads are a conflict. A rewrite of any event `j <= k` changes the head at every `seq >= j`, so it
+conflicts with an already-witnessed checkpoint at `seq >= j`.
+
+**What this buys: the undetected-rewrite window shrinks** from "any time before the dispute" to "the events after
+the last witnessed checkpoint", at most one checkpoint interval (`N` events / `T` seconds), and zero once the
+final head is witnessed. A rewrite that touches only the unwitnessed tail is still undetected; that tail is the
+price of the interval.
+
+**What it does not buy.** An operator who disables the hook ahead of time, or who chooses to run the agent
+outside the instrumented path, produces no entries to conflict with. That is a premeditated, pre-session
+decision (the T3 class) rather than a post-hoc rewrite. Publishing schedules must therefore be reported by the
+verifier as *coverage*: which `seq` values were witnessed, and when. A session with only a final head, or none,
+is **not** "witnessed" in this sense and must say so.
+
+**Cost consequence.** This turns one log entry per session into roughly `1 + events/N + duration/T + 1` entries
+per session. At an agent producing thousands of events that is hundreds of entries, which is where per-entry
+costs, rate limits and the public log's acceptable-use rules (**VERIFY**, §3) start to bite, and why §5's
+batching earns its place rather than being a mere optimisation. Batching widens the window by the batch
+interval (a head is only as early as the batch that carries it), so `N`, `T` and the batch interval are one
+trade-off: window length against entries per session.
+
 ## 3. Option 1: publish `(session_id_hash, H)` to a public transparency log (e.g. Sigstore Rekor)
 
-**Flow.** At seal time (agent side or Archeion) submit an entry binding `session_id_hash` and `H`; store the
-returned inclusion proof / signed checkpoint beside the log. Verifier: validate the proof against a pinned
+**Flow.** At session open, at each checkpoint (§2.5) and at close, submit an entry binding `session_id_hash`, `seq` and the head; store the
+returned inclusion proofs / signed checkpoints beside the log. (Publishing only at seal time is **not** sufficient, §2.5.) Verifier: validate the proof against a pinned
 log key; (online or via a monitor snapshot) query for other entries with the same `session_id_hash`.
 
 **Detects.** A rewrite after the honest head was logged: the rewrite either has no earlier entry or
 creates a conflicting later one, with log-assigned ordering the operator does not control.
 
-**Does not detect.** An operator who never logs the honest head (premeditated); an operator who logs only
-the rewrite; a rewrite of any session that was never witnessed. Also: a conflict identifies an anomaly, not
+**Does not detect.** A rewrite confined to the events after the last witnessed checkpoint; an operator who disabled the hook before the session (premeditated); a rewrite of any session that was never witnessed. (With seal-time-only publication, "operator who never logs the honest head" would be the default attack, which is why §2.5 publishes early.) Also: a conflict identifies an anomaly, not
 the liar.
 
 **Privacy.** Hashes only, but the log reveals that *some* session with that hash existed at that time, and
@@ -70,7 +113,7 @@ that the proof embeds enough to verify without a live query (**VERIFY** for Reko
 formats). Conflict detection: needs an online query or a recent monitor snapshot; an offline verifier can
 say "witnessed at `T_w`" but not "no conflicting entry exists."
 
-**Cost.** One network call per seal. The public instance has a stated 99.5% SLO (checked); rate limits,
+**Cost.** One network call per witnessed head: at least two per session (open, close) plus one per checkpoint interval (§2.5), i.e. many per long session. The public instance has a stated 99.5% SLO (checked); rate limits,
 acceptable use for non-Sigstore entries, and entry size limits: **VERIFY**. Policy needed for seal-time
 failure (fail closed vs seal without a witness and mark `WITNESS_ABSENT`).
 
@@ -128,7 +171,9 @@ coarse time granularity (the epoch). **Dependency.** Wherever roots are publishe
 implementation and proof format Sasana must build and maintain.
 
 Option 3 is best understood as a **cost and privacy optimisation of Option 1** (batching what is submitted
-to an external log), not an independent defence.
+to an external log), not an independent defence. With the in-session checkpoints of §2.5 it stops being optional in
+practice: many heads per session is exactly the volume batching exists for. A batch that publishes its leaves
+(hashed) keeps conflict detection; a bare root does not (above). The batch interval adds to the undetected window.
 
 ## 6. Comparison
 
@@ -136,7 +181,9 @@ to an external log), not an independent defence.
 |---|---|---|---|
 | Needs operator-independent store | yes (the log) | yes (the counterparty) | yes (where roots go) |
 | Detects post-hoc rewrite | yes, if honest head was logged | yes, if counterparty kept it | only if leaves are published |
-| Misses premeditated non-publication | yes | yes | yes |
+| Misses non-publication decided before the session | yes | yes | yes |
+| Undetected-rewrite window | last checkpoint interval (§2.5) | since last cosign | batch interval + checkpoint interval |
+| Entries per session | many (§2.5) | one per cosign | amortised across sessions |
 | Hashes only | yes | yes | yes |
 | Offline verify of "was witnessed" | proof bundle (**VERIFY**) | yes | proof bundle |
 | Offline verify of "no conflict" | no | no | no |
@@ -145,6 +192,8 @@ to an external log), not an independent defence.
 
 ## 7. Recommendation
 
+0. **Publish during the session, not only at the seal (§2.5).** Without it, Options 1 and 3 witness only what the operator chooses to
+   witness, and a post-hoc rewriter simply never witnesses the honest version. This is a precondition for everything below.
 1. **Design to Option 1, log-agnostic.** Define a small `Witness` interface and a proof-bundle sidecar;
    treat Rekor as the first candidate implementation, not a hard dependency, because its fit for
    non-Sigstore entries and key types is unverified (§3). It is the only option that gives an
@@ -153,9 +202,8 @@ to an external log), not an independent defence.
 2. **Offer Option 2 as an overlay** where an identifiable counterparty exists (the operator-versus-regulator
    or operator-versus-customer dispute is the motivating case). It reuses the receipt-registry idea and needs
    no public log.
-3. **Use Option 3 only as batching** if per-session publication proves too revealing or too costly.
-4. **Be exact in the product claims.** A witness turns A8 from "undetectable" into "detectable if the honest
-   head was witnessed before the rewrite". It does not make a log "unforgeable", and `WITNESS_ABSENT` must be
+3. **Use Option 3 as the batching layer for Option 1.** In-session checkpoints produce many entries per session, so batching (publishing hashed leaves, not bare roots) is part of the design, with the batch interval counted in the window.
+4. **Be exact in the product claims.** A witness turns A8 from "undetectable" into "detectable for the part of a session that was witnessed before the rewrite" (all of it except the tail after the last checkpoint). It does not make a log "unforgeable", and `WITNESS_ABSENT` must be
    shown as no claim, never as a pass.
 
 ## 8. Open questions
@@ -163,8 +211,11 @@ to an external log), not an independent defence.
 - Can Rekor (v1 or v2) accept Sasana's entries and key type, and can entries be found by an attribute such as
   `session_id_hash`? (**VERIFY**, determines Option 1's feasibility on Rekor specifically.)
 - Proof format and long-term verifiability across log shards. (**VERIFY**)
-- Who submits: the agent side at `SESSION_END`, or Archeion at seal time? Submitting from the agent side
-  before sealing avoids trusting Archeion for the first-seen record.
+- Who submits: the SDK in the agent process (open, checkpoints, close), not Archeion at seal time. Submitting from
+  the agent side, early and automatically, is what removes the operator's choice of *whether* to witness.
+- Choice of `N` and `T`, and what the SDK does when the witness is unreachable (buffer and flush; a late-flushed head has a
+  later witness time, so the verifier must report the time each head was actually witnessed, not when it was produced).
+- Which `SESSION_START` hash is published (§2.5) and how coverage is reported (`seq` values and witness times).
 - Session-id privacy and uniqueness requirements for `session_id_hash`.
 - Failure policy when the witness is unreachable at seal time.
 - Interaction with legacy (1.x) logs: they can be witnessed retroactively but with a later `T_w`, which says
