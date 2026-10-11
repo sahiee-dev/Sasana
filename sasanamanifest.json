@@ -1,6 +1,6 @@
 {
   "name": "sasana",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Cryptographically verifiable audit trail for every OpenClaw session. SHA-256 hash-chained JSONL. Zero cloud dependency. Nothing leaves your machine.",
   "author": "sahiee-dev",
   "license": "MIT",

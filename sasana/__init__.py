@@ -12,5 +12,5 @@ Verify with:
 from sasana.skill import SasanaSkill
 from sasana.observer import OpenClawObserver
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 __all__ = ["SasanaSkill", "OpenClawObserver"]

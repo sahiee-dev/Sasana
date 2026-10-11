@@ -3,6 +3,48 @@
 All notable changes to Sasana are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [2.0.2] — 2026-10-11
+
+Patch release: a command-line argument bug that could silently remove a key pin. **No change to verdicts**
+for correctly spelled flags; `VERIFIER_VERSION` stays 2.0.0.
+
+### Security
+
+- **A mistyped flag could silently drop key pinning (affects <= 2.0.1).** `sasana evidence-pack` and
+  `sasana verify-commitment` (and `sasana seal`, which has no pin but takes `--server` and `--out`) parsed their
+  arguments with `parse_known_args`, which discards anything it does not recognise. The command then ran
+  **without the pin** (for `seal`: with the default server and output path), and nothing said so. Reproduced on
+  2.0.1 with `evidence-pack` on a session that has **no `CHAIN_SEAL`** (a pinned key requires one):
+
+  | flag spelled | `eu_ai_act` / `soc2` / `hipaa` result | exit |
+  |---|---|---|
+  | `--trust-key KEY` | `NO_EVIDENCE`, GAPS DETECTED / FAIL / GAPS DETECTED | 2 |
+  | `--trust-kye KEY` (typo) | `NON_AUTHORITATIVE_EVIDENCE`, **COMPLIANT / PASS / COMPLIANT** | 0 |
+
+  So a typo turned a failing compliance report into a passing one. `verify-commitment` takes its pin the same way
+  (`--trust-key`), and a pinned unsealed trace is `INVALID` there, so a typo turns that into a valid verdict by
+  the same mechanism (the library behaviour is tested; the CLI path was not separately reproduced). This is the
+  same class of failure as the 2.0.0 advisory: you believe a control is on and it is not. `sasana verify` was
+  made strict in 2.0.0 and is unaffected. No exploitation is known.
+- **Abbreviated flags are no longer accepted** by any subcommand (`--trust-ke` is rejected; it used to be read
+  as `--trust-key`). Argparse prefix matching guesses, and a prefix that is unique today means something else
+  the day another option is added.
+
+### Fixed
+
+- Every subcommand (`verify`, `seal`, `verify-commitment`, `evidence-pack`, `observe`, `bridge`, and the
+  `agentops-verify` alias) now refuses an unknown or abbreviated flag **before doing any work**, with exit code
+  **3** (usage error) and a message naming the flag. `observe` and `bridge` previously exited 2, which for
+  `sasana verify` means PARTIAL.
+- `tests/test_cli_strict_flags.py` runs the real CLI with otherwise-valid inputs for each subcommand and fails
+  on 2.0.1.
+
+### Upgrade notes
+
+Scripts that relied on a misspelled or abbreviated flag being tolerated will now exit 3. That is the intended
+behaviour: fix the spelling. If you ran `evidence-pack` or `verify-commitment` with a pin on <= 2.0.1,
+re-run it on 2.0.2 and confirm the report states a pinned key.
+
 ## [2.0.1] — 2026-10-11
 
 Patch release: one display fix, one stale version string, and documentation that corrects an incomplete
