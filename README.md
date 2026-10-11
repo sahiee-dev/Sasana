@@ -14,7 +14,7 @@ leaves your machine: only hashes are stored.
 **What the chain alone does not do.** Someone with write access to the file can edit an
 event *and* recompute every hash after it; the result is a different, internally
 consistent chain. Detecting that needs an independent seal from [Archeion](#authority-sealing)
-**verified against a public key you pinned** with `--trust-key`. Without the pin, a seal
+**verified against a public key you pinned** with `--trust-key`, from an Archeion the operator cannot use to seal a rewrite (see [Against the operator](#against-the-operator)). Without the pin, a seal
 only proves the file is self-consistent — anyone can generate a key and seal a rewritten
 log. Read the [evidence class](#what-it-produces), not just the word `INTACT`.
 
@@ -229,8 +229,20 @@ For regulatory submissions and legal proceedings, verify with `--trust-key` (and
 `--strict` in automation). Use `--require-seal` on its own only when you cannot pin a key,
 knowing the best result is `SELF_SEALED_EVIDENCE`.
 
-A seal also proves nothing about whether the recorded events are true or complete — only
-that this chain head was presented to the sealing key and has not changed since.
+### Against the operator
+
+**A seal shows only that a chain head was presented to Archeion, at the time recorded in the seal.
+It does not show that this head is the original.** Archeion authenticates no callers and keeps no
+record of what it has sealed, so anyone who can reach `POST /seal` can get a rewritten copy of a
+session sealed with the genuine key, and with that key pinned it verifies as
+`AUTHORITATIVE_EVIDENCE` (threat A8; reproduced against the real server).
+
+**Against the operator, Sasana 2.x provides no rewrite protection unless access to `/seal` is
+controlled by a party independent of the operator.** Against everyone who cannot reach Archeion, the
+guarantees in the table above hold. A seal also says nothing about whether the recorded events are
+true. Catching an operator's rewrite needs an external witness the operator does not control; that is
+design work, not a feature ([`docs/design/witness-anchoring.md`](docs/design/witness-anchoring.md)).
+Full list of what is and is not defended: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
 
 Version 1.0.0 and 1.1.0 treated any valid seal as `AUTHORITATIVE_EVIDENCE` and accepted a
 log whose seal had been removed even when a key was pinned; see the
@@ -324,6 +336,7 @@ advice; whether a system complies is a determination for you and your auditor.
 
 - **Does not record raw content.** Hashes only — you cannot reconstruct prompts or
   responses.
+- **Does not protect against the operator rewriting a session and having Archeion seal it** (A8) unless you control who can reach Archeion; see [Against the operator](#against-the-operator).
 - **Does not prevent tampering.** Detects it, within limits: a rewrite of the whole file is
   detected only with a seal verified against a pinned Archeion key. Detection and
   prevention are different.

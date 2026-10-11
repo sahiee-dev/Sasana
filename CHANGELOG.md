@@ -3,6 +3,44 @@
 All notable changes to Sasana are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] — 2026-10-11
+
+Patch release: one display fix, one stale version string, and documentation that corrects an incomplete
+statement in the 2.0.0 notes. **No change to verdicts**; `VERIFIER_VERSION` stays 2.0.0.
+
+### Correction to the 2.0.0 notes
+
+The 2.0.0 Security entry said "Archeion's sealing itself is not affected." That was incomplete. The two
+flaws fixed in 2.0.0 (any self-consistent seal reported `AUTHORITATIVE_EVIDENCE`; a pinned key did not
+require a seal) were in the *verifier*, and are fixed. But a separate, documented property of Archeion
+was not described plainly: **Archeion authenticates no callers and keeps no record of what it has
+sealed.** Anyone who can reach `POST /seal` can get a rewritten copy of a session sealed with the genuine
+key, and with that key pinned it verifies as `INTACT` / `AUTHORITATIVE_EVIDENCE` (threat **A8**; reproduced
+against the real server). A seal therefore shows that a chain head was presented to Archeion at the seal's
+time, not that it is the original.
+
+**Against the operator, Sasana 2.x provides no rewrite protection unless access to `/seal` is controlled by
+a party independent of the operator.** This is a design limitation, not something 2.0.1 fixes. See
+[`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) and the (unimplemented) direction in
+[`docs/design/witness-anchoring.md`](docs/design/witness-anchoring.md). The 2.0.0 entry is left as
+published.
+
+### Fixed
+- `sasana verify` (Python and Rust) printed `Seal signature ... SELF-SIGNED` on a **pinned** verify whose
+  verdict was `COMPROMISED` for an unrelated reason (for example an edited event), although the seal had
+  verified against the pinned key. The label now reflects the seal check alone. Verdicts, exit codes and
+  `--json` are unchanged.
+- Archeion's FastAPI app (and `/health`) reported version `1.0.0`; it now follows the package version.
+  `tests/test_versions.py` fails if any release version string (pyproject, Cargo, manifest, skill, plugin,
+  compose tag, Archeion) drifts again.
+
+### Documentation
+- New `docs/THREAT_MODEL.md` (A1-A8 in plain words, including what is not defended and why a timing
+  warning or an Archeion-side registry would not close A8).
+- README, `DEPLOYMENT.md` (the "perimeter isolation" reviewer answer assumed an outside attacker; the
+  operator is the adversary Sasana exists for), `TECHNICAL.md` and `PRODUCT.md` state A8 and the sentence above.
+- New design document `docs/design/witness-anchoring.md` (design only).
+
 ## [2.0.0] — 2026-10-10
 
 A security release with breaking changes, hence the major version. **If you verify evidence with
