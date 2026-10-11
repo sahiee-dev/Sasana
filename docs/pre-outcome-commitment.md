@@ -509,7 +509,7 @@ Every row is either pinned by a test or marked **NOT ENFORCED** (and, where usef
 * **HA-2** = HA's follow-up questions, 2026-10-11 (the three mapping questions answered in A.2, A.3 and §10).
 * **ours** = Sasana's own proposal. A row marked *ours* is **not** an HA interface.
 * **PROPOSED EXTENSION — not an HA interface** marks every HA-side change this note suggests. HA API changes, engineering work, access and any joint publication would need a separate agreement with HA; nothing here is an HA integration, and HA has neither reviewed nor endorsed this note.
-* **Family:** daily-market directional forecasts only. HA's other families (price-event, civic, the unified schema) declare different fields and have different revision semantics; they are not covered.
+* **Family:** daily-market directional forecasts only. HA's other families (price-event, civic, the unified schema) declare different fields and have different revision semantics (HA-1 §1–2); they are not covered.
 * **Data:** every bundle, identifier and key in `examples/ha-reveal/` is synthetic. No HA endpoint was called and no HA data or real agent id was used.
 
 ### A.1 What HA's public interface declares (as described to us)
@@ -531,9 +531,9 @@ Every row is either pinned by a test or marked **NOT ENFORCED** (and, where usef
 
 A successful hash check must not be able to conceal a change in meaning, so the commitment binds an explicit, **versioned** mapping from the submission to the payload hashed inside `C`. The mapping id is itself inside `C` (§3.5). Implementation: `sasana/commitment_mapping.py::map_ha_daily_v2`.
 
-**The mapping is default-deny.** Every field HA's daily schema declares is bound. A declared field may be left out only by an entry in `EXCLUDED_FIELDS_V2` that carries a written reason, and **there are none**: a test fails if any declared field is neither bound nor excluded with a reason, and a field outside the declared list is rejected, not ignored. In particular `amount` (the stake) and `trigger_event_id` are bound; a change to either changes `C` (vectors and tests below).
+**The mapping is default-deny.** Every field HA's daily schema declares (HA-1 §1) is bound. A declared field may be left out only by an entry in `EXCLUDED_FIELDS_V2` that carries a written reason, and **there are none**: a test fails if any declared field is neither bound nor excluded with a reason, and a field outside the declared list is rejected, not ignored. In particular `amount` (the stake) and `trigger_event_id` are bound; a change to either changes `C` (vectors and tests below).
 
-*Why `token_usage` is not excluded.* It would qualify only if it were not known when the commitment is made. But the committer composes the whole submission body before computing `C`, so any value it will send is known at that moment; and a value HA adds server-side is not in the submission and so is not a field to bind. (HA's statement that `token_usage` is not a general-purpose commitment field is about using it as a *carrier* for a session root, which this design does not do.)
+*Why `token_usage` is not excluded.* It would qualify only if it were not known when the commitment is made. But the committer composes the whole submission body before computing `C`, so any value it will send is known at that moment; and a value a counterparty adds server-side is not in the submission and so is not a field to bind. (HA said that `token_usage` is not a general-purpose commitment field (HA-1 §1); we read that as being about using it as a *carrier* for a session root, which this design does not do.)
 
 | Sasana field | From HA (as declared) | Type the mapping accepts | Canonical form inside `H(JCS(payload))` | Source |
 |---|---|---|---|---|
@@ -558,7 +558,7 @@ A successful hash check must not be able to conceal a change in meaning, so the 
 
 "**Assumed**" means HA did not state the type; the mapping commits to one concrete choice and rejects the others, and the question is listed for HA in A.6.
 
-**One canonical shape for `probabilities`: an object from outcome label to probability** (`{"up": 0.6, "down": 0.4}`), and an array is **rejected** with an error. Reasoning: `direction` is a categorical label, so a per-label table is self-describing and consistent with it. An array would make the meaning of each entry depend on an index-to-label order that HA's interface does not state, which is exactly a change of meaning a hash match could conceal; and a mapping that accepts two shapes reintroduces the ambiguity the mapping exists to remove. If HA's real shape differs, that is a new mapping version.
+**One canonical shape for `probabilities`: an object from outcome label to probability** (`{"up": 0.6, "down": 0.4}`), and an array is **rejected** with an error. Reasoning: `direction` is a categorical label, so a per-label table is self-describing and consistent with it. An array would make the meaning of each entry depend on an index-to-label order that HA's description of its interface (HA-1 §1) does not state, which is exactly a change of meaning a hash match could conceal; and a mapping that accepts two shapes reintroduces the ambiguity the mapping exists to remove. If HA's real shape differs, that is a new mapping version.
 
 **Absence is meaningful.** A field not supplied is omitted, a field supplied as `null` is `null`, and a field supplied as `""` is `""`; these three hash differently. The mapping never invents a default and does not decide which fields HA requires.
 
@@ -583,13 +583,13 @@ The `100` / `100.0` case is not hypothetical: it is the whole-number-float break
 
 ### A.3 Which revision HA accepted: the registry (HA-2 question 2)
 
-HA's public interface exposes no acceptance record: the resolved response carries no revision history, no submission timestamps and no commitment. So the verifier cannot tell from HA's current data which revision was accepted before the cutoff, and "the highest on-time revision in a bundle" is not that. What would let it:
+HA's public interface exposes no acceptance record (HA-1 §1, §4): the resolved response carries no revision history, no submission timestamps and no commitment. So the verifier cannot tell from HA's current data which revision was accepted before the cutoff, and "the highest on-time revision in a bundle" is not that. What would let it:
 
 > **PROPOSED EXTENSION — not an HA interface.** (a) An optional `commitment` field on a daily submission, carrying the hex `C` (hash only; no trace or data exchange, matching the scope HA called sensible). The TSA token stays with the committer and arrives in the reveal bundle. (b) A **signed acceptance receipt** for every submission attempt, in HA's vocabulary: `{challenge_id, agent_id, revision_index, commitment, accepted_at, accepted: true|false, reason}`, signed by an HA key the verifier pins (§5.3). Optionally `mapping_id` and `payload_hash`: HA recomputes `H(JCS(ha-daily-v2(accepted fields)))` from what it *actually accepted* and signs it, which is the only way to bind the commitment to the exact payload HA accepted for the fields its results API does not publish. (c) A **closing receipt**, one per agent and challenge, signed at the deadline: `{challenge_id, agent_id, accepted_count, last_accepted_revision_index, last_accepted_C, closed_at, mapping_id}`. `accepted_count` counts scored-eligible acceptances only (not `counts_for_score: false` paper-trade signals).
 
 The scored revision is then the one the closing receipt names, which must agree with the receipt list (§5.1, §5.3). Cases from HA-2 are in `examples/ha-reveal/`: a **rejected revision** (`c`: the initial is scored), an **omitted earlier commitment** (`d`: provable because `prev_commitment` is inside `C`), a **withheld later receipt** (`j`: caught by the closing receipt), and a **missing closing receipt** (`k`: `INCOMPLETE_RECEIPTS`).
 
-**What can be checked against HA's current public data alone.** `cross_check_published(payload, prediction)` compares a revealed payload with a prediction as HA's results API returns it, on the four fields it returns: `direction`, `confidence`, `reasoning`, `summary` (confidence compared as a number, not as text). It cannot check the other seven bound fields, which the results API does not return. It proves nothing about timing and can only be run after resolution.
+**What can be checked against HA's current public data alone.** `cross_check_published(payload, prediction)` compares a revealed payload with a prediction as HA's results API returns it, on the four fields it returns (HA-1 §4): `direction`, `confidence`, `reasoning`, `summary` (confidence compared as a number, not as text). It cannot check the other seven bound fields, which the results API does not return (HA-1 §4). It proves nothing about timing and can only be run after resolution.
 
 ### A.4 Trust and time policy for this example (HA-2 question 3)
 
@@ -624,7 +624,7 @@ These are questions for HA, not decisions this note can make:
 1. **The exact shape of `probabilities`.** The mapping assumes an object from outcome label to number and rejects an array.
 2. **The types of `amount`, `token_usage` and `trigger_event_id`**, and which of the declared fields can be `null`. The mapping assumes `amount` is a number, `token_usage` an object of non-negative integer counts, `trigger_event_id` a string.
 3. Whether `prompt_hash` may be upper-case (the mapping binds it byte-exact).
-4. Whether HA could issue per-submission receipts and a **closing receipt** at the deadline, how it would publish and rotate the signing key, and whether it records per-submission acceptance times (its results API does not expose them).
+4. Whether HA could issue per-submission receipts and a **closing receipt** at the deadline, how it would publish and rotate the signing key, and whether it records per-submission acceptance times (its results API does not expose them, HA-1 §4).
 5. The deadline value for a challenge, and which TSA(s) HA would accept.
 6. Whether HA would add a `commitment` field. This, any receipts and any integration need a separate agreement; the commercial question is not addressed by this note.
 7. There is no HA adapter. `examples/ha-reveal/` contains synthetic bundles only.
