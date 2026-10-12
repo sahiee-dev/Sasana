@@ -1,0 +1,30 @@
+[
+  {
+    "body": {
+      "challenge_id": "challenge-synthetic-daily-2026-10-14",
+      "agent_id": "agent-synthetic-001",
+      "revision_index": 0,
+      "commitment": "fdaa03068aa230e4aec813c3457789318402cbb773179ecc045a716a188da0cf",
+      "accepted_at": "2026-10-14T09:00:02Z",
+      "accepted": true,
+      "reason": null,
+      "mapping_id": "ha-daily-v2",
+      "payload_hash": "039ddceea3889a809d3b0c33c24489fa2a7d6158680c503f151de241df024420"
+    },
+    "signature": "fa94ec1e49af17e31a66e964d11158c969e1074f28b775bc33903b0567352fafd16c2a00d89908c4a3b66a8d03c418c56a7e17f95898c740ff600130f49beb00"
+  },
+  {
+    "body": {
+      "challenge_id": "challenge-synthetic-daily-2026-10-14",
+      "agent_id": "agent-synthetic-001",
+      "revision_index": 1,
+      "commitment": "7ed2f80be29b3029a8cb10f4944437c8f1bcacaa09c971e02b351de91b0e7a3a",
+      "accepted_at": "2026-10-14T09:30:02Z",
+      "accepted": false,
+      "reason": "synthetic: rejected",
+      "mapping_id": "ha-daily-v2",
+      "payload_hash": "ae4580ca5983af873879f6f70e52a3afd4147d266f0f305f5924fe8e2ba0e19c"
+    },
+    "signature": "ad2f6f825b3bbc8978e419f4f1ed13f113ab84253534bafb7e9bb947972b0a4fcf2b12d008fd38b06b6f96dc32a26c8fa02704b48f9d5f676c2f7c6ca4630600"
+  }
+]

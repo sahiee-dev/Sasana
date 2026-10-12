@@ -1,0 +1,1105 @@
+{
+ "mapping": "ha-daily-v1",
+ "note": "Shared test vectors for ha-daily-v1. payload_hash = hex SHA-256 of the RFC 8785 form of the canonical payload. Another implementation must reproduce every canonical/payload_hash and every equivalence, distinction and rejection.",
+ "equivalent": [
+  {
+   "name": "confidence 0.6 spelled five ways",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "0.6",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "0.60",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "6e-1",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "0.600000000000",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "payload_hash": "d3896c490fef407ca49898e43c1aeb2a9cf8118ea7e2567920056588a7a185e4"
+  },
+  {
+   "name": "whole number: 1, 1.0, '1', '1.00', '1e0'",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 1,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": 1.0,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "1",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "1.00",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "1e0",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "1",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "payload_hash": "ec77506f5cbc63a143ba4294c894aca086fb76b56e8d4cf0868e12c2f53cb0f8"
+  },
+  {
+   "name": "zero and negative zero",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": -0.0,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "-0",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "0.0",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "0.000",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "payload_hash": "975ffea6c4655fddc086218a4e549c5513bc57b4b19d0892bcde1c42d36a8df5"
+  },
+  {
+   "name": "100 vs 100.0 (the 2026-10-10 canonicalization break)",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 100,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": 100.0,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "100",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": "100.0",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "100",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "payload_hash": "abfe7ef64202b593df8b028f8317ecfd08823605dcccba93a956a3ce2c48047d"
+  },
+  {
+   "name": "probabilities key order",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "down": 0.4,
+      "up": 0.6
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": "0.60",
+      "down": "4e-1"
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "payload_hash": "d3896c490fef407ca49898e43c1aeb2a9cf8118ea7e2567920056588a7a185e4"
+  },
+  {
+   "name": "declared-but-unbound fields do not matter",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false,
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "is_revision": false,
+     "prompt_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "amount": 10,
+     "token_usage": {
+      "input": 1,
+      "output": 2
+     },
+     "trigger_event_id": "e1"
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "payload_hash": "d3896c490fef407ca49898e43c1aeb2a9cf8118ea7e2567920056588a7a185e4"
+  }
+ ],
+ "distinct": [
+  {
+   "name": "misplaced decimal point 0.6 vs 0.06",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.06,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "0.6 vs 6",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "direction flipped",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "down",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "direction case",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "Up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "summary missing vs empty string",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "summary empty string vs null",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": null,
+    "is_revision": false
+   }
+  },
+  {
+   "name": "summary missing vs null",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": null,
+    "is_revision": false
+   }
+  },
+  {
+   "name": "revision_reason missing vs empty string",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false,
+    "revision_reason": ""
+   }
+  },
+  {
+   "name": "is_revision missing vs false",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "is_revision false vs true",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": true
+   }
+  },
+  {
+   "name": "probabilities swapped between keys",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.4,
+     "down": 0.6
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "probabilities object vs array",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": [
+     0.6,
+     0.4
+    ],
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "probabilities array order",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": [
+     0.6,
+     0.4
+    ],
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": [
+     0.4,
+     0.6
+    ],
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "reasoning trailing space",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ",
+    "summary": "s",
+    "is_revision": false
+   }
+  },
+  {
+   "name": "reasoning NFC vs NFD",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "café xxxxxxxxxxxxxxxxxxxx",
+    "summary": "s",
+    "is_revision": false
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "café xxxxxxxxxxxxxxxxxxxx",
+    "summary": "s",
+    "is_revision": false
+   }
+  }
+ ],
+ "rejected": [
+  {
+   "name": "NaN as text",
+   "input": {
+    "direction": "up",
+    "confidence": "NaN",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "Infinity as text",
+   "input": {
+    "direction": "up",
+    "confidence": "Infinity",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "leading dot",
+   "input": {
+    "direction": "up",
+    "confidence": ".5",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "trailing dot",
+   "input": {
+    "direction": "up",
+    "confidence": "5.",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "plus sign",
+   "input": {
+    "direction": "up",
+    "confidence": "+0.5",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "leading zero",
+   "input": {
+    "direction": "up",
+    "confidence": "00.5",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "surrounding space",
+   "input": {
+    "direction": "up",
+    "confidence": "0.5 ",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "hex",
+   "input": {
+    "direction": "up",
+    "confidence": "0x10",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "too many fractional digits (0.1+0.2)",
+   "input": {
+    "direction": "up",
+    "confidence": "0.30000000000000004",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "fractional digits"
+  },
+  {
+   "name": "13 fractional digits",
+   "input": {
+    "direction": "up",
+    "confidence": "0.0000000000001",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "fractional digits"
+  },
+  {
+   "name": "19 integer digits",
+   "input": {
+    "direction": "up",
+    "confidence": "1000000000000000000",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "integer digits"
+  },
+  {
+   "name": "boolean confidence",
+   "input": {
+    "direction": "up",
+    "confidence": true,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "boolean"
+  },
+  {
+   "name": "null confidence",
+   "input": {
+    "direction": "up",
+    "confidence": null,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "expected a number"
+  },
+  {
+   "name": "is_revision as text",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": "true"
+   },
+   "error_contains": "boolean"
+  },
+  {
+   "name": "is_revision as integer",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": 1
+   },
+   "error_contains": "boolean"
+  },
+  {
+   "name": "reasoning is a number",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": 5,
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "string"
+  },
+  {
+   "name": "direction is null",
+   "input": {
+    "direction": null,
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "string"
+  },
+  {
+   "name": "empty probabilities object",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {},
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "between 1 and 1000"
+  },
+  {
+   "name": "empty probabilities array",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": [],
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "between 1 and 1000"
+  },
+  {
+   "name": "probabilities is a string",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": "0.6",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "object or an array"
+  },
+  {
+   "name": "negative-NaN-like entry",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": "nan"
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "identifier field in the body",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false,
+    "agent_id": "x"
+   },
+   "error_contains": "unknown field"
+  },
+  {
+   "name": "unknown field",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": false,
+    "foo": 1
+   },
+   "error_contains": "unknown field"
+  }
+ ]
+}
