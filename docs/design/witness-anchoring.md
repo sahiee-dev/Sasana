@@ -220,3 +220,9 @@ practice: many heads per session is exactly the volume batching exists for. A ba
 - Failure policy when the witness is unreachable at seal time.
 - Interaction with legacy (1.x) logs: they can be witnessed retroactively but with a later `T_w`, which says
   nothing about their original state.
+
+## 9. Empirical support
+
+A demonstration of A8 and of A8+E (A8 plus an edit of the external effect) against Sasana 2.0.2 is in [sasana-kalpang-witness](https://github.com/sahiee-dev/sasana-kalpang-witness) (private for now; the link will not resolve until that repository is made public). It is one run per cell, with one person playing every role, and is not a proof.
+
+In the A8+E cell, an operator who edited the GitHub comment back to the authorized body and had the real Archeion seal a rewritten record obtained `INTACT` / `AUTHORITATIVE_EVIDENCE` under a pinned key, and neither a fresh REST read nor a sealed-versus-fresh comparator flagged it. Only GitHub's edit history showed the edit; the comment's author could delete the divergent revision's content, but the edit and a deletion marker remained (observed 2026-10-21, GitHub behaviour may change, **VERIFY**).
