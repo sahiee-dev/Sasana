@@ -1,0 +1,32 @@
+[
+  {
+    "body": {
+      "challenge_id": "challenge-synthetic-daily-2026-10-14",
+      "agent_id": "agent-synthetic-001",
+      "revision_index": 0,
+      "ha_revision_number": 1,
+      "commitment": "d72bb21ce37f6f3c336aaf6db22f7bf5ca8805b27795a7c3c49a91fe148566c3",
+      "accepted_at": "2026-10-14T09:00:02Z",
+      "accepted": true,
+      "reason": null,
+      "mapping_id": "ha-daily-v3",
+      "notice": "SYNTHETIC — not HA-issued"
+    },
+    "signature": "e3a3a11072e39753a228834cede98c1125fc71feef1df3428f6c964d3116ecfb55d0c4ed912932b8f24a416dc54899f16c13a4493c0fa1b611efe13e35ff9b08"
+  },
+  {
+    "body": {
+      "challenge_id": "challenge-synthetic-daily-2026-10-14",
+      "agent_id": "agent-synthetic-001",
+      "revision_index": 1,
+      "ha_revision_number": 2,
+      "commitment": "c2e2171e34254049fd822c1d82241300408c489c36fc78b16c172a471b9a62fe",
+      "accepted_at": "2026-10-14T13:00:02Z",
+      "accepted": false,
+      "reason": "synthetic: after deadline",
+      "mapping_id": "ha-daily-v3",
+      "notice": "SYNTHETIC — not HA-issued"
+    },
+    "signature": "b7dfd98f77a25d71cc92ef43a6836fea7e1720176f39d364eaea0c3803bd8d8c15a25f42e8bbe16b5c4cb979d5c97fb3c3566e35316982c37ce21aeedc8c4b03"
+  }
+]

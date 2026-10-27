@@ -1,0 +1,1947 @@
+{
+ "synthetic_notice": "SYNTHETIC \u2014 not HA-issued: made-up inputs for a superseded mapping, not HA data and not HA acceptance fixtures.",
+ "mapping": "ha-daily-v2",
+ "note": "Shared test vectors for ha-daily-v2 (default-deny: all eleven declared fields are bound). payload_hash = hex SHA-256 of the RFC 8785 form of the canonical payload. Another implementation must reproduce every canonical/payload_hash and every equivalence, distinction and rejection.",
+ "declared_fields": [
+  "direction",
+  "confidence",
+  "probabilities",
+  "prompt_hash",
+  "amount",
+  "reasoning",
+  "summary",
+  "token_usage",
+  "is_revision",
+  "trigger_event_id",
+  "revision_reason"
+ ],
+ "equivalent": [
+  {
+   "name": "confidence 0.6 spelled five ways",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": "0.6",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": "0.60",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": "6e-1",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": "0.600000000000",
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "10",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "c9ef542fca23f64ede8cd05366d920629590b38130514b3afec7a004d074c5d5"
+  },
+  {
+   "name": "amount 10 spelled five ways",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10.0,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": "10",
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": "10.00",
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": "1e1",
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "10",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "c9ef542fca23f64ede8cd05366d920629590b38130514b3afec7a004d074c5d5"
+  },
+  {
+   "name": "100 vs 100.0 (the 2026-10-10 canonicalization break)",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 100,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 100.0,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": "100",
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": "100.0",
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "100",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "e6c265da8565e349faecbe3622dd4d781304c935c09469a39c572ba21d96fa92"
+  },
+  {
+   "name": "zero and negative zero amount",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 0,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": -0.0,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": "-0",
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": "0.0",
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "0",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "03b7efeb5f1bb48cd0aab5e61625ecd98d83937d6a1b49b3702e2d3cdd55b99a"
+  },
+  {
+   "name": "probabilities key order",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "down": 0.4,
+      "up": 0.6
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": "0.60",
+      "down": "4e-1"
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "10",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "c9ef542fca23f64ede8cd05366d920629590b38130514b3afec7a004d074c5d5"
+  },
+  {
+   "name": "token_usage key order",
+   "inputs": [
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "up",
+     "confidence": 0.6,
+     "probabilities": {
+      "up": 0.6,
+      "down": 0.4
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "token_usage": {
+      "output": 45,
+      "input": 120
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    }
+   ],
+   "canonical": {
+    "direction": "up",
+    "confidence": "0.6",
+    "probabilities": {
+     "up": "0.6",
+     "down": "0.4"
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "10",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "c9ef542fca23f64ede8cd05366d920629590b38130514b3afec7a004d074c5d5"
+  }
+ ],
+ "distinct": [
+  {
+   "name": "AMOUNT change breaks the commitment",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 11,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "amount 10 vs 100 (decimal point)",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 100,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "amount missing vs null",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": null,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "amount missing vs 0",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 0,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "TRIGGER_EVENT_ID change breaks the commitment",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-2",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "trigger_event_id missing vs empty string vs null (1/3)",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "trigger_event_id empty string vs null (2/3)",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": null,
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "trigger_event_id missing vs null (3/3)",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": null,
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "prompt_hash change",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "prompt_hash case is bound byte-exact",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "token_usage change",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 46
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "token_usage missing vs null vs empty object (1/2)",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": null,
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "token_usage null vs empty object (2/2)",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": null,
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {},
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "misplaced decimal point 0.6 vs 0.06",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.06,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "direction flipped",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "down",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "summary missing vs empty string",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "revision_reason missing vs empty string",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": ""
+   }
+  },
+  {
+   "name": "is_revision false vs true",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": false,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "probabilities swapped between labels",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.4,
+     "down": 0.6
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "probabilities label renamed",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "dn": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "reasoning NFC vs NFD",
+   "a": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "café xxxxxxxxxxxxxxxxxxxx",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "café xxxxxxxxxxxxxxxxxxxx",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  }
+ ],
+ "rejected": [
+  {
+   "name": "probabilities as an array (the shape is an object)",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": [
+     0.6,
+     0.4
+    ],
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "array is rejected"
+  },
+  {
+   "name": "probabilities as a string",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": "0.6",
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected an object"
+  },
+  {
+   "name": "probabilities empty object",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {},
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "between 1 and 1000"
+  },
+  {
+   "name": "probabilities empty label",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "": 1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "non-empty strings"
+  },
+  {
+   "name": "probabilities entry not a number",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": "high"
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "amount not a number",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "ten",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "amount boolean",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": true,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "boolean"
+  },
+  {
+   "name": "amount too precise (0.1+0.2)",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "0.30000000000000004",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "fractional digits"
+  },
+  {
+   "name": "token_usage as a bare number",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": 5,
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected an object"
+  },
+  {
+   "name": "token_usage negative count",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": -1
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "non-negative integer"
+  },
+  {
+   "name": "token_usage float count",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 1.5
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "non-negative integer"
+  },
+  {
+   "name": "token_usage boolean count",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": true
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "non-negative integer"
+  },
+  {
+   "name": "prompt_hash too short",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "abc",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "64-character"
+  },
+  {
+   "name": "prompt_hash not hex",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "64-character"
+  },
+  {
+   "name": "trigger_event_id as a number",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": 7,
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected a string"
+  },
+  {
+   "name": "direction null",
+   "input": {
+    "direction": null,
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "null is not accepted"
+  },
+  {
+   "name": "confidence null",
+   "input": {
+    "direction": "up",
+    "confidence": null,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "null is not accepted"
+  },
+  {
+   "name": "reasoning null",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": null,
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "null is not accepted"
+  },
+  {
+   "name": "confidence NaN text",
+   "input": {
+    "direction": "up",
+    "confidence": "NaN",
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "plain decimal"
+  },
+  {
+   "name": "is_revision as text",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": "true",
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "boolean"
+  },
+  {
+   "name": "identifier field in the body",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news",
+    "agent_id": "x"
+   },
+   "error_contains": "unknown field"
+  },
+  {
+   "name": "undeclared field",
+   "input": {
+    "direction": "up",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news",
+    "counts_for_score": false
+   },
+   "error_contains": "unknown field"
+  }
+ ]
+}

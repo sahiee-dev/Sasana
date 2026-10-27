@@ -1,0 +1,3420 @@
+{
+ "synthetic_notice": "SYNTHETIC — not HA-issued: these are made-up inputs, not HA data and not HA acceptance fixtures.",
+ "mapping": "ha-daily-v3",
+ "note": "Shared test vectors for ha-daily-v3 (legacy daily route, default-deny: all seventeen declared fields are bound, omitted/null/present are distinct, numbers are JSON numbers under RFC 8785 serialization with no rounding and no fractional cap). payload_hash = hex SHA-256 of the RFC 8785 form of the canonical payload. A group with 'json_texts' gives the literal JSON text of each input, because the SPELLING of a number is what the group is about; parse each text as a JSON document, then map. Another implementation must reproduce every canonical/payload_hash and every equivalence, distinction and rejection.",
+ "declared_fields": [
+  "direction",
+  "confidence",
+  "probabilities",
+  "prompt_hash",
+  "amount",
+  "reasoning",
+  "summary",
+  "forecast_context",
+  "expected_revision",
+  "idempotency_key",
+  "model_provider",
+  "model_name",
+  "model_version",
+  "token_usage",
+  "is_revision",
+  "trigger_event_id",
+  "revision_reason"
+ ],
+ "equivalent": [
+  {
+   "name": "confidence 0.6 spelled five ways (equality is at the IEEE-754 double level)",
+   "json_texts": [
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.60, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 6e-1, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 6E-1, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6000000000000000055511151231257827, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}"
+   ],
+   "canonical": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "96d450ed89da17a58e59187679fd6e0061bf299092bb7d4d5e8a6a13bf8b769c"
+  },
+  {
+   "name": "amount 10 spelled four ways",
+   "json_texts": [
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10.0, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 1e1, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 100e-1, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"input\": 120, \"output\": 45}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}"
+   ],
+   "canonical": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "96d450ed89da17a58e59187679fd6e0061bf299092bb7d4d5e8a6a13bf8b769c"
+  },
+  {
+   "name": "zero spelled five ways inside token_usage",
+   "json_texts": [
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": 0}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": -0}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": 0.0}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": -0.0}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": 0e0}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}"
+   ],
+   "canonical": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "n": 0
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "bb423e55ec0a1001c3a3bfda56715b6fd2c4f3d35c4227df0fe7dbc0f0d2a3bd"
+  },
+  {
+   "name": "1e21 spelled three ways inside token_usage",
+   "json_texts": [
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": 1e21}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": 1E+21}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}",
+    "{\"direction\": \"bearish\", \"confidence\": 0.6, \"probabilities\": {\"bearish\": 0.6, \"neutral\": 0.3, \"bullish\": 0.1}, \"prompt_hash\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"amount\": 10, \"reasoning\": \"Synthetic vector reasoning, long enough to look real.\", \"summary\": \"s\", \"forecast_context\": {\"schema_version\": \"1\", \"decision\": \"initial\"}, \"expected_revision\": 2, \"idempotency_key\": \"synthetic-key-0001\", \"model_provider\": \"synthetic-gateway\", \"model_name\": \"synthetic-model\", \"model_version\": \"1\", \"token_usage\": {\"n\": 10e20}, \"is_revision\": true, \"trigger_event_id\": \"evt-1\", \"revision_reason\": \"synthetic news\"}"
+   ],
+   "canonical": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "n": 1e+21
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "7c74d581972796dfe0db9a9e48fb49fba30ebee0e064b5b816ef8b741cf73bbe"
+  },
+  {
+   "name": "key order of probabilities, token_usage and forecast_context is not significant",
+   "inputs": [
+    {
+     "direction": "bearish",
+     "confidence": 0.6,
+     "probabilities": {
+      "bearish": 0.6,
+      "neutral": 0.3,
+      "bullish": 0.1
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "forecast_context": {
+      "schema_version": "1",
+      "decision": "initial"
+     },
+     "expected_revision": 2,
+     "idempotency_key": "synthetic-key-0001",
+     "model_provider": "synthetic-gateway",
+     "model_name": "synthetic-model",
+     "model_version": "1",
+     "token_usage": {
+      "input": 120,
+      "output": 45
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    },
+    {
+     "direction": "bearish",
+     "confidence": 0.6,
+     "probabilities": {
+      "bullish": 0.1,
+      "neutral": 0.3,
+      "bearish": 0.6
+     },
+     "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "amount": 10,
+     "reasoning": "Synthetic vector reasoning, long enough to look real.",
+     "summary": "s",
+     "forecast_context": {
+      "decision": "initial",
+      "schema_version": "1"
+     },
+     "expected_revision": 2,
+     "idempotency_key": "synthetic-key-0001",
+     "model_provider": "synthetic-gateway",
+     "model_name": "synthetic-model",
+     "model_version": "1",
+     "token_usage": {
+      "output": 45,
+      "input": 120
+     },
+     "is_revision": true,
+     "trigger_event_id": "evt-1",
+     "revision_reason": "synthetic news"
+    }
+   ],
+   "canonical": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "payload_hash": "96d450ed89da17a58e59187679fd6e0061bf299092bb7d4d5e8a6a13bf8b769c"
+  }
+ ],
+ "distinct": [
+  {
+   "name": "DIRECTION change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bullish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "CONFIDENCE change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.61,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "PROBABILITIES change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.1,
+     "neutral": 0.3,
+     "bullish": 0.6
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "PROMPT_HASH change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "AMOUNT change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 11,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "REASONING change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, but a different sentence entirely.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "SUMMARY change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "t",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "FORECAST_CONTEXT change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "update"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "EXPECTED_REVISION change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 3,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "IDEMPOTENCY_KEY change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0002",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "MODEL_PROVIDER change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "other-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "MODEL_NAME change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "other-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "MODEL_VERSION change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "2",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "TOKEN_USAGE change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 121,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "IS_REVISION change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": false,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "TRIGGER_EVENT_ID change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-2",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "REVISION_REASON change breaks the commitment",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "other news"
+   }
+  },
+  {
+   "name": "amount omitted vs null",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": null,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "amount omitted vs 10",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "amount null vs 10",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": null,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "token_usage omitted vs null",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": null,
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "token_usage null vs {}",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": null,
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {},
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "forecast_context omitted vs null",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": null,
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "forecast_context null vs {}",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": null,
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {},
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "direction omitted vs null",
+   "a": {
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": null,
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "direction null vs the empty string",
+   "a": {
+    "direction": null,
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "probabilities omitted vs null",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": null,
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "is_revision omitted vs false (the schema default is NOT applied)",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": false,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "expected_revision omitted vs null",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": null,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "prompt_hash lower case vs upper case (byte-exact, no folding)",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "0.1 vs the next double up (0.10000000000000002)",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.1,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.10000000000000002,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "a 16-digit fraction vs its neighbour (no fractional cap)",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.1234567890123456,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.1234567890123457,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "1e-7 vs 1e-8",
+   "a": {
+    "direction": "bearish",
+    "confidence": 1e-07,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 1e-08,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "probabilities values swapped between labels",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.3,
+     "neutral": 0.6,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "token_usage 0 vs the string '0'",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "n": 0
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "n": "0"
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  },
+  {
+   "name": "token_usage 1 vs true",
+   "a": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "n": 1
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "b": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "n": true
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   }
+  }
+ ],
+ "rejected": [
+  {
+   "name": "an undeclared field",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news",
+    "session_root": "abababababababababababababababababababababababababababababababab"
+   },
+   "error_contains": "unknown field"
+  },
+  {
+   "name": "a canonical-route field (prediction)",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news",
+    "prediction": {
+     "x": 1
+    }
+   },
+   "error_contains": "unknown field"
+  },
+  {
+   "name": "probabilities as an array",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": [
+     0.6,
+     0.3,
+     0.1
+    ],
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "exactly the keys"
+  },
+  {
+   "name": "probabilities with an extra label",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.5,
+     "neutral": 0.3,
+     "bullish": 0.1,
+     "flat": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "exactly"
+  },
+  {
+   "name": "probabilities with a missing label",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "bullish": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "exactly"
+  },
+  {
+   "name": "probabilities with the legacy up/down labels",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "up": 0.6,
+     "down": 0.4
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "exactly"
+  },
+  {
+   "name": "probabilities labels in the wrong case",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "Bearish": 0.6,
+     "Neutral": 0.3,
+     "Bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "exactly"
+  },
+  {
+   "name": "probabilities holding a numeric string",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": "0.6",
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "JSON number"
+  },
+  {
+   "name": "probabilities holding a boolean",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": true,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "JSON number"
+  },
+  {
+   "name": "amount of zero",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 0,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "strictly greater than zero"
+  },
+  {
+   "name": "amount of 0.0",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 0.0,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "strictly greater than zero"
+  },
+  {
+   "name": "a negative amount",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": -1,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "strictly greater than zero"
+  },
+  {
+   "name": "amount as a numeric string",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": "10",
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "JSON number"
+  },
+  {
+   "name": "prompt_hash of 63 characters",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "64-character"
+  },
+  {
+   "name": "prompt_hash of 65 characters",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "64-character"
+  },
+  {
+   "name": "prompt_hash that is not hexadecimal",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "64-character"
+  },
+  {
+   "name": "token_usage as an array",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": [
+     1,
+     2
+    ],
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected an object"
+  },
+  {
+   "name": "token_usage as a bare number",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": 5,
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected an object"
+  },
+  {
+   "name": "forecast_context as an array",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": [],
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected an object"
+  },
+  {
+   "name": "expected_revision of zero",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 0,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": ">= 1"
+  },
+  {
+   "name": "expected_revision of 1.5",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 1.5,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected an integer"
+  },
+  {
+   "name": "expected_revision as a string",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": "2",
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "JSON number"
+  },
+  {
+   "name": "is_revision null",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": null,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected a boolean"
+  },
+  {
+   "name": "is_revision as the string 'true'",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": "true",
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected a boolean"
+  },
+  {
+   "name": "confidence as a boolean",
+   "input": {
+    "direction": "bearish",
+    "confidence": true,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "JSON number"
+  },
+  {
+   "name": "confidence as a numeric string",
+   "input": {
+    "direction": "bearish",
+    "confidence": "0.6",
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "JSON number"
+  },
+  {
+   "name": "an integer beyond 2**53 (no unique double; never rounded)",
+   "input": {
+    "direction": "bearish",
+    "confidence": 9007199254740993,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "beyond +/-2**53"
+  },
+  {
+   "name": "direction as a number",
+   "input": {
+    "direction": 5,
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "expected a string"
+  },
+  {
+   "name": "a lone surrogate in a string",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "\ud800",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "input": 120,
+     "output": 45
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "not valid UTF-8"
+  },
+  {
+   "name": "a nested integer beyond 2**53 inside token_usage",
+   "input": {
+    "direction": "bearish",
+    "confidence": 0.6,
+    "probabilities": {
+     "bearish": 0.6,
+     "neutral": 0.3,
+     "bullish": 0.1
+    },
+    "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "amount": 10,
+    "reasoning": "Synthetic vector reasoning, long enough to look real.",
+    "summary": "s",
+    "forecast_context": {
+     "schema_version": "1",
+     "decision": "initial"
+    },
+    "expected_revision": 2,
+    "idempotency_key": "synthetic-key-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "1",
+    "token_usage": {
+     "a": {
+      "b": [
+       9007199254740993
+      ]
+     }
+    },
+    "is_revision": true,
+    "trigger_event_id": "evt-1",
+    "revision_reason": "synthetic news"
+   },
+   "error_contains": "beyond +/-2**53"
+  }
+ ]
+}

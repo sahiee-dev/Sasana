@@ -5,7 +5,12 @@ sasana_cli.py — CLI entry point.
 Usage:
   sasana verify <session.jsonl> [--json] [--trust-key KEY] [--require-seal] [--strict]
   sasana evidence-pack <session.jsonl> [--standard eu_ai_act|soc2|hipaa|siem]
-  sasana verify-commitment <bundle.json> --deadline ISO8601 --tsa-anchor CERT [--json]
+  sasana verify-commitment <bundle.json> --agent-id ID --challenge-id ID --deadline ISO8601
+      --tsa-anchor CERT [--json]
+      [--receipts FILE --receipt-key B64] [--mapping ID] [--clock-skew S] [--trust-key B64]
+      [--closing-receipt FILE] [--allow-unrevealed-history]
+      exit: 0 VALID_ON_TIME, 1 INVALID, 2 LATE, 3 bad input/flag, 4 UNREVEALED,
+            5 VALID_ON_TIME only under a lenient option, 6 INCOMPLETE_RECEIPTS
   sasana observe [--ws URL] [--output-dir DIR]
   sasana bridge  [--socket PATH] [--output-dir DIR]
   sasana version
@@ -373,6 +378,20 @@ def _cmd_verify_commitment(args: list) -> int:
     ap = _StrictParser(prog="sasana verify-commitment", add_help=False)
     ap.add_argument("bundle_file")
     ap.add_argument(
+        "--agent-id",
+        dest="agent_id",
+        required=True,
+        metavar="ID",
+        help="The agent this bundle must be for, from YOUR trusted record, never from the bundle.",
+    )
+    ap.add_argument(
+        "--challenge-id",
+        dest="challenge_id",
+        required=True,
+        metavar="ID",
+        help="The challenge this bundle must be for, from YOUR trusted record, never from the bundle.",
+    )
+    ap.add_argument(
         "--deadline",
         required=True,
         metavar="ISO8601",
@@ -390,9 +409,52 @@ def _cmd_verify_commitment(args: list) -> int:
         "--registry", default=None, metavar="FILE", help="Counterparty receipt log (JSON list)."
     )
     ap.add_argument("--trust-key", dest="trust_key", default=None, metavar="BASE64_PUBKEY")
+    ap.add_argument(
+        "--receipts",
+        default=None,
+        metavar="FILE",
+        help="Signed counterparty acceptance receipts (JSON list; a PROPOSED EXTENSION). "
+        "Requires --receipt-key.",
+    )
+    ap.add_argument(
+        "--closing-receipt",
+        dest="closing_receipt",
+        default=None,
+        metavar="FILE",
+        help="The counterparty's signed closing receipt (JSON object; a PROPOSED EXTENSION). Required "
+        "whenever --receipts is given: without it the verdict is INCOMPLETE_RECEIPTS.",
+    )
+    ap.add_argument(
+        "--receipt-key",
+        dest="receipt_key",
+        default=None,
+        metavar="BASE64_PUBKEY",
+        help="Pinned Ed25519 key that signs the receipts. Keys inside receipts are never trusted.",
+    )
+    ap.add_argument("--require-receipts", dest="require_receipts", action="store_true")
+    ap.add_argument(
+        "--mapping", dest="mapping", default=None, metavar="ID", help="Required payload mapping id."
+    )
+    ap.add_argument(
+        "--clock-skew",
+        dest="clock_skew",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help="Assumed TSA-vs-deadline clock disagreement added to the time rule (default 0).",
+    )
+    ap.add_argument(
+        "--allow-unrevealed-history",
+        dest="allow_unrevealed_history",
+        action="store_true",
+        help="Downgrade an unrevealed earlier revision (HISTORY_GAP) from an error to a warning.",
+    )
     ap.add_argument("--allow-partial", dest="allow_partial", action="store_true")
     ap.add_argument("--json", dest="json_out", action="store_true")
-    parsed = _parse_strict(ap, args)
+    try:
+        parsed = _parse_strict(ap, args)  # a mistyped policy flag must not silently vanish
+    except SystemExit as exc:  # _StrictParser exits 3; in-process callers get the code back
+        return int(exc.code) if isinstance(exc.code, int) else EXIT_ERROR
 
     from datetime import datetime, timezone
 
@@ -403,6 +465,14 @@ def _cmd_verify_commitment(args: list) -> int:
         if parsed.registry:
             with open(parsed.registry) as f:
                 registry = json.load(f)
+        receipts = None
+        if parsed.receipts:
+            with open(parsed.receipts) as f:
+                receipts = json.load(f)
+        closing = None
+        if parsed.closing_receipt:
+            with open(parsed.closing_receipt) as f:
+                closing = json.load(f)
         anchors = [_load_cert_der(p) for p in parsed.tsa_anchors]
         deadline = datetime.fromisoformat(parsed.deadline.replace("Z", "+00:00"))
         if deadline.tzinfo is None:
@@ -415,11 +485,20 @@ def _cmd_verify_commitment(args: list) -> int:
 
     v = verify_commitment(
         bundle,
+        expected_agent_id=parsed.agent_id,
+        expected_challenge_id=parsed.challenge_id,
         deadline=deadline,
         trusted_tsa_anchors=anchors,
         trusted_seal_pubkey=parsed.trust_key,
         registry=registry,
         allow_partial=parsed.allow_partial,
+        receipts=receipts,
+        closing_receipt=closing,
+        trusted_receipt_pubkey=parsed.receipt_key,
+        expected_mapping_id=parsed.mapping,
+        require_receipts=parsed.require_receipts,
+        allow_unrevealed_history=parsed.allow_unrevealed_history,
+        clock_skew_s=parsed.clock_skew,
     )
     if parsed.json_out:
         print(json.dumps(v.as_dict(), indent=2, default=str))
@@ -430,15 +509,27 @@ def _cmd_verify_commitment(args: list) -> int:
         print(f"Evidence : {v.evidence_class or '—'}")
         if v.effective_revision is not None:
             print(f"Effective revision: {v.effective_revision}")
+        lenient = bool(v.lenient) and v.verdict == "VALID_ON_TIME"
         color = (
-            _green if v.verdict == "VALID_ON_TIME" else (_yellow if v.verdict == "LATE" else _red)
+            _yellow
+            if lenient or v.verdict in ("LATE", "UNREVEALED", "INCOMPLETE_RECEIPTS")
+            else (_green if v.verdict == "VALID_ON_TIME" else _red)
         )
-        print(f"Verdict  : {_bold(color(v.verdict))}")
+        label = v.verdict + (f"  (LENIENT: {'; '.join(v.lenient)})" if lenient else "")
+        print(f"Verdict  : {_bold(color(label))}")
         for err in v.errors:
             print(_red(f"  ✗ {err}"))
         for w in v.warnings:
             print(_yellow(f"  ! {w}"))
-    return {"VALID_ON_TIME": 0, "LATE": 2, "INVALID": 1}.get(v.verdict, 3)
+    if v.verdict == "VALID_ON_TIME" and v.lenient:
+        return 5  # valid, but only because a lenient option was needed: never the same as a strict pass
+    return {
+        "VALID_ON_TIME": 0,
+        "INVALID": 1,
+        "LATE": 2,
+        "UNREVEALED": 4,
+        "INCOMPLETE_RECEIPTS": 6,
+    }.get(v.verdict, 3)
 
 
 _STANDARDS = {
@@ -621,7 +712,7 @@ def main() -> None:
             f"  {_green('sasana evidence-pack')} <session.jsonl> [--standard S]  Auditor-ready compliance report"
         )
         print(
-            f"  {_green('sasana verify-commitment')} <bundle.json> --deadline T --tsa-anchor CERT"
+            f"  {_green('sasana verify-commitment')} <bundle.json> --agent-id A --challenge-id C --deadline T --tsa-anchor CERT"
             "  Verify a pre-outcome commitment"
         )
         print(

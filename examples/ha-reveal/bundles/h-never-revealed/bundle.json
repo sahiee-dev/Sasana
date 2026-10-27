@@ -1,0 +1,12 @@
+{
+  "bundle_version": "2",
+  "domain_tag": "sasana/commit/v2",
+  "subject_id": "agent-synthetic-001",
+  "context_id": "challenge-synthetic-daily-2026-10-14",
+  "capture_mode": "sidecar",
+  "revisions": [],
+  "session_events": [],
+  "disclosures": [],
+  "mapping_id": "ha-daily-v3",
+  "synthetic_notice": "SYNTHETIC — not HA-issued"
+}

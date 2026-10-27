@@ -1,0 +1,13 @@
+{
+  "body": {
+    "challenge_id": "challenge-synthetic-daily-2026-10-14",
+    "agent_id": "agent-synthetic-001",
+    "accepted_count": 2,
+    "last_accepted_revision_index": 1,
+    "last_accepted_C": "915f22a6b3ef7407c091d10671d49b04edd026ea7c383e3f1197fca4402062aa",
+    "closed_at": "2026-10-14T12:01:00Z",
+    "mapping_id": "ha-daily-v3",
+    "notice": "SYNTHETIC — not HA-issued"
+  },
+  "signature": "7145a87d749ffa8dfa949154e22c7d196ceaab1127f8654fbdbeb1c9864ceae243c7a8151ac3777d166133e685709519a8cfb4a4aa4d98c44382cf3ce61d360d"
+}
