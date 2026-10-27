@@ -48,8 +48,6 @@ import re
 from decimal import Decimal
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-from sasana.jcs import canonicalize
-
 HA_DAILY_V1 = "ha-daily-v1"  # SUPERSEDED by ha-daily-v2
 HA_DAILY_V2 = "ha-daily-v2"  # SUPERSEDED by ha-daily-v3
 HA_DAILY_V3 = "ha-daily-v3"
@@ -662,8 +660,11 @@ def map_ha_daily_v3(submission: Mapping[str, Any]) -> MappedPayload:
 
 def check_canonical_ha_daily_v3(payload: Mapping[str, Any]) -> None:
     """
-    Raise MappingError unless `payload` is exactly what map_ha_daily_v3 would emit for itself. Equality is on the
-    RFC 8785 bytes, so `1` and `1.0`, or `0.6` and `6e-1`, are the same payload (equality at the double level).
+    Raise MappingError unless `payload` is something `map_ha_daily_v3` accepts: an object that carries only bound
+    fields and passes every v3 rule (types, label set, amount, prompt_hash, numbers). Unlike v2 there is no
+    separate "is it already in canonical form" comparison: v3 has no normalisation to apply (it keeps the number
+    as given, and `1` and `1.0` serialize to the same RFC 8785 bytes), so a payload the mapping accepts is its own
+    canonical form and such a comparison could never fail.
     """
     if not isinstance(payload, Mapping):
         raise MappingError("payload must be an object")
@@ -672,12 +673,7 @@ def check_canonical_ha_daily_v3(payload: Mapping[str, Any]) -> None:
         raise MappingError(
             f"payload carries field(s) {HA_DAILY_V3} does not bind: {sorted(repr(k) for k in extra)}"
         )
-    mapped = map_ha_daily_v3(payload).payload
-    if canonicalize(mapped) != canonicalize(dict(payload)):
-        for name in payload:
-            if canonicalize(mapped.get(name)) != canonicalize(payload[name]):
-                raise MappingError(f"payload is not in canonical {HA_DAILY_V3} form at {name!r}")
-        raise MappingError(f"payload is not in canonical {HA_DAILY_V3} form")
+    map_ha_daily_v3(payload)  # raises MappingError for anything the mapping refuses
 
 
 def _dec(v: Any) -> Decimal:

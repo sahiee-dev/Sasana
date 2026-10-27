@@ -859,7 +859,9 @@ class TestHaDailyV3Registry(unittest.TestCase):
         self.assertIsNotNone(cmap.get_mapping(cmap.HA_DAILY_V2))
         self.assertEqual(cmap.get_mapping(V3).number_profile, cmap.NUMBERS_IEEE754_RFC8785)
 
-    def test_check_canonical_compares_the_bytes_so_1_and_1_0_are_one_payload(self) -> None:
+    def test_check_canonical_accepts_what_the_mapping_accepts_and_names_an_unbound_field(
+        self,
+    ) -> None:
         cmap.check_canonical_ha_daily_v3({"amount": 1})
         cmap.check_canonical_ha_daily_v3({"amount": 1.0})
         cmap.check_canonical_ha_daily_v3({"expected_revision": 2.0})
@@ -869,6 +871,8 @@ class TestHaDailyV3Registry(unittest.TestCase):
             {"probabilities": [1]},
             {"expected_revision": 2.5},
             [],
+            None,
+            5,
         ):
             with self.subTest(payload=bad), self.assertRaises(cmap.MappingError):
                 cmap.check_canonical_ha_daily_v3(bad)  # type: ignore[arg-type]
