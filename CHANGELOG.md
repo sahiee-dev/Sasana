@@ -3,6 +3,35 @@
 All notable changes to Sasana are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — branch `design/ha-reveal-bundle` (not merged, not released)
+
+Pre-outcome commitments only (`sasana.commitment`, `sasana.commitment_mapping`, `sasana verify-commitment`). No
+change to `sasana verify`, sealing, or any session verdict. Every statement about Headline Arena is sourced in
+`docs/pre-outcome-commitment.md` Appendix A (HA-4 and OpenAPI 2.2.9); every receipt and fixture is
+`SYNTHETIC — not HA-issued`.
+
+### Breaking
+
+- **`verify_commitment` requires `expected_agent_id` and `expected_challenge_id`** (keyword-only, no default), and
+  `sasana verify-commitment` requires `--agent-id` and `--challenge-id`. They come from the verifier's own record,
+  never from the bundle. A mismatch is `INVALID` with `AGENT_ID_MISMATCH` / `CHALLENGE_ID_MISMATCH`. Before this, an
+  honest bundle committed under another agent or challenge verified.
+- **Receipts no longer carry `payload_hash`.** An unsalted hash of a low-entropy payload published before the reveal
+  lets anyone test guesses (threat T6). A receipt that carries it is refused. New optional receipt fields:
+  `ha_revision_number` (the counterparty's number, starting at 1) and `notice`.
+
+### Added
+
+- Payload mapping **`ha-daily-v3`** for the legacy daily directional route: all seventeen declared request
+  properties, omitted / null / present kept distinct, JSON numbers under RFC 8785 with no rounding and no fractional
+  cap, `probabilities` exactly `bearish` / `neutral` / `bullish`, `amount` omitted / null / > 0, any `token_usage`
+  object, an explicit `revision_number = revision_index + 1`. `ha-daily-v2` is now superseded (still verifies, with
+  `MAPPING_SUPERSEDED`). It is not a mapping for the canonical `/agent/ha/predict` contract.
+- `SYNTHETIC_RECEIPTS_USED`, `RECEIPT_REVISION_NUMBER_*`, `DIRECTION_ARGMAX_MISMATCH`, `CONFIDENCE_MAX_MISMATCH`,
+  `MODEL_PROVIDER_NAME_NOT_PAIRED`.
+- Example scenarios `m`-`t` (wrong agent, wrong challenge, wrong revision index, corrupted seal, duplicate and
+  reordered revisions, an unstaked full-vector example, an off-by-one revision number).
+
 ## [2.0.2] — 2026-10-11
 
 Patch release: a command-line argument bug that could silently remove a key pin. **No change to verdicts**
