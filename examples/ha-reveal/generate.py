@@ -11,7 +11,8 @@ touch disk except the throwaway Archeion key in a temp directory this script cre
 Needs the dev extras (fastapi, httpx) and the repo's tests/tsa_fixture.py (a local RFC 3161 authority).
 Regenerating changes every salt, key and signature; the committed files are one such run.
 
-Receipts are a PROPOSED EXTENSION, not an interface of Headline Arena or of anyone else.
+Receipts are a PROPOSED EXTENSION, not an interface of Headline Arena or of anyone else. Every bundle,
+receipt, closing receipt and the trust file this script writes carries the notice "SYNTHETIC — not HA-issued".
 """
 
 from __future__ import annotations
@@ -49,36 +50,59 @@ from sasana.verifier import GENESIS_HASH, compute_event_hash  # noqa: E402
 UTC = dt.timezone.utc
 SUBJECT = "agent-synthetic-001"
 CONTEXT = "challenge-synthetic-daily-2026-10-14"
-MAPPING = cmap.HA_DAILY_V2
+OTHER_SUBJECT = "agent-synthetic-002"  # scenario m: an honest bundle committed under another agent
+OTHER_CONTEXT = "challenge-synthetic-daily-2026-10-15"  # scenario n: ...under another challenge
+MAPPING = cmap.HA_DAILY_V3
+NOTICE = cm.SYNTHETIC_NOTICE  # "SYNTHETIC — not HA-issued"
 DEADLINE = dt.datetime(2026, 10, 14, 12, 0, 0, tzinfo=UTC)
 T_INIT = dt.datetime(2026, 10, 14, 9, 0, 0, tzinfo=UTC)
 T_REV = dt.datetime(2026, 10, 14, 9, 30, 0, tzinfo=UTC)
 T_LATE = dt.datetime(2026, 10, 14, 13, 0, 0, tzinfo=UTC)
 
+# Legacy-route submissions under ha-daily-v3: the route's own vocabulary (bearish / neutral / bullish), JSON
+# numbers, and direction / confidence consistent with the argmax / maximum of the vector.
 SUBMISSION_0 = {
-    "direction": "up",
+    "direction": "bullish",
     "confidence": 0.72,
-    "probabilities": {"up": 0.72, "down": 0.2, "flat": 0.08},
+    "probabilities": {"bullish": 0.72, "bearish": 0.2, "neutral": 0.08},
     "reasoning": "Synthetic example reasoning: the index opened firm and breadth is positive.",
-    "summary": "Synthetic: up.",
+    "summary": "Synthetic: bullish.",
     "is_revision": False,
-    # every declared field is bound by ha-daily-v2, including these:
+    # every declared field that is sent is bound by ha-daily-v3, including these:
     "prompt_hash": "a" * 64,
     "amount": 10,
     "token_usage": {"input": 123, "output": 45},
 }
 SUBMISSION_1 = {
-    "direction": "down",
-    "confidence": "0.64",
-    "probabilities": {"up": 0.2, "down": 0.64, "flat": 0.16},
+    "direction": "bearish",
+    "confidence": 0.64,
+    "probabilities": {"bullish": 0.2, "bearish": 0.64, "neutral": 0.16},
     "reasoning": "Synthetic example reasoning: a revision after a synthetic overnight headline.",
-    "summary": "Synthetic: down.",
+    "summary": "Synthetic: bearish.",
     "is_revision": True,
     "revision_reason": "synthetic new information",
     "trigger_event_id": "evt-synthetic-1",
     "prompt_hash": "b" * 64,
     "amount": 10,
-    "token_usage": {"input": 140, "output": 52},
+    "token_usage": {
+        "input": 140,
+        "output": 52,
+        "cached": 0.5,
+    },  # free-form: any JSON object is bound
+    "idempotency_key": "synthetic-idem-0001",
+    "model_provider": "synthetic-gateway",
+    "model_name": "synthetic-model",
+    "model_version": "0.0.1",
+    "forecast_context": {"schema_version": "1", "decision": "update", "run_ref": "synthetic-run-1"},
+}
+# Scenario s: a small unstaked directional example with the full vector. `amount` is OMITTED (zero is not an
+# unstaked submission), and `prompt_hash` is UPPERCASE hex, kept byte-exact (HA-4).
+SUBMISSION_KOPEI = {
+    "probabilities": {"bearish": 0.60, "neutral": 0.30, "bullish": 0.10},
+    "prompt_hash": "A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F90",
+    "reasoning": "Synthetic example reasoning for an unstaked full-vector submission.",
+    "summary": "Synthetic: unstaked vector.",
+    "is_revision": False,
 }
 
 
@@ -86,13 +110,13 @@ def iso(t: dt.datetime) -> str:
     return t.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def make_session() -> list:
+def make_session(agent_id: str = SUBJECT) -> list:
     """A real closed SqliteLedger session with 5 events, exported as event dicts."""
     with tempfile.TemporaryDirectory() as d:
         ledger = SqliteLedger(Path(d) / "s.db")
         ledger.connect()
         with patch("sasana.rfc3161.request_timestamp", return_value=None):
-            ledger.open_session("sess-ha-synthetic", agent_id=SUBJECT)
+            ledger.open_session("sess-ha-synthetic", agent_id=agent_id)
         ledger.record("LLM_CALL", {"prompt_hash": "a" * 64})
         ledger.record("TOOL_CALL", {"tool_name": "search", "args_hash": "c" * 64})
         ledger.record("LLM_CALL", {"prompt_hash": "b" * 64})
@@ -121,6 +145,10 @@ class World:
         self.seal_pub = self.client.get("/pubkey").json()["pubkey"]
         self.full = make_session()  # START, LLM, TOOL, LLM, END
         self.sealed = self.seal(self.full)
+        self.other_full = make_session(
+            OTHER_SUBJECT
+        )  # a different agent's own session (scenario m)
+        self.other_sealed = self.seal(self.other_full)
 
     def seal(self, events: list) -> list:
         body = ("\n".join(json.dumps(e) for e in events) + "\n").encode()
@@ -128,57 +156,71 @@ class World:
         assert resp.status_code == 200, resp.text
         return [json.loads(ln) for ln in resp.text.splitlines() if ln.strip()]
 
-    def commit(self, prefix_len: int, submission: dict, when: dt.datetime, prev=None):
+    def commit(
+        self, prefix_len: int, submission: dict, when: dt.datetime, prev=None,
+        subject=SUBJECT, context=CONTEXT, session=None,
+    ):  # fmt: skip
         def fake_tsa(hash_bytes, *, url=None, nonce=None):
             return fx.respond(self.tsa, hash_bytes, gen_time=when, nonce=nonce)
 
         mapped = cmap.get_mapping(MAPPING).map(submission)
         with patch("sasana.rfc3161.request_timestamp", fake_tsa):
             return cm.commit(
-                subject_id=SUBJECT,
-                context_id=CONTEXT,
+                subject_id=subject,
+                context_id=context,
                 payload=mapped.payload,
-                session_events=self.full[:prefix_len],
+                session_events=(session or self.full)[:prefix_len],
                 trusted_tsa_anchors=self.anchors,
                 prev=prev,
                 mapping_id=MAPPING,
             )
 
-    def receipt(self, pair, *, accepted: bool, at: dt.datetime, reason=None) -> dict:
-        pub, sec = pair
+    def receipt(
+        self, pair, *, accepted: bool, at: dt.datetime, reason=None,
+        subject=SUBJECT, context=CONTEXT, ha_revision_number=None,
+    ) -> dict:  # fmt: skip
+        """A SYNTHETIC receipt. No payload_hash: an unsalted hash of a low-entropy payload must not be published
+        before the reveal (T6). `ha_revision_number` is the counterparty's own number, starting at 1."""
+        pub, _sec = pair
         return cm.sign_receipt(
             {
-                "challenge_id": CONTEXT,
-                "agent_id": SUBJECT,
+                "challenge_id": context,
+                "agent_id": subject,
                 "revision_index": pub.revision_index,
+                "ha_revision_number": ha_revision_number
+                if ha_revision_number is not None
+                else cmap.HA_REVISION_NUMBERING.counterparty_number(pub.revision_index),
                 "commitment": pub.commitment,
                 "accepted_at": iso(at),
                 "accepted": accepted,
                 "reason": reason,
                 "mapping_id": MAPPING,
-                "payload_hash": cm.payload_hash(sec.payload).hex(),
+                "notice": NOTICE,
             },
             self.receipt_key,
         )
 
-    def closing(self, accepted_pairs, *, key=None) -> dict:
+    def closing(self, accepted_pairs, *, key=None, subject=SUBJECT, context=CONTEXT) -> dict:
         """The counterparty's closing receipt: how many it accepted before the deadline, and the last."""
         last = accepted_pairs[-1][0] if accepted_pairs else None
         return cm.sign_closing_receipt(
             {
-                "challenge_id": CONTEXT,
-                "agent_id": SUBJECT,
+                "challenge_id": context,
+                "agent_id": subject,
                 "accepted_count": len(accepted_pairs),
                 "last_accepted_revision_index": None if last is None else last.revision_index,
                 "last_accepted_C": None if last is None else last.commitment,
                 "closed_at": iso(DEADLINE + dt.timedelta(minutes=1)),
                 "mapping_id": MAPPING,
+                "notice": NOTICE,
             },
             key or self.receipt_key,
         )
 
     def bundle(self, pairs, session=None) -> dict:
-        return cm.reveal_bundle(pairs, session or self.sealed, capture_mode="sidecar")
+        b = cm.reveal_bundle(pairs, session or self.sealed, capture_mode="sidecar")
+        b["synthetic_notice"] = NOTICE
+        return b
 
 
 def build(world: World) -> dict:
@@ -251,10 +293,69 @@ def build(world: World) -> dict:
         [r0, r1],
         w.closing([p0, p1], key=w.wrong_key),
     )
+
+    # --- identity: an HONEST, fully valid bundle committed under another agent / another challenge. Its own
+    # receipts and closing receipt (signed by the genuine key) are for that other identity, so nothing inside
+    # it is inconsistent. Only the verifier's own record of whose bundle it is can refuse it.
+    m0 = w.commit(3, SUBMISSION_0, T_INIT, subject=OTHER_SUBJECT, session=w.other_full)
+    out["m-wrong-agent"] = (
+        w.bundle([m0], session=w.other_sealed),
+        [w.receipt(m0, accepted=True, at=T_INIT + s, subject=OTHER_SUBJECT)],
+        w.closing([m0], subject=OTHER_SUBJECT),
+    )
+    n0 = w.commit(3, SUBMISSION_0, T_INIT, context=OTHER_CONTEXT)
+    out["n-wrong-challenge"] = (
+        w.bundle([n0]),
+        [w.receipt(n0, accepted=True, at=T_INIT + s, context=OTHER_CONTEXT)],
+        w.closing([n0], context=OTHER_CONTEXT),
+    )
+
+    # --- bundle-level cases ---------------------------------------------------------------------------
+    # o: a revision's revision_index is edited (1 -> 5); C is computed over the index, so it no longer matches.
+    wrong_index = w.bundle([p0, p1])
+    wrong_index["revisions"][1]["revision_index"] = 5
+    out["o-wrong-revision-index"] = (wrong_index, [r0, r1], both)
+
+    # p: the CHAIN_SEAL signature is corrupted. The signature is not part of the event hash, so the hash chain
+    # stays intact and ONLY the pinned-key seal check can catch it.
+    bad_seal = copy.deepcopy(w.sealed)
+    sig = bad_seal[-1]["signature"]
+    bad_seal[-1]["signature"] = ("0" if sig[0] != "0" else "1") + sig[1:]
+    corrupted = w.bundle([p0])
+    corrupted["session_events"] = bad_seal
+    out["p-corrupted-seal"] = (corrupted, [r0], only0)
+
+    # q: the same revision is listed twice.
+    duplicated = w.bundle([p0, p1])
+    duplicated["revisions"].append(copy.deepcopy(duplicated["revisions"][1]))
+    out["q-duplicate-revisions"] = (duplicated, [r0, r1], both)
+
+    # r: the revisions array is in reverse order. The verifier orders by revision_index, so the array order is
+    # ignored and the verdict is exactly that of b-revision-accepted.
+    reordered = w.bundle([p0, p1])
+    reordered["revisions"].reverse()
+    out["r-reordered-revisions"] = (reordered, [r0, r1], both)
+
+    # s: a small unstaked directional example (full vector, amount omitted, uppercase prompt_hash).
+    k0 = w.commit(3, SUBMISSION_KOPEI, T_INIT)
+    out["s-unstaked-full-vector"] = (
+        w.bundle([k0]),
+        [w.receipt(k0, accepted=True, at=T_INIT + s)],
+        w.closing([k0]),
+    )
+
+    # t: the counterparty's receipt numbers the revision 1 for revision_index 1 (it starts counting at 1, so
+    # revision_index 1 is revision_number 2). The off-by-one is stated, so it is caught, not assumed away.
+    out["t-receipt-revision-number-off-by-one"] = (
+        w.bundle([p0, p1]),
+        [r0, w.receipt(p1, accepted=True, at=T_REV + s, ha_revision_number=1)],
+        both,
+    )
     return out
 
 
 EXPECTED = {
+    "_notice": NOTICE,
     "a-initial-only": {"verdict": "VALID_ON_TIME", "effective_revision": 0, "exit": 0},
     "b-revision-accepted": {"verdict": "VALID_ON_TIME", "effective_revision": 1, "exit": 0},
     "c-revision-rejected": {
@@ -306,7 +407,7 @@ EXPECTED = {
         "verdict": "INVALID",
         "effective_revision": None,
         "exit": 1,
-        "contains": "is not the required 'ha-daily-v2'",
+        "contains": "is not the required 'ha-daily-v3'",
     },
     "h-never-revealed": {"verdict": "UNREVEALED", "effective_revision": None, "exit": 4},
     "h2-scored-revision-not-revealed": {
@@ -338,6 +439,46 @@ EXPECTED = {
         "exit": 1,
         "contains": "CLOSING_RECEIPT_INVALID",
     },
+    "m-wrong-agent": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "AGENT_ID_MISMATCH",
+        "not_contains": ["CHALLENGE_ID_MISMATCH"],
+    },
+    "n-wrong-challenge": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "CHALLENGE_ID_MISMATCH",
+        "not_contains": ["AGENT_ID_MISMATCH"],
+    },
+    "o-wrong-revision-index": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "commitment does not match revealed payload/root/salt",
+    },
+    "p-corrupted-seal": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "session trace failed verification",
+    },
+    "q-duplicate-revisions": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "duplicate revision_index in bundle",
+    },
+    "r-reordered-revisions": {"verdict": "VALID_ON_TIME", "effective_revision": 1, "exit": 0},
+    "s-unstaked-full-vector": {"verdict": "VALID_ON_TIME", "effective_revision": 0, "exit": 0},
+    "t-receipt-revision-number-off-by-one": {
+        "verdict": "INVALID",
+        "effective_revision": None,
+        "exit": 1,
+        "contains": "RECEIPT_REVISION_NUMBER_MISMATCH",
+    },
 }
 
 
@@ -350,10 +491,12 @@ def main() -> None:
 
     (out / "trust").mkdir(parents=True, exist_ok=True)
     pem = world.tsa.anchor.public_bytes(serialization.Encoding.PEM)
-    (out / "trust" / "tsa-anchor.pem").write_bytes(pem)
+    label = f"# {NOTICE}: a throwaway test TSA root, not a real time authority.\n".encode()
+    (out / "trust" / "tsa-anchor.pem").write_bytes(label + pem)
     (out / "trust" / "trust.json").write_text(
         json.dumps(
             {
+                "synthetic_notice": NOTICE,
                 "note": "SYNTHETIC trust material. Pin your own in real use.",
                 "deadline": iso(DEADLINE),
                 "mapping_id": MAPPING,
@@ -363,17 +506,27 @@ def main() -> None:
                 "context_id": CONTEXT,
             },
             indent=2,
+            ensure_ascii=False,
         )
-        + "\n"
+        + "\n",
+        encoding="utf-8",
     )
     for name, (bundle, receipts, closing) in bundles.items():
         d = out / "bundles" / name
         d.mkdir(parents=True, exist_ok=True)
-        (d / "bundle.json").write_text(json.dumps(bundle, indent=2) + "\n")
-        (d / "receipts.json").write_text(json.dumps(receipts, indent=2) + "\n")
+        (d / "bundle.json").write_text(
+            json.dumps(bundle, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        (d / "receipts.json").write_text(
+            json.dumps(receipts, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         if closing is not None:
-            (d / "closing.json").write_text(json.dumps(closing, indent=2) + "\n")
-    (out / "expected.json").write_text(json.dumps(EXPECTED, indent=2) + "\n")
+            (d / "closing.json").write_text(
+                json.dumps(closing, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+    (out / "expected.json").write_text(
+        json.dumps(EXPECTED, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(f"wrote {len(bundles)} bundles to {out}")
 
 

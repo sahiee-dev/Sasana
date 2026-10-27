@@ -456,7 +456,7 @@ class TestScenarios(V2Base):
     def test_g_wrong_mapping_version(self) -> None:
         p0 = self.chain()[0]
         b = self.bundle2([p0])
-        b["mapping_id"] = "ha-daily-v3"
+        b["mapping_id"] = "ha-daily-v4"  # (v3 exists now; an id no mapping has is unknown)
         v = self.vr(b, [self.receipt(p0)])
         self.assertEqual(v.verdict, "INVALID")
         self.assertIn("unknown payload mapping", v.errors[0])
@@ -600,16 +600,29 @@ class TestReceiptPolicy(V2Base):
         self.assertEqual(v.verdict, "INVALID")
         self.assertTrue(any("RECEIPTS_NON_MONOTONIC" in e for e in v.errors), v.errors)
 
-    def test_receipt_payload_hash_must_match_what_was_revealed(self) -> None:
+    def test_a_receipt_may_not_carry_payload_hash_threat_t6(self) -> None:
+        """payload_hash was an optional receipt field; it is an UNSALTED hash of a low-entropy payload, so a
+        receipt published before the reveal would let anyone test guesses against it. It is refused."""
         p0, p1, b = self.two()
         good = cm.payload_hash(p1[1].payload).hex()
-        ok = self.vr(
-            b, [self.receipt(p0), self.receipt(p1, at=T1 + SEC, mapping_id=MAP, payload_hash=good)]
+        with self.assertRaises(ValueError) as cx:  # the reference signer refuses to build one
+            self.receipt(p1, at=T1 + SEC, payload_hash=good)
+        self.assertIn("T6", str(cx.exception))
+        # ...and a verifier refuses one that was signed anyway (hand-signed here, bypassing sign_receipt)
+        body = {
+            "challenge_id": CTX, "agent_id": SUBJ, "revision_index": 1, "commitment": p1[0].commitment,
+            "accepted_at": iso(T1 + SEC), "accepted": True, "reason": None, "payload_hash": good,
+        }  # fmt: skip
+        forged = {"body": body, "signature": self.rkey.sign(cm._receipt_message(body)).hex()}
+        v = self.vr(b, [self.receipt(p0), forged])
+        self.assertEqual(v.verdict, "INVALID")
+        self.assertTrue(
+            any(e.startswith("RECEIPT_INVALID:1") and "payload_hash" in e for e in v.errors),
+            v.errors,
         )
-        self.assertEqual(ok.verdict, "VALID_ON_TIME", (ok.errors, ok.warnings))
-        bad = self.vr(b, [self.receipt(p0), self.receipt(p1, at=T1 + SEC, payload_hash="00" * 32)])
-        self.assertEqual(bad.verdict, "INVALID")
-        self.assertTrue(any("RECEIPT_PAYLOAD_MISMATCH" in e for e in bad.errors), bad.errors)
+        # a closing receipt has no such field either
+        with self.assertRaises(ValueError):
+            self.closing([self.receipt(p0)], payload_hash=good)
 
     def test_receipt_mapping_and_index_must_match(self) -> None:
         p0, p1, b = self.two()
@@ -713,7 +726,11 @@ class TestTimeAndTrustPolicy(V2Base):
         b["deadline"] = "2099-01-01T00:00:00Z"  # ignored
         self.assertEqual(self.verify(b, deadline=T0 - dt.timedelta(hours=1)).verdict, "LATE")
         naive = cm.verify_commitment(
-            b, deadline=dt.datetime(2026, 6, 1), trusted_tsa_anchors=self.anchors
+            b,
+            expected_agent_id=SUBJ,
+            expected_challenge_id=CTX,
+            deadline=dt.datetime(2026, 6, 1),
+            trusted_tsa_anchors=self.anchors,
         )  # a naive deadline is refused, not guessed
         self.assertEqual(naive.verdict, "INVALID")
         self.assertIn("bad deadline", naive.errors[0])
@@ -782,6 +799,10 @@ class TestCli(V2Base):
             )
             args = [
                 str(bp),
+                "--agent-id",
+                SUBJ,
+                "--challenge-id",
+                CTX,
                 "--deadline",
                 "2026-06-01T12:00:00Z",
                 "--tsa-anchor",
@@ -860,7 +881,8 @@ class TestCli(V2Base):
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
                 code = sasana_cli._cmd_verify_commitment(
-                    [str(Path(d) / "b.json"), "--deadline", "2026-06-01T12:00:00Z", "--tsa-anchor",
+                    [str(Path(d) / "b.json"), "--agent-id", SUBJ, "--challenge-id", CTX,
+                     "--deadline", "2026-06-01T12:00:00Z", "--tsa-anchor",
                      str(Path(d) / "a.pem"), "--receipts", str(Path(d) / "r.json"), "--json"]
                 )  # fmt: skip
         self.assertEqual(code, 1)
@@ -1098,9 +1120,12 @@ class TestLenientAndSuperseded(V2Base):
         self.assertIn("MAPPING_SUPERSEDED:ha-daily-v1->ha-daily-v2", v.warnings)
         # a verifier that requires the current mapping refuses it
         self.assertEqual(self.verify(b, expected_mapping_id=cmap.HA_DAILY_V2).verdict, "INVALID")
-        # and the current mapping carries no such warning
+        # ha-daily-v2 is itself superseded now (by v3): it still verifies, flagged. v3's own bundles carry
+        # no such warning (tests/test_commitment_v3.py).
         p = self.chain()[0]
-        self.assertFalse([w for w in self.verify(self.bundle2([p])).warnings if "SUPERSEDED" in w])
+        self.assertIn(
+            "MAPPING_SUPERSEDED:ha-daily-v2->ha-daily-v3", self.verify(self.bundle2([p])).warnings
+        )
 
     def test_a_v2_mapping_bundle_binds_all_fields_end_to_end(self) -> None:
         """Tampering with `amount` or `trigger_event_id` after commit is caught by C (v1 missed both)."""

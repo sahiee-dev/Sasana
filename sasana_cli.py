@@ -5,7 +5,8 @@ sasana_cli.py — CLI entry point.
 Usage:
   sasana verify <session.jsonl> [--json] [--trust-key KEY] [--require-seal] [--strict]
   sasana evidence-pack <session.jsonl> [--standard eu_ai_act|soc2|hipaa|siem]
-  sasana verify-commitment <bundle.json> --deadline ISO8601 --tsa-anchor CERT [--json]
+  sasana verify-commitment <bundle.json> --agent-id ID --challenge-id ID --deadline ISO8601
+      --tsa-anchor CERT [--json]
       [--receipts FILE --receipt-key B64] [--mapping ID] [--clock-skew S] [--trust-key B64]
       [--closing-receipt FILE] [--allow-unrevealed-history]
       exit: 0 VALID_ON_TIME, 1 INVALID, 2 LATE, 3 bad input/flag, 4 UNREVEALED,
@@ -377,6 +378,20 @@ def _cmd_verify_commitment(args: list) -> int:
     ap = _StrictParser(prog="sasana verify-commitment", add_help=False)
     ap.add_argument("bundle_file")
     ap.add_argument(
+        "--agent-id",
+        dest="agent_id",
+        required=True,
+        metavar="ID",
+        help="The agent this bundle must be for, from YOUR trusted record, never from the bundle.",
+    )
+    ap.add_argument(
+        "--challenge-id",
+        dest="challenge_id",
+        required=True,
+        metavar="ID",
+        help="The challenge this bundle must be for, from YOUR trusted record, never from the bundle.",
+    )
+    ap.add_argument(
         "--deadline",
         required=True,
         metavar="ISO8601",
@@ -470,6 +485,8 @@ def _cmd_verify_commitment(args: list) -> int:
 
     v = verify_commitment(
         bundle,
+        expected_agent_id=parsed.agent_id,
+        expected_challenge_id=parsed.challenge_id,
         deadline=deadline,
         trusted_tsa_anchors=anchors,
         trusted_seal_pubkey=parsed.trust_key,
@@ -695,7 +712,7 @@ def main() -> None:
             f"  {_green('sasana evidence-pack')} <session.jsonl> [--standard S]  Auditor-ready compliance report"
         )
         print(
-            f"  {_green('sasana verify-commitment')} <bundle.json> --deadline T --tsa-anchor CERT"
+            f"  {_green('sasana verify-commitment')} <bundle.json> --agent-id A --challenge-id C --deadline T --tsa-anchor CERT"
             "  Verify a pre-outcome commitment"
         )
         print(

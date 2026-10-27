@@ -91,6 +91,10 @@ class Base(unittest.TestCase):
     def verify(self, bundle, **kw):
         kw.setdefault("deadline", DEADLINE)
         kw.setdefault("trusted_tsa_anchors", self.anchors)
+        kw.setdefault(
+            "expected_agent_id", SUBJ
+        )  # the verifier's own trusted record, never the bundle's
+        kw.setdefault("expected_challenge_id", CTX)
         return cm.verify_commitment(bundle, **kw)
 
 
@@ -550,7 +554,13 @@ class TestVerify(Base):
 
     def test_bad_deadline_and_malformed_input_never_raise(self) -> None:
         self.assertEqual(
-            cm.verify_commitment({}, deadline=DEADLINE, trusted_tsa_anchors=self.anchors).verdict,
+            cm.verify_commitment(
+                {},
+                expected_agent_id=SUBJ,
+                expected_challenge_id=CTX,
+                deadline=DEADLINE,
+                trusted_tsa_anchors=self.anchors,
+            ).verdict,
             "INVALID",
         )
         naive = DEADLINE.replace(tzinfo=None)
@@ -710,7 +720,18 @@ class TestCli(Base):
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
                 code = sasana_cli._cmd_verify_commitment(
-                    [str(bp), "--deadline", deadline, "--tsa-anchor", str(ap), *extra]
+                    [
+                        str(bp),
+                        "--agent-id",
+                        SUBJ,
+                        "--challenge-id",
+                        CTX,
+                        "--deadline",
+                        deadline,
+                        "--tsa-anchor",
+                        str(ap),
+                        *extra,
+                    ]
                 )
             return code, out.getvalue()
 
@@ -732,6 +753,10 @@ class TestCli(Base):
             sasana_cli._cmd_verify_commitment(
                 [
                     "/nonexistent.json",
+                    "--agent-id",
+                    SUBJ,
+                    "--challenge-id",
+                    CTX,
                     "--deadline",
                     "2026-06-01T12:00:00Z",
                     "--tsa-anchor",

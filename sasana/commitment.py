@@ -91,13 +91,23 @@ def _hex32(name: str, value: str) -> bytes:
     return bytes.fromhex(value)
 
 
-def validate_payload_profile(payload: Any) -> None:
+def validate_payload_profile(
+    payload: Any, number_profile: str = cmap.NUMBERS_DECIMAL_STRING
+) -> None:
     """
-    Commitment payload profile: a JSON object containing only strings, booleans, null,
-    arrays, objects, and integers within +/-2**53. Floats are rejected: encode real
-    numbers as decimal strings or scaled integers so every implementation canonicalizes
-    identically.
+    Commitment payload profile: a JSON object containing only strings, booleans, null, arrays, objects and
+    numbers. Which numbers depends on the mapping's `number_profile`:
+
+      decimal-string   (C_v1, and mappings ha-daily-v1 / v2): integers within +/-2**53 only. Floats are
+                       rejected: encode real numbers as decimal strings or scaled integers so every
+                       implementation canonicalizes identically.
+      ieee754-rfc8785  (mapping ha-daily-v3): integers within +/-2**53 and FINITE floats. The committed bytes
+                       are the RFC 8785 serialization of the IEEE-754 double: nothing is rounded or capped, and
+                       equality is at the double level (`1` and `1.0`, `0.6` and `6e-1` are one number).
     """
+    if number_profile not in (cmap.NUMBERS_DECIMAL_STRING, cmap.NUMBERS_IEEE754_RFC8785):
+        raise ValueError(f"unknown number profile {number_profile!r}")
+    lossless = number_profile == cmap.NUMBERS_IEEE754_RFC8785
     if not isinstance(payload, dict):
         raise ValueError("payload must be a JSON object (dict)")
 
@@ -111,10 +121,14 @@ def validate_payload_profile(payload: Any) -> None:
                 raise ValueError(f"{path}: integer exceeds +/-2**53")
             return
         if isinstance(v, float):
-            raise ValueError(
-                f"{path}: floats are not allowed in a commitment payload "
-                "(use a decimal string or scaled integer)"
-            )
+            if not lossless:
+                raise ValueError(
+                    f"{path}: floats are not allowed in a commitment payload "
+                    "(use a decimal string or scaled integer)"
+                )
+            if not math.isfinite(v):
+                raise ValueError(f"{path}: NaN and Infinity are not JSON numbers")
+            return
         if isinstance(v, list):
             for i, item in enumerate(v):
                 walk(item, f"{path}[{i}]")
@@ -131,9 +145,11 @@ def validate_payload_profile(payload: Any) -> None:
     walk(payload, "payload")
 
 
-def payload_hash(payload: Mapping[str, Any]) -> bytes:
+def payload_hash(
+    payload: Mapping[str, Any], *, number_profile: str = cmap.NUMBERS_DECIMAL_STRING
+) -> bytes:
     """SHA-256 of the RFC 8785 canonical form of payload (profile-checked)."""
-    validate_payload_profile(payload)
+    validate_payload_profile(payload, number_profile)
     return hashlib.sha256(jcs_canonicalize(dict(payload))).digest()
 
 
@@ -250,7 +266,7 @@ def compute_commitment_v2(
         context_id=context_id,
         revision_index=revision_index,
         prev_commitment=prev_commitment,
-        payload_hash_raw=payload_hash(payload),
+        payload_hash_raw=payload_hash(payload, number_profile=cmap.number_profile_for(mapping_id)),
         session_root=session_root,
         salt=salt,
     )
@@ -592,13 +608,27 @@ _RECEIPT_REQUIRED = (
 )
 _RECEIPT_OPTIONAL = (
     "mapping_id",
-    "payload_hash",
-)  # payload_hash: SHA-256 hex of JCS(canonical payload)
+    "ha_revision_number",  # the counterparty's own revision number (starts at 1), stated explicitly
+    "notice",  # free text, signed; the synthetic fixtures set it to SYNTHETIC_NOTICE
+)
+# `payload_hash` was an optional receipt field until this change and is now REFUSED: it is an unsalted hash of
+# a low-entropy payload (a direction and a probability), so a receipt published before the reveal would let
+# anyone test guesses against it (threat T6). A receipt names the commitment `C`, which already binds the
+# payload; nothing a receipt needs requires the payload hash.
+PAYLOAD_HASH_REFUSED = (
+    "payload_hash is not a receipt field: an unsalted hash of a low-entropy payload published before the "
+    "reveal lets anyone guess the payload (threat T6); the receipt names the commitment C, which binds it"
+)
+# Set on every receipt, closing receipt and bundle this repository generates. Receipts are a PROPOSED
+# EXTENSION: HA issues none, and a synthetic one must never read as HA-issued.
+SYNTHETIC_NOTICE = "SYNTHETIC \u2014 not HA-issued"
 
 
 def _check_receipt_body(body: Any) -> None:
     if not isinstance(body, Mapping):
         raise ValueError("receipt body must be an object")
+    if "payload_hash" in body:
+        raise ValueError(PAYLOAD_HASH_REFUSED)
     missing = [k for k in _RECEIPT_REQUIRED if k not in body]
     extra = [k for k in body if k not in _RECEIPT_REQUIRED + _RECEIPT_OPTIONAL]
     if missing or extra:
@@ -616,8 +646,12 @@ def _check_receipt_body(body: Any) -> None:
         _utf8("reason", body["reason"])
     if "mapping_id" in body:
         cmap.validate_mapping_id(body["mapping_id"])
-    if "payload_hash" in body:
-        _hex32("payload_hash", body["payload_hash"])
+    if "ha_revision_number" in body:
+        n = body["ha_revision_number"]
+        if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= _U32_MAX:
+            raise ValueError("ha_revision_number must be an integer >= 1")
+    if "notice" in body:
+        _utf8("notice", body["notice"])
 
 
 def _receipt_message(body: Mapping[str, Any]) -> bytes:
@@ -676,13 +710,14 @@ _CLOSING_REQUIRED = (
     "closed_at",
     "mapping_id",
 )
+_CLOSING_OPTIONAL = ("notice",)  # see SYNTHETIC_NOTICE
 
 
 def _check_closing_body(body: Any) -> None:
     if not isinstance(body, Mapping):
         raise ValueError("closing receipt body must be an object")
     missing = [k for k in _CLOSING_REQUIRED if k not in body]
-    extra = [k for k in body if k not in _CLOSING_REQUIRED]
+    extra = [k for k in body if k not in _CLOSING_REQUIRED + _CLOSING_OPTIONAL]
     if missing or extra:
         raise ValueError(f"closing receipt fields: missing={missing} unexpected={extra}")
     for k in ("challenge_id", "agent_id"):
@@ -701,6 +736,8 @@ def _check_closing_body(body: Any) -> None:
     _parse_when(body["closed_at"])
     if body["mapping_id"] is not None:
         cmap.validate_mapping_id(body["mapping_id"])
+    if "notice" in body:
+        _utf8("notice", body["notice"])
 
 
 def sign_closing_receipt(body: Mapping[str, Any], private_key: Any) -> dict:
@@ -779,6 +816,12 @@ def _parse_when(value: Any) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def _shown(value: Any, limit: int = 80) -> str:
+    """An untrusted identifier, escaped (repr) and truncated, for an error line."""
+    text = repr(value)
+    return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
 def _invalid(errors: list, checks: dict, warnings: list, evidence: Optional[str] = None):
     return CommitmentVerdict("INVALID", None, None, checks, warnings, errors, evidence)
 
@@ -786,6 +829,8 @@ def _invalid(errors: list, checks: dict, warnings: list, evidence: Optional[str]
 def verify_commitment(
     bundle: Mapping[str, Any],
     *,
+    expected_agent_id: str,
+    expected_challenge_id: str,
     deadline: datetime,
     trusted_tsa_anchors: Sequence[bytes],
     trusted_seal_pubkey: Optional[str] = None,
@@ -809,6 +854,8 @@ def verify_commitment(
     try:
         return _verify_commitment(
             bundle,
+            expected_agent_id=expected_agent_id,
+            expected_challenge_id=expected_challenge_id,
             deadline=deadline,
             trusted_tsa_anchors=trusted_tsa_anchors,
             trusted_seal_pubkey=trusted_seal_pubkey,
@@ -838,6 +885,7 @@ def _process_receipts(
     context_id: str,
     deadline: datetime,
     mapping_id: Optional[str],
+    mapping: Optional[cmap.PayloadMapping],
     skew: float,
     rev_results: list,
     raw_by_commit: Mapping[str, Mapping[str, Any]],
@@ -851,6 +899,8 @@ def _process_receipts(
     """
     verified: list = []
     out_of_scope = 0
+    synthetic: set = set()
+    numbering = None if mapping is None else mapping.revision_numbering
     for i, r in enumerate(receipts):
         body, err = verify_receipt(r, pubkey)
         if err is not None:
@@ -861,6 +911,27 @@ def _process_receipts(
             continue
         body["_when"] = _parse_when(body["accepted_at"])
         verified.append(body)
+        if str(body.get("notice", "")).startswith("SYNTHETIC"):
+            synthetic.add(body["notice"])
+        # The counterparty's revision number is related to revision_index only through the mapping's declared
+        # numbering, never by assumption.
+        if "ha_revision_number" in body:
+            if numbering is None:
+                errors.append(
+                    f"RECEIPT_REVISION_NUMBER_UNDEFINED:{body['revision_index']}: mapping "
+                    f"{mapping_id!r} states no relation between a revision number and revision_index"
+                )
+            elif body["ha_revision_number"] != numbering.counterparty_number(
+                body["revision_index"]
+            ):
+                errors.append(
+                    f"RECEIPT_REVISION_NUMBER_MISMATCH:{body['revision_index']}: "
+                    f"{numbering.counterparty_field} {body['ha_revision_number']} is not "
+                    f"revision_index {body['revision_index']} + "
+                    f"{numbering.counterparty_first - numbering.commitment_first}"
+                )
+        elif numbering is not None:
+            warnings.append(f"RECEIPT_REVISION_NUMBER_ABSENT:{body['revision_index']}")
 
     # one outcome per commitment, one accepted commitment per revision_index
     by_commit: dict = {}
@@ -918,23 +989,21 @@ def _process_receipts(
                 )
             if "mapping_id" in b and b["mapping_id"] != mapping_id:
                 errors.append(f"RECEIPT_MAPPING_MISMATCH: receipt says {b['mapping_id']!r}")
-            if "payload_hash" in b and b["payload_hash"] != payload_hash(raw["payload"]).hex():
-                errors.append(
-                    f"RECEIPT_PAYLOAD_MISMATCH: revision {res['revision_index']} is not what the "
-                    "counterparty recorded"
-                )
     return {
         "in_scope": len(verified),
         "out_of_scope": out_of_scope,
         "eligible": len(eligible),
         "eligible_list": ordered,
         "scored": scored,
+        "synthetic": sorted(synthetic),
     }
 
 
 def _verify_commitment(
     bundle: Mapping[str, Any],
     *,
+    expected_agent_id: str,
+    expected_challenge_id: str,
     deadline: datetime,
     trusted_tsa_anchors: Sequence[bytes],
     trusted_seal_pubkey: Optional[str] = None,
@@ -953,6 +1022,12 @@ def _verify_commitment(
     """
     Verify a reveal bundle. Never raises on bad input; returns verdict INVALID with errors.
 
+    expected_agent_id, expected_challenge_id
+                        REQUIRED, with no default. Whose bundle this is and for which challenge, taken from the
+                        verifier's own trusted record (the counterparty's side), NEVER from the bundle: an
+                        honest, fully valid bundle committed under another agent or another challenge would
+                        otherwise verify. A mismatch is INVALID with a distinct reason each (AGENT_ID_MISMATCH,
+                        CHALLENGE_ID_MISMATCH); both are reported when both differ. Compared as exact strings.
     deadline            tz-aware instant supplied by the verifier/counterparty (never read
                         from the bundle).
     trusted_tsa_anchors DER certificates the verifier pins; certificates inside tokens are
@@ -993,6 +1068,16 @@ def _verify_commitment(
         return _invalid([f"bad deadline: {exc}"], checks, warnings)
 
     # Policy preconditions: fail closed rather than silently weaken the check.
+    for name, value in (
+        ("expected_agent_id", expected_agent_id),
+        ("expected_challenge_id", expected_challenge_id),
+    ):
+        try:
+            if not isinstance(value, str) or not value:
+                raise ValueError
+            value.encode("utf-8")
+        except (ValueError, UnicodeEncodeError):
+            return _invalid([f"{name} must be a non-empty string"], checks, warnings)
     if not trusted_tsa_anchors:
         return _invalid(["no TSA trust anchors pinned"], checks, warnings)
     try:
@@ -1025,6 +1110,25 @@ def _verify_commitment(
             return _invalid(["unknown bundle_version or domain_tag"], checks, warnings)
         subject_id = bundle["subject_id"]
         context_id = bundle["context_id"]
+        identity_errors = []
+        if subject_id != expected_agent_id:
+            identity_errors.append(
+                f"AGENT_ID_MISMATCH: the bundle is for agent {_shown(subject_id)}, "
+                f"the verifier expects {_shown(expected_agent_id)}"
+            )
+        if context_id != expected_challenge_id:
+            identity_errors.append(
+                f"CHALLENGE_ID_MISMATCH: the bundle is for challenge {_shown(context_id)}, "
+                f"the verifier expects {_shown(expected_challenge_id)}"
+            )
+        if identity_errors:
+            checks["identity"] = {
+                "expected_agent_id": expected_agent_id,
+                "expected_challenge_id": expected_challenge_id,
+                "bundle_agent_id": _shown(subject_id),
+                "bundle_challenge_id": _shown(context_id),
+            }
+            return _invalid(identity_errors, checks, warnings)
         events = list(bundle["session_events"])
         raw_revisions = list(bundle["revisions"])
         capture_mode = bundle.get("capture_mode")
@@ -1062,6 +1166,8 @@ def _verify_commitment(
 
     checks["policy"] = {
         "commitment_version": version,
+        "expected_agent_id": expected_agent_id,
+        "expected_challenge_id": expected_challenge_id,
         "mapping_id": mapping_id,
         "expected_mapping_id": expected_mapping_id,
         "tsa_anchors_pinned": len(trusted_tsa_anchors),
@@ -1296,6 +1402,7 @@ def _verify_commitment(
 
     # 4b. Signed receipts and the closing receipt: which revision did the counterparty accept?
     scored = None
+    synthetic_notices: set = set()
     receipt_mode = receipts is not None or closing_receipt is not None
     closing_missing = receipts is not None and closing_receipt is None
     if receipt_mode:
@@ -1309,6 +1416,7 @@ def _verify_commitment(
                 context_id=context_id,
                 deadline=deadline,
                 mapping_id=mapping_id,
+                mapping=mapping,
                 skew=skew,
                 rev_results=rev_results,
                 raw_by_commit=raw_by_commit,
@@ -1316,6 +1424,7 @@ def _verify_commitment(
                 warnings=warnings,
             )
             scored = rc["scored"]
+            synthetic_notices.update(rc["synthetic"])
         closing_state = "missing"
         if closing_receipt is not None:
             cbody, cerr = verify_closing_receipt(closing_receipt, trusted_receipt_pubkey)  # type: ignore[arg-type]
@@ -1324,6 +1433,8 @@ def _verify_commitment(
                 closing_state = "invalid"
             else:
                 closing_state = "ok"
+                if str(cbody.get("notice", "")).startswith("SYNTHETIC"):  # type: ignore[union-attr]
+                    synthetic_notices.add(cbody["notice"])  # type: ignore[index]
                 scored = _apply_closing(
                     cbody,  # type: ignore[arg-type]
                     subject_id=subject_id,
@@ -1343,9 +1454,18 @@ def _verify_commitment(
             "out_of_scope": None if rc is None else rc["out_of_scope"],
             "eligible": None if rc is None else rc["eligible"],
             "closing_receipt": closing_state,
+            "synthetic": sorted(synthetic_notices),
             "scored_revision": None if scored is None else scored["revision_index"],
             "scored_commitment": None if scored is None else scored["commitment"],
         }
+        if synthetic_notices:
+            warnings.append(
+                "SYNTHETIC_RECEIPTS_USED: "
+                + "; ".join(sorted(synthetic_notices))
+                + ". Receipts are a "
+                "PROPOSED EXTENSION that no counterparty issues; this verdict does not rest on a "
+                "counterparty-issued receipt."
+            )
     elif v2:
         warnings.append(
             "NO_RECEIPTS: the effective revision is the highest on-time revision in the bundle; "

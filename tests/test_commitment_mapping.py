@@ -181,10 +181,13 @@ class TestMappingBehaviour(unittest.TestCase):
                 cmap.check_canonical_ha_daily_v1(bad)
 
     def test_registry(self) -> None:
-        self.assertEqual(cmap.known_mapping_ids(), (cmap.HA_DAILY_V1, cmap.HA_DAILY_V2))
-        self.assertIsNone(cmap.get_mapping("ha-daily-v3"))
+        self.assertEqual(
+            cmap.known_mapping_ids(), (cmap.HA_DAILY_V1, cmap.HA_DAILY_V2, cmap.HA_DAILY_V3)
+        )
+        self.assertIsNone(cmap.get_mapping("ha-daily-v4"))
         self.assertEqual(cmap.get_mapping(cmap.HA_DAILY_V1).superseded_by, cmap.HA_DAILY_V2)
-        self.assertIsNone(cmap.get_mapping(cmap.HA_DAILY_V2).superseded_by)
+        self.assertEqual(cmap.get_mapping(cmap.HA_DAILY_V2).superseded_by, cmap.HA_DAILY_V3)
+        self.assertIsNone(cmap.get_mapping(cmap.HA_DAILY_V3).superseded_by)
         for bad in ("", "HA", "a b", "x" * 65, None, 3):
             with self.assertRaises(ValueError):
                 cmap.validate_mapping_id(bad)

@@ -4,27 +4,29 @@
       "challenge_id": "challenge-synthetic-daily-2026-10-14",
       "agent_id": "agent-synthetic-001",
       "revision_index": 0,
-      "commitment": "fdaa03068aa230e4aec813c3457789318402cbb773179ecc045a716a188da0cf",
+      "ha_revision_number": 1,
+      "commitment": "d72bb21ce37f6f3c336aaf6db22f7bf5ca8805b27795a7c3c49a91fe148566c3",
       "accepted_at": "2026-10-14T09:00:02Z",
       "accepted": true,
       "reason": null,
-      "mapping_id": "ha-daily-v2",
-      "payload_hash": "039ddceea3889a809d3b0c33c24489fa2a7d6158680c503f151de241df024420"
+      "mapping_id": "ha-daily-v3",
+      "notice": "SYNTHETIC — not HA-issued"
     },
-    "signature": "fa94ec1e49af17e31a66e964d11158c969e1074f28b775bc33903b0567352fafd16c2a00d89908c4a3b66a8d03c418c56a7e17f95898c740ff600130f49beb00"
+    "signature": "e3a3a11072e39753a228834cede98c1125fc71feef1df3428f6c964d3116ecfb55d0c4ed912932b8f24a416dc54899f16c13a4493c0fa1b611efe13e35ff9b08"
   },
   {
     "body": {
       "challenge_id": "challenge-synthetic-daily-2026-10-14",
       "agent_id": "agent-synthetic-001",
       "revision_index": 1,
-      "commitment": "7ed2f80be29b3029a8cb10f4944437c8f1bcacaa09c971e02b351de91b0e7a3a",
+      "ha_revision_number": 2,
+      "commitment": "915f22a6b3ef7407c091d10671d49b04edd026ea7c383e3f1197fca4402062aa",
       "accepted_at": "2026-10-14T09:30:02Z",
       "accepted": true,
       "reason": null,
-      "mapping_id": "ha-daily-v2",
-      "payload_hash": "ae4580ca5983af873879f6f70e52a3afd4147d266f0f305f5924fe8e2ba0e19c"
+      "mapping_id": "ha-daily-v3",
+      "notice": "SYNTHETIC — not HA-issued"
     },
-    "signature": "e00c6da5a8c51594c0e7c773e4030970767fdd01bf06c5aa1be38f48b8727e2e2f909f02391e8065639e12aa27fba907953c0e61fd2c3696ccc182f4e616750b"
+    "signature": "b63ac2d2e7644181458c7178507cbb47950360bc40ea4940e147bdde1baa7c0442d27c133e2cbdfc0db9ac1aa987aca01db29d38e65004940e56ce0e94a0f10e"
   }
 ]

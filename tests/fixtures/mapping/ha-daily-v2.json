@@ -1,4 +1,5 @@
 {
+ "synthetic_notice": "SYNTHETIC \u2014 not HA-issued: made-up inputs for a superseded mapping, not HA data and not HA acceptance fixtures.",
  "mapping": "ha-daily-v2",
  "note": "Shared test vectors for ha-daily-v2 (default-deny: all eleven declared fields are bound). payload_hash = hex SHA-256 of the RFC 8785 form of the canonical payload. Another implementation must reproduce every canonical/payload_hash and every equivalence, distinction and rejection.",
  "declared_fields": [

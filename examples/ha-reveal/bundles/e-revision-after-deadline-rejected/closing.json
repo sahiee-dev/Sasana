@@ -4,9 +4,10 @@
     "agent_id": "agent-synthetic-001",
     "accepted_count": 1,
     "last_accepted_revision_index": 0,
-    "last_accepted_C": "fdaa03068aa230e4aec813c3457789318402cbb773179ecc045a716a188da0cf",
+    "last_accepted_C": "d72bb21ce37f6f3c336aaf6db22f7bf5ca8805b27795a7c3c49a91fe148566c3",
     "closed_at": "2026-10-14T12:01:00Z",
-    "mapping_id": "ha-daily-v2"
+    "mapping_id": "ha-daily-v3",
+    "notice": "SYNTHETIC — not HA-issued"
   },
-  "signature": "2f5abd46972720399eb66b5b6d9cadd8c7341fb29be1b1c6582e43ed0832216b9cfee73d62c51ceffc9a6ca3c47163def36e8ec303d8c7c44e5a4f58da3e610b"
+  "signature": "088495536688b083d4313a8e3e6299f59ccc5c880052582159ac64d17254ebc64af8ed5b0a63e928e79bc929773c8b8d7ddbd1da3919230aef049911d9908e06"
 }

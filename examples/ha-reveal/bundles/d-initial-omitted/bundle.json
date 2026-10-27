@@ -7,31 +7,41 @@
   "revisions": [
     {
       "revision_index": 1,
-      "prev_commitment": "fdaa03068aa230e4aec813c3457789318402cbb773179ecc045a716a188da0cf",
-      "commitment": "7ed2f80be29b3029a8cb10f4944437c8f1bcacaa09c971e02b351de91b0e7a3a",
+      "prev_commitment": "d72bb21ce37f6f3c336aaf6db22f7bf5ca8805b27795a7c3c49a91fe148566c3",
+      "commitment": "915f22a6b3ef7407c091d10671d49b04edd026ea7c383e3f1197fca4402062aa",
       "payload": {
-        "direction": "down",
-        "confidence": "0.64",
+        "direction": "bearish",
+        "confidence": 0.64,
         "probabilities": {
-          "up": "0.2",
-          "down": "0.64",
-          "flat": "0.16"
+          "bearish": 0.64,
+          "neutral": 0.16,
+          "bullish": 0.2
         },
         "prompt_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "amount": "10",
+        "amount": 10,
         "reasoning": "Synthetic example reasoning: a revision after a synthetic overnight headline.",
-        "summary": "Synthetic: down.",
+        "summary": "Synthetic: bearish.",
+        "forecast_context": {
+          "schema_version": "1",
+          "decision": "update",
+          "run_ref": "synthetic-run-1"
+        },
+        "idempotency_key": "synthetic-idem-0001",
+        "model_provider": "synthetic-gateway",
+        "model_name": "synthetic-model",
+        "model_version": "0.0.1",
         "token_usage": {
           "input": 140,
-          "output": 52
+          "output": 52,
+          "cached": 0.5
         },
         "is_revision": true,
         "trigger_event_id": "evt-synthetic-1",
         "revision_reason": "synthetic new information"
       },
-      "session_root": "d642732b8c3f2987e4795f662965117ded254008dc03e40731a0fc2c9c1b1d6a",
-      "salt": "e4f830ab0a7ff868dfa9dfc8f2fcef02427593ec67dc88e6da5303ff9fc33660",
-      "tsa_token": "MIIFWTADAgEAMIIFUAYJKoZIhvcNAQcCoIIFQTCCBT0CAQMxDzANBglghkgBZQMEAgEFADBzBgsqhkiG9w0BCRABBKBkBGIwYAIBAQYEKgMEBTAxMA0GCWCGSAFlAwQCAQUABCB+0vgL4pswKajLEPSURDfI8bysqgnJceArNR3pGw56OgICEjQYDzIwMjYxMDE0MDkzMDAwWjADAgEBAgganVxt5MfKlaCCAwMwggL/MIIB56ADAgECAhRmWSYVkT10aWyBWQtVT9qwSYaHXzANBgkqhkiG9w0BAQsFADAXMRUwEwYDVQQDDAxUZXN0IFJvb3QgQ0EwHhcNMjAwMTAxMDAwMDAwWhcNNDAwMTAxMDAwMDAwWjATMREwDwYDVQQDDAhUZXN0IFRTQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANkceysAPCTkXnTtl5MtjcZlozFOaNl3lOHzxCNSQO9GEbF0eKGNgqjRC8Pz5S2scj6nYgJmz1qY1waImP4qdpT9tMcl9kMoygPT4YE5MRQFqHanqKnWmucei2VmQT3EXzXXCi9ixYwRUMumF3HQ9h0KXOx+O6JHOPVFiATgz/i5YHDzBkI4wEAyEvnT6gcfxlulJiMJxK1C+8JrJNo8EU+eVOH+HoOjRPl8Gnz9oVvhUaDNUTfDmMuIyX3YkWtv4klhgOPqBBJLARoUU61cCL1FXjlMiVHk3wkCNvJKPDbkhY/rKwGrBhNxcRoCPiUjS308zy5u9ykcCCcVivQuXFkCAwEAAaNHMEUwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUPlPQofybI0OZ0Ac8Nh0DMHgNDOAwFgYDVR0lAQH/BAwwCgYIKwYBBQUHAwgwDQYJKoZIhvcNAQELBQADggEBADVUyl/Nx74xUncwVMYvn6qo7383COxwyGXJVTzQTGlRUxUUCSCdSTK/HCFPceeAtDATWxxceV0xDMTsr9sjSBx36lKRcAC5t+DcBHn8vkecILYBxGLsupbpxeyWqOeVGw77GE44yTHgq7KxA0jEouiWygxYP8N5wsEnFvJkfUemDpkpDFU/NuSfAj+Pk8ABIFQCvL6YKxNnUgqo5SAUQl8CX8Q+myL2rP0s++BmUs8tkKSZ6fwpX4sp/ImCd75UgzE7Ty6d5GzJjHlLhekE39cstxYvrj18Yzaf3rYGP6/AzwEXaCm7FrHuM6FPfQWRy3Q1yrDDI+vSiatnv8LMgvMxggGpMIIBpQIBATAvMBcxFTATBgNVBAMMDFRlc3QgUm9vdCBDQQIUZlkmFZE9dGlsgVkLVU/asEmGh18wDQYJYIZIAWUDBAIBBQCgTTAaBgkqhkiG9w0BCQMxDQYLKoZIhvcNAQkQAQQwLwYJKoZIhvcNAQkEMSIEIG83SuBRA4G5HhKkyDzgPvvj+KPr2X5riu9YdJuT6UAYMA0GCSqGSIb3DQEBAQUABIIBAKsbyhaMJpFP4q2RdFtyNhHvUuBJ1i2lqwYk3mAdw1ZX0LT8UciurXvBSY0s2/8+OzsRXH0PrO6aTJPQuZyEny9m9HMLdbyGS1uCjt9Dv2Djl1gUafD9gFrVnUkRlBfYGPnzYfw3wWaeewMDMbT/l30qunJ14rQl1ns2SPdhcOJOxvykoTMFX/3EO9n9w0pJ2PRjRd1I51b9EV91D3D8obw5G0xgJ1+LLRMbcU//cNRh/8oJl44CzITo+jVAI0lPeVL3nl3FfqPB3AM5HVCtjqmvuUOQU7FoN765KU5H9i+i4hpdJhZR+FpLCECrMiKfYegXxdgPcUUeiqfu6xiSmp8="
+      "session_root": "2650140b6e7aedcb425989169b52f7d262e5677eaf0e03acf87b3bec1b196a10",
+      "salt": "cf1bde4be62b1dbe885713315361c2b8731d5f3abec27ddf6a1a5330ff3d43b7",
+      "tsa_token": "MIIFWjADAgEAMIIFUQYJKoZIhvcNAQcCoIIFQjCCBT4CAQMxDzANBglghkgBZQMEAgEFADB0BgsqhkiG9w0BCRABBKBlBGMwYQIBAQYEKgMEBTAxMA0GCWCGSAFlAwQCAQUABCCRXyKms+90B8CR0QZx1JsE7dAm6nw4Pj8Rl/ykQCBiqgICEjQYDzIwMjYxMDE0MDkzMDAwWjADAgEBAgkAze9Ry/yKS72gggMDMIIC/zCCAeegAwIBAgIUR1ElsjjFoUis9ArhspoYd2DM9LkwDQYJKoZIhvcNAQELBQAwFzEVMBMGA1UEAwwMVGVzdCBSb290IENBMB4XDTIwMDEwMTAwMDAwMFoXDTQwMDEwMTAwMDAwMFowEzERMA8GA1UEAwwIVGVzdCBUU0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC5yIfypwJz7Q77egomLxM6LrsY1ttTHio7/RFFuUS7d2kQMtbj4iZGlxZSnRPlbALvNC6Nqq7pcSjcZW4QBUiv7ZffrqmlM3t6yNIc8KgvT4rOdqdhGzUDQZKJB1XciYktVEpEc/F0knROXRncpu9EcX1jAwD3JGHKKybvD9Cc635GhXcR7K89MJHmzNHX3EUrXSNOYOcq3P+JmmBjQU3zvLvUGWik8tCAcVT3SxQuRFo0yxJYYyXj7V9t85NXlmyY5A8UU2nnbYATJRFxl5kmpb8SZ8yKfQeXMIM8RHJCR7qEacQbWVJBetU9Yi/PtX4t3etty3EOig36XM+IqTjJAgMBAAGjRzBFMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFFPJnwLmeaBvkJ14W9hekAdZXyzUMBYGA1UdJQEB/wQMMAoGCCsGAQUFBwMIMA0GCSqGSIb3DQEBCwUAA4IBAQAfIeSARg0Fpk0IhwPQSG6zKxGieLa+OzELLAe5IB3Uh7Sod8IVItFXue6UE/P6Ol1LmmUecoT0yjSSe4Ix8kc6SopkkU+wW7i+qjU98CUn/7foyAbpPli6+Tx7zLCoOWxV9m5ZhpwUAuvxzy7es+HrVtlbVLJyr54w5KvR6I3VA7xvDGKg1ai/U1+Wuf0z+EprRD4l79AgG7FG8XU67R2Wd4hWnWOQ+VH+S1bWBJmqnzAJm71BlNOeXymU0okNj+SxYDl/csMPhsznnqad3hC/DlJ4Dm3oImdKDKoThROo4/EGRDWBeyytTWZmXnRPjbv7ItOtSo+OU54eM2wN70GmMYIBqTCCAaUCAQEwLzAXMRUwEwYDVQQDDAxUZXN0IFJvb3QgQ0ECFEdRJbI4xaFIrPQK4bKaGHdgzPS5MA0GCWCGSAFlAwQCAQUAoE0wGgYJKoZIhvcNAQkDMQ0GCyqGSIb3DQEJEAEEMC8GCSqGSIb3DQEJBDEiBCDVKt18aoynQCTL8sHVPCj5rwilCrzzxVL/TETu2m/tJjANBgkqhkiG9w0BAQEFAASCAQCoyMuu39WyIer5oPXYohp7acAwmSESu1N9LQLAe/PlwazQR8fCHEuxuEsGKqjx6MD7OTnkx3YRkw5FX7hf2TpSDTRQdf04DgsCf7696LxmhvnFB1AGYmLcCZOspOOSV72vUAnma5kM9CMPUmih+JhoBaU5ijbYgZAP1ujq9sUVIAcVMAU3D27es/3JsEzVD9mXXcYHYfD4bwgLITjDr3rSRWwGfxDj7G1vRJiweJH/wNMGJCtVk72UpG271yWjGHISCQJV2eWZJXweLDlhSuzqoBF6Jla7Ap2K/e2orliJnO2HtE5RS9VOMiwR2vld/+c+AKUmZw5MQ+VFnpBeyHAR"
     }
   ],
   "session_events": [
@@ -39,75 +49,76 @@
       "seq": 1,
       "event_type": "SESSION_START",
       "session_id": "sess-ha-synthetic",
-      "timestamp": "2026-10-11T15:20:39.942979Z",
+      "timestamp": "2026-10-27T04:28:12.469436Z",
       "payload": {
         "agent_id": "agent-synthetic-001",
         "canonicalization": "jcs-rfc8785"
       },
       "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-      "event_hash": "77b5414411c087b4f347f5138dbd781105cd8c4d16433a2e6e26ac46337d88c3"
+      "event_hash": "136ba5c18684ac98086a4516301eca2a9c1c4f278c405ad536670c967dd9b6e6"
     },
     {
       "seq": 2,
       "event_type": "LLM_CALL",
       "session_id": "sess-ha-synthetic",
-      "timestamp": "2026-10-11T15:20:39.943615Z",
+      "timestamp": "2026-10-27T04:28:12.470204Z",
       "payload": {
         "prompt_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       },
-      "prev_hash": "77b5414411c087b4f347f5138dbd781105cd8c4d16433a2e6e26ac46337d88c3",
-      "event_hash": "630bfb7ca881643b24c78fffd5e18683e2b9692d97fd0bbb6fbdfcb2720ac662"
+      "prev_hash": "136ba5c18684ac98086a4516301eca2a9c1c4f278c405ad536670c967dd9b6e6",
+      "event_hash": "56935d092d1c5afedc69ea7a1da68ec35fff8883099d672238e54ca5ff77d1b3"
     },
     {
       "seq": 3,
       "event_type": "TOOL_CALL",
       "session_id": "sess-ha-synthetic",
-      "timestamp": "2026-10-11T15:20:39.943749Z",
+      "timestamp": "2026-10-27T04:28:12.470329Z",
       "payload": {
         "tool_name": "search",
         "args_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
       },
-      "prev_hash": "630bfb7ca881643b24c78fffd5e18683e2b9692d97fd0bbb6fbdfcb2720ac662",
-      "event_hash": "6a99c520bf33cd4153c1cca65de9d97414ef1e917d9d976549ce2623e13970d2"
+      "prev_hash": "56935d092d1c5afedc69ea7a1da68ec35fff8883099d672238e54ca5ff77d1b3",
+      "event_hash": "abb99a5c32d4ee25de5b9ea1f8c2fc49f5c4c5dba140e46111d78e242f554698"
     },
     {
       "seq": 4,
       "event_type": "LLM_CALL",
       "session_id": "sess-ha-synthetic",
-      "timestamp": "2026-10-11T15:20:39.943868Z",
+      "timestamp": "2026-10-27T04:28:12.470463Z",
       "payload": {
         "prompt_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       },
-      "prev_hash": "6a99c520bf33cd4153c1cca65de9d97414ef1e917d9d976549ce2623e13970d2",
-      "event_hash": "d642732b8c3f2987e4795f662965117ded254008dc03e40731a0fc2c9c1b1d6a"
+      "prev_hash": "abb99a5c32d4ee25de5b9ea1f8c2fc49f5c4c5dba140e46111d78e242f554698",
+      "event_hash": "2650140b6e7aedcb425989169b52f7d262e5677eaf0e03acf87b3bec1b196a10"
     },
     {
       "seq": 5,
       "event_type": "SESSION_END",
       "session_id": "sess-ha-synthetic",
-      "timestamp": "2026-10-11T15:20:39.943981Z",
+      "timestamp": "2026-10-27T04:28:12.470586Z",
       "payload": {
         "status": "success"
       },
-      "prev_hash": "d642732b8c3f2987e4795f662965117ded254008dc03e40731a0fc2c9c1b1d6a",
-      "event_hash": "e4dee69915de355aa6c2c6f91a9b2c460aa20bf741d37977f8b4e91f84fab3dd"
+      "prev_hash": "2650140b6e7aedcb425989169b52f7d262e5677eaf0e03acf87b3bec1b196a10",
+      "event_hash": "6ccc4666d5ac0758715a5f5993bc7ae2ec93003e5ce25839bca552c9e8dc791b"
     },
     {
       "seq": 6,
       "event_type": "CHAIN_SEAL",
       "session_id": "sess-ha-synthetic",
-      "timestamp": "2026-10-11T15:20:39.946601Z",
+      "timestamp": "2026-10-27T04:28:12.473387Z",
       "payload": {
-        "session_hash": "e4dee69915de355aa6c2c6f91a9b2c460aa20bf741d37977f8b4e91f84fab3dd",
+        "session_hash": "6ccc4666d5ac0758715a5f5993bc7ae2ec93003e5ce25839bca552c9e8dc791b",
         "sealed_by": "archeion",
-        "server_pubkey": "YwXvXg1escPTDEjZvX+q2kJI+iJt6CMRCHOf3+U8KwA=",
+        "server_pubkey": "zUMHk2t1liZC4AHShxhpLpN1fA8OF8Z7o2i6QCz0mkA=",
         "timestamp_imprint_match": false
       },
-      "prev_hash": "e4dee69915de355aa6c2c6f91a9b2c460aa20bf741d37977f8b4e91f84fab3dd",
-      "event_hash": "73907a1abc6b3a1e95c24687a07d86c547b6d0bb7ef097d59b835c05b9f3a610",
-      "signature": "dKHRJsPvEDBV+X42llSs5jUvd7xdk1v0OkbKSkgr1UJH7NHrVsbpnOSKUaKtyzjO71tiDejT2SnqH0kDAzuXCA=="
+      "prev_hash": "6ccc4666d5ac0758715a5f5993bc7ae2ec93003e5ce25839bca552c9e8dc791b",
+      "event_hash": "ef7c0df54c7bb8247a7f53c4ce47a94bad7455346576ae641bf04e63014fadde",
+      "signature": "dJttL5Izd3ZUdTmisTIayMj/1H5xVjMJUg1m4ZfxI2sGl+yoivLfXcjR1ZFPa+d3NNaTJecx7LV3JBYdfYvFBA=="
     }
   ],
   "disclosures": [],
-  "mapping_id": "ha-daily-v2"
+  "mapping_id": "ha-daily-v3",
+  "synthetic_notice": "SYNTHETIC — not HA-issued"
 }

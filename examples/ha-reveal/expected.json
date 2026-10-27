@@ -1,4 +1,5 @@
 {
+  "_notice": "SYNTHETIC — not HA-issued",
   "a-initial-only": {
     "verdict": "VALID_ON_TIME",
     "effective_revision": 0,
@@ -62,7 +63,7 @@
     "verdict": "INVALID",
     "effective_revision": null,
     "exit": 1,
-    "contains": "is not the required 'ha-daily-v2'"
+    "contains": "is not the required 'ha-daily-v3'"
   },
   "h-never-revealed": {
     "verdict": "UNREVEALED",
@@ -97,5 +98,57 @@
     "effective_revision": null,
     "exit": 1,
     "contains": "CLOSING_RECEIPT_INVALID"
+  },
+  "m-wrong-agent": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "AGENT_ID_MISMATCH",
+    "not_contains": [
+      "CHALLENGE_ID_MISMATCH"
+    ]
+  },
+  "n-wrong-challenge": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "CHALLENGE_ID_MISMATCH",
+    "not_contains": [
+      "AGENT_ID_MISMATCH"
+    ]
+  },
+  "o-wrong-revision-index": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "commitment does not match revealed payload/root/salt"
+  },
+  "p-corrupted-seal": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "session trace failed verification"
+  },
+  "q-duplicate-revisions": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "duplicate revision_index in bundle"
+  },
+  "r-reordered-revisions": {
+    "verdict": "VALID_ON_TIME",
+    "effective_revision": 1,
+    "exit": 0
+  },
+  "s-unstaked-full-vector": {
+    "verdict": "VALID_ON_TIME",
+    "effective_revision": 0,
+    "exit": 0
+  },
+  "t-receipt-revision-number-off-by-one": {
+    "verdict": "INVALID",
+    "effective_revision": null,
+    "exit": 1,
+    "contains": "RECEIPT_REVISION_NUMBER_MISMATCH"
   }
 }

@@ -70,6 +70,10 @@ class TestEverySubcommandRefusesGuesses(unittest.TestCase):
             base = [
                 "verify-commitment",
                 str(b),
+                "--agent-id",
+                "a",
+                "--challenge-id",
+                "c",
                 "--deadline",
                 "2026-01-01T00:00:00Z",
                 "--tsa-anchor",

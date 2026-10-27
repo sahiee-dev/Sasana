@@ -31,6 +31,12 @@ def run_one(name: str, trust: dict, extra: list, dirname: str = "") -> dict:
         "sasana_cli",
         "verify-commitment",
         str(d / "bundle.json"),
+        "--agent-id",
+        trust[
+            "subject_id"
+        ],  # the verifier's own record of whose bundle this is, never the bundle's
+        "--challenge-id",
+        trust["context_id"],
         "--deadline",
         trust["deadline"],
         "--tsa-anchor",
@@ -65,7 +71,9 @@ def main() -> int:
     args = ap.parse_args()
     trust = json.loads((HERE / "trust" / "trust.json").read_text())
     expected = json.loads((HERE / "expected.json").read_text())
-    names = [n for n in sorted(expected) if not args.only or n in args.only]
+    names = [
+        n for n in sorted(expected) if not n.startswith("_") and (not args.only or n in args.only)
+    ]
 
     rows, all_ok = [], True
     for name in names:
@@ -78,6 +86,7 @@ def main() -> int:
             and data.get("effective_revision") == exp["effective_revision"]
             and got["exit"] == exp["exit"]
             and exp.get("contains", "") in text
+            and not any(bad in text for bad in exp.get("not_contains", []))
             and data.get("lenient", []) == exp.get("lenient", [])
         )
         all_ok &= ok

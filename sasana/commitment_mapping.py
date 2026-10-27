@@ -7,9 +7,17 @@ the submission a counterparty accepts to the canonical payload that goes inside 
 match cannot hide a change in meaning. The mapping id is bound INSIDE C (commitment v2), so the same
 payload hashed under a different mapping is a different commitment.
 
-Mapping `ha-daily-v2` (current) covers the daily-market directional family only and is DEFAULT-DENY: it
+Mapping `ha-daily-v3` (current) covers the LEGACY daily directional route only (POST
+/api/v1/eval/challenges/{challenge_id}/predict), not the canonical /api/v1/agent/ha/predict contract and not
+numeric price-event predictions (HA-4). It is DEFAULT-DENY over all seventeen properties of the route's
+published request schema (OpenAPI 2.2.9, see docs/pre-outcome-commitment.md Appendix A), keeps an omitted field,
+a null field and a present field distinct, and carries numbers as JSON numbers with RFC 8785 serialization
+(no rounding and no fractional cap; equality is at the IEEE-754 double level). `ha-daily-v2` is SUPERSEDED by it.
+
+Mapping `ha-daily-v2` covers the daily-market directional family only and is DEFAULT-DENY: it
 binds every field the counterparty's daily schema declares, and a field may be left out only by an entry in
-EXCLUDED_FIELDS_V2 that carries a written reason (currently there are none). `ha-daily-v1` is SUPERSEDED: it
+EXCLUDED_FIELDS_V2 that carries a written reason (currently there are none). It binds eleven fields, not the
+seventeen the route now declares, and caps fractional precision at twelve places (HA-4), hence v3. `ha-daily-v1` is SUPERSEDED: it
 bound seven of the eleven fields (so a change to `amount` or `trigger_event_id` was not detected) and accepted
 two shapes for `probabilities`. It stays registered so archived v1 bundles verify, with a warning.
 The text below describes the shared number rules; the v1 specifics follow in its own section.
@@ -40,8 +48,19 @@ import re
 from decimal import Decimal
 from typing import Any, Callable, Mapping, Optional, Sequence
 
+from sasana.jcs import canonicalize
+
 HA_DAILY_V1 = "ha-daily-v1"  # SUPERSEDED by ha-daily-v2
-HA_DAILY_V2 = "ha-daily-v2"
+HA_DAILY_V2 = "ha-daily-v2"  # SUPERSEDED by ha-daily-v3
+HA_DAILY_V3 = "ha-daily-v3"
+
+# How a mapping spells numbers inside the committed payload (the payload profile of sasana.commitment).
+NUMBERS_DECIMAL_STRING = (
+    "decimal-string"  # v1, v2: reals are decimal STRINGS, at most 12 fractional digits
+)
+NUMBERS_IEEE754_RFC8785 = (
+    "ieee754-rfc8785"  # v3: JSON numbers, RFC 8785 serialization, no cap, no rounding
+)
 
 # Fields of a daily-market submission that the mapping binds into C.
 BOUND_FIELDS = (
@@ -413,6 +432,295 @@ def _typed(v: Any) -> Any:
     return (type(v).__name__, v)
 
 
+# --------------------------------------------------------------------------- #
+# ha-daily-v3: the legacy daily directional route, all declared fields, lossless numbers  #
+# --------------------------------------------------------------------------- #
+#
+# SCOPE. This is a mapping for ONE route: the legacy financial REST route
+# POST /api/v1/eval/challenges/{challenge_id}/predict. It is NOT a mapping for the canonical
+# /api/v1/agent/ha/predict contract (that request is `challenge_id` plus a nested `prediction` matching the
+# discovered prediction_schema, and `prompt_hash` and `token_usage` are not declared canonical request fields),
+# and not for numeric price-event predictions (HA-4). An endpoint appearing in the OpenAPI document is not
+# evidence that its feature gate is enabled (HA-4); nothing here asserts that any route is live.
+#
+# FIELDS. The seventeen properties of that route's request body (OpenAPI 2.2.9, retrieved 2026-10-27; the
+# test suite pins this tuple to the excerpt in docs/sources/). The mapping is DEFAULT-DENY: a field outside
+# the tuple is rejected, and every field in it is bound.
+DECLARED_FIELDS_V3 = (
+    "direction",
+    "confidence",
+    "probabilities",
+    "prompt_hash",
+    "amount",
+    "reasoning",
+    "summary",
+    "forecast_context",
+    "expected_revision",
+    "idempotency_key",
+    "model_provider",
+    "model_name",
+    "model_version",
+    "token_usage",
+    "is_revision",
+    "trigger_event_id",
+    "revision_reason",
+)
+EXCLUDED_FIELDS_V3: Mapping[str, str] = {}  # empty on purpose: see EXCLUDED_FIELDS_V2
+BOUND_FIELDS_V3 = tuple(f for f in DECLARED_FIELDS_V3 if f not in EXCLUDED_FIELDS_V3)
+
+_MAX_SAFE_INT = 2**53
+PROBABILITY_LABELS_V3 = (
+    "bearish",
+    "neutral",
+    "bullish",
+)  # HA-4: "exactly bearish, neutral and bullish"
+_MAX_JSON_DEPTH = 64  # nesting limit for the free-form objects (a recursion guard, not an HA rule)
+_CONFIDENCE_TOLERANCE = Decimal(
+    "0.000001"
+)  # for the argmax/maximum cross-check; HA's tolerance is not stated
+
+
+@dataclasses.dataclass(frozen=True)
+class RevisionNumbering:
+    """
+    The EXPLICIT relation between a counterparty's revision numbers and a commitment's `revision_index`.
+    HA's own-prediction readback numbers revisions from 1 (`revision_number`); a commitment's index starts at 0
+    (HA-4). A verifier that compares the two must go through this object; it never assumes they are equal.
+    """
+
+    counterparty_field: str
+    counterparty_first: int
+    commitment_first: int
+
+    def counterparty_number(self, revision_index: int) -> int:
+        return revision_index - self.commitment_first + self.counterparty_first
+
+    def commitment_index(self, counterparty_number: int) -> int:
+        return counterparty_number - self.counterparty_first + self.commitment_first
+
+
+# revision_number starts at 1; revision_index starts at 0, so revision_number = revision_index + 1 (HA-4).
+HA_REVISION_NUMBERING = RevisionNumbering(
+    counterparty_field="revision_number", counterparty_first=1, commitment_first=0
+)
+
+
+def _number_v3(value: Any, field: str) -> Any:
+    """
+    A JSON number under the v3 number rule: an int or a finite float, kept as given. NOT rounded and not
+    length-capped. The committed bytes are the RFC 8785 serialization of the IEEE-754 double, so two spellings of
+    one double (`0.6`, `0.60`, `6e-1`; `1` and `1.0`) are the same number, and two decimals that round to one
+    double are the same number too. An integer beyond +/-2**53 is REJECTED: a double cannot hold it, so
+    accepting it would round it, and the mapping never rounds. Booleans and numeric strings are not numbers.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise MappingError(f"{field}: expected a JSON number, got {type(value).__name__}")
+    if isinstance(value, int):
+        if abs(value) > _MAX_SAFE_INT:
+            raise MappingError(
+                f"{field}: integer beyond +/-2**53 is not a unique IEEE-754 double (the mapping never rounds)"
+            )
+        return value
+    if not math.isfinite(value):
+        raise MappingError(f"{field}: NaN and Infinity are not JSON numbers")
+    return value
+
+
+def _json_value_v3(value: Any, field: str, depth: int = 0) -> Any:
+    """Any JSON value, validated recursively (numbers by the v3 rule, strings as UTF-8). Returns a copy."""
+    if depth > _MAX_JSON_DEPTH:
+        raise MappingError(f"{field}: nested deeper than {_MAX_JSON_DEPTH} levels")
+    if value is None or isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return _text(field, value, nullable=False)
+    if isinstance(value, (int, float)):
+        return _number_v3(value, field)
+    if isinstance(value, (list, tuple)):
+        return [_json_value_v3(v, f"{field}[{i}]", depth + 1) for i, v in enumerate(value)]
+    if isinstance(value, Mapping):
+        out = {}
+        for k, v in value.items():
+            if not isinstance(k, str):
+                raise MappingError(f"{field}: object keys must be strings")
+            out[_text(f"{field} key", k, nullable=False)] = _json_value_v3(
+                v, f"{field}.{k}", depth + 1
+            )
+        return out
+    raise MappingError(f"{field}: {type(value).__name__} is not a JSON value")
+
+
+def _object_or_null_v3(field: str, value: Any) -> Any:
+    """`token_usage` and `forecast_context`: an arbitrary JSON object, or null. No value restriction (HA-4)."""
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise MappingError(f"{field}: expected an object or null")
+    return _json_value_v3(value, field)
+
+
+def _probabilities_v3(value: Any) -> Any:
+    """
+    null, or an object with EXACTLY the keys bearish, neutral and bullish, each a JSON number. Any other label
+    set (fewer, more, renamed, different case), an array, or a non-number value is REJECTED. Whether the values are
+    non-negative and sum to 1 is HA's rule, not the commitment's: see `payload_warnings_v3`.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise MappingError(
+            "probabilities: expected an object with exactly the keys bearish, neutral, bullish (or null)"
+        )
+    if set(value) != set(PROBABILITY_LABELS_V3):
+        got = sorted(repr(k) for k in value)
+        raise MappingError(
+            f"probabilities: the keys must be exactly {list(PROBABILITY_LABELS_V3)}, got {got}"
+        )
+    return {k: _number_v3(value[k], f"probabilities[{k!r}]") for k in PROBABILITY_LABELS_V3}
+
+
+def _amount_v3(value: Any) -> Any:
+    """Omitted (the caller never gets here), null, or a number strictly greater than zero. Zero is rejected."""
+    if value is None:
+        return None
+    n = _number_v3(value, "amount")
+    if not n > 0:
+        raise MappingError(
+            "amount: must be strictly greater than zero (zero is not an unstaked submission)"
+        )
+    return n
+
+
+def _expected_revision_v3(value: Any) -> Any:
+    """null, or an integer >= 1 in HA's numbering (a whole-valued float such as 2.0 is the integer 2)."""
+    if value is None:
+        return None
+    n = _number_v3(value, "expected_revision")
+    if isinstance(n, float):
+        if not n.is_integer():
+            raise MappingError("expected_revision: expected an integer")
+        n = int(n)
+    if n < 1:
+        raise MappingError("expected_revision: must be >= 1 (HA's revision numbers start at 1)")
+    return n
+
+
+def map_ha_daily_v3(submission: Mapping[str, Any]) -> MappedPayload:
+    """
+    Map a legacy-route daily submission to the canonical payload committed under `ha-daily-v3` (DEFAULT-DENY).
+
+    Omitted, null and present are three different states and stay three different states: a field that is not
+    supplied is not in the payload, a field supplied as null is `null`, and a present value is bound as is. The
+    mapping never invents a default (not even for `is_revision`, whose schema default is false), never rounds,
+    and does not validate the forecast (see `payload_warnings_v3`, which only warns). Every declared field may be
+    null except `is_revision`, because the schema declares each of the others nullable (OpenAPI 2.2.9).
+    """
+    if not isinstance(submission, Mapping):
+        raise MappingError("submission must be an object")
+    unknown = [k for k in submission if k not in DECLARED_FIELDS_V3]
+    if unknown:
+        raise MappingError(
+            f"unknown field(s) not covered by {HA_DAILY_V3}: {sorted(repr(k) for k in unknown)}"
+        )
+    out: dict = {}
+    for name in DECLARED_FIELDS_V3:
+        if name not in submission:
+            continue
+        v = submission[name]
+        if name in EXCLUDED_FIELDS_V3:
+            continue
+        if name in (
+            "direction",
+            "reasoning",
+            "summary",
+            "trigger_event_id",
+            "revision_reason",
+            "idempotency_key",
+            "model_provider",
+            "model_name",
+            "model_version",
+        ):
+            out[name] = _text(name, v, nullable=True)
+        elif name == "confidence":
+            out[name] = None if v is None else _number_v3(v, name)
+        elif name == "probabilities":
+            out[name] = _probabilities_v3(v)
+        elif name == "prompt_hash":
+            out[name] = _prompt_hash_v2(v)
+        elif name == "amount":
+            out[name] = _amount_v3(v)
+        elif name in ("forecast_context", "token_usage"):
+            out[name] = _object_or_null_v3(name, v)
+        elif name == "expected_revision":
+            out[name] = _expected_revision_v3(v)
+        elif name == "is_revision":
+            if not isinstance(v, bool):
+                raise MappingError("is_revision: expected a boolean")
+            out[name] = v
+    return MappedPayload(out, tuple(n for n in EXCLUDED_FIELDS_V3 if n in submission))
+
+
+def check_canonical_ha_daily_v3(payload: Mapping[str, Any]) -> None:
+    """
+    Raise MappingError unless `payload` is exactly what map_ha_daily_v3 would emit for itself. Equality is on the
+    RFC 8785 bytes, so `1` and `1.0`, or `0.6` and `6e-1`, are the same payload (equality at the double level).
+    """
+    if not isinstance(payload, Mapping):
+        raise MappingError("payload must be an object")
+    extra = [k for k in payload if k not in BOUND_FIELDS_V3]
+    if extra:
+        raise MappingError(
+            f"payload carries field(s) {HA_DAILY_V3} does not bind: {sorted(repr(k) for k in extra)}"
+        )
+    mapped = map_ha_daily_v3(payload).payload
+    if canonicalize(mapped) != canonicalize(dict(payload)):
+        for name in payload:
+            if canonicalize(mapped.get(name)) != canonicalize(payload[name]):
+                raise MappingError(f"payload is not in canonical {HA_DAILY_V3} form at {name!r}")
+        raise MappingError(f"payload is not in canonical {HA_DAILY_V3} form")
+
+
+def _dec(v: Any) -> Decimal:
+    """The exact decimal of a number's shortest round-trip spelling (so 0.6 + 0.3 + 0.1 sums to exactly 1)."""
+    return Decimal(repr(v)) if isinstance(v, float) else Decimal(v)
+
+
+def payload_warnings_v3(payload: Mapping[str, Any]) -> list:
+    """
+    Warnings only; the commitment does not validate forecasts. Every rule here is a rule of the route's schema
+    that the mapping deliberately does not enforce, so a forecast HA scored can always be committed:
+
+      PROBABILITY_NEGATIVE            an entry is below zero
+      PROBABILITY_SUM:<sum>           |sum - 1| > 1e-6
+      DIRECTION_ARGMAX_MISMATCH:<d>   `direction` is present next to `probabilities` and is not the argmax
+      CONFIDENCE_MAX_MISMATCH:<c>     `confidence` is present next to `probabilities` and is not the maximum
+      MODEL_PROVIDER_NAME_NOT_PAIRED  only one of model_provider / model_name is present ("must be sent together")
+    """
+    warnings: list = []
+    probs = payload.get("probabilities")
+    if isinstance(probs, Mapping) and probs:
+        values = {k: _dec(v) for k, v in probs.items()}
+        if any(v < 0 for v in values.values()):
+            warnings.append("PROBABILITY_NEGATIVE")
+        total = sum(values.values(), Decimal(0))
+        if abs(total - 1) > PROBABILITY_SUM_TOLERANCE:
+            warnings.append(f"PROBABILITY_SUM:{format(total.normalize(_CTX), 'f')}")
+        top = max(values.values())
+        direction, confidence = payload.get("direction"), payload.get("confidence")
+        if isinstance(direction, str) and values.get(direction) != top:
+            warnings.append(f"DIRECTION_ARGMAX_MISMATCH:{direction}")
+        if (
+            isinstance(confidence, (int, float))
+            and abs(_dec(confidence) - top) > _CONFIDENCE_TOLERANCE
+        ):
+            warnings.append(
+                f"CONFIDENCE_MAX_MISMATCH:{format(_dec(confidence).normalize(_CTX), 'f')}"
+            )
+    if (payload.get("model_provider") is not None) != (payload.get("model_name") is not None):
+        warnings.append("MODEL_PROVIDER_NAME_NOT_PAIRED")
+    return warnings
+
+
 @dataclasses.dataclass(frozen=True)
 class PayloadMapping:
     mapping_id: str
@@ -422,6 +730,8 @@ class PayloadMapping:
     superseded_by: Optional[str] = (
         None  # set => verifiable, but new commitments should use the successor
     )
+    number_profile: str = NUMBERS_DECIMAL_STRING  # how the committed payload spells numbers
+    revision_numbering: Optional[RevisionNumbering] = None  # None => the mapping states no relation
 
 
 MAPPINGS: Mapping[str, PayloadMapping] = {
@@ -433,13 +743,31 @@ MAPPINGS: Mapping[str, PayloadMapping] = {
         superseded_by=HA_DAILY_V2,
     ),
     HA_DAILY_V2: PayloadMapping(
-        HA_DAILY_V2, map_ha_daily_v2, check_canonical_ha_daily_v2, probability_warnings
+        HA_DAILY_V2,
+        map_ha_daily_v2,
+        check_canonical_ha_daily_v2,
+        probability_warnings,
+        superseded_by=HA_DAILY_V3,
+    ),
+    HA_DAILY_V3: PayloadMapping(
+        HA_DAILY_V3,
+        map_ha_daily_v3,
+        check_canonical_ha_daily_v3,
+        payload_warnings_v3,
+        number_profile=NUMBERS_IEEE754_RFC8785,
+        revision_numbering=HA_REVISION_NUMBERING,
     ),
 }
 
 
 def get_mapping(mapping_id: str) -> Optional[PayloadMapping]:
     return MAPPINGS.get(mapping_id)
+
+
+def number_profile_for(mapping_id: Any) -> str:
+    """The number profile a mapping commits under; an unknown or absent mapping gets the strict default."""
+    m = MAPPINGS.get(mapping_id) if isinstance(mapping_id, str) else None
+    return m.number_profile if m is not None else NUMBERS_DECIMAL_STRING
 
 
 def known_mapping_ids() -> Sequence[str]:

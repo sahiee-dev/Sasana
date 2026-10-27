@@ -7,5 +7,6 @@
   "revisions": [],
   "session_events": [],
   "disclosures": [],
-  "mapping_id": "ha-daily-v2"
+  "mapping_id": "ha-daily-v3",
+  "synthetic_notice": "SYNTHETIC — not HA-issued"
 }
